@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */; };
+		AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		AE4B177D2D347EA500B8DB25 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,17 +26,73 @@
 			remoteGlobalIDString = AE4B176B2D347EA300B8DB25;
 			remoteInfo = PPTAMinimal;
 		};
+		AE4B17A62D347EF100B8DB25 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AE4B17642D347EA300B8DB25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AE4B179C2D347EF100B8DB25;
+			remoteInfo = AppMonitor;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AE4B17AD2D347EF100B8DB25 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE4B17CD2D34869800B8DB25 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		AE4B176C2D347EA300B8DB25 /* PPTAMinimal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PPTAMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B177C2D347EA500B8DB25 /* PPTAMinimalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceActivity.framework; path = System/Library/Frameworks/DeviceActivity.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Managers/DeviceActivityManager.swift,
+				Managers/NotificationManager.swift,
+				Managers/UserSettingsManager.swift,
+				Models/UserSettings.swift,
+			);
+			target = AE4B179C2D347EF100B8DB25 /* AppMonitor */;
+		};
+		AE4B17F22D34B64C00B8DB25 /* Exceptions for "AppMonitor" folder in "AppMonitor" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AE4B179C2D347EF100B8DB25 /* AppMonitor */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AE4B176E2D347EA300B8DB25 /* PPTAMinimal */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */,
+			);
 			path = PPTAMinimal;
 			sourceTree = "<group>";
 		};
@@ -43,6 +104,14 @@
 		AE4B17892D347EA500B8DB25 /* PPTAMinimalUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = PPTAMinimalUITests;
+			sourceTree = "<group>";
+		};
+		AE4B17A12D347EF100B8DB25 /* AppMonitor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AE4B17F22D34B64C00B8DB25 /* Exceptions for "AppMonitor" folder in "AppMonitor" target */,
+			);
+			path = AppMonitor;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +138,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AE4B179A2D347EF100B8DB25 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +155,8 @@
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
 				AE4B177F2D347EA500B8DB25 /* PPTAMinimalTests */,
 				AE4B17892D347EA500B8DB25 /* PPTAMinimalUITests */,
+				AE4B17A12D347EF100B8DB25 /* AppMonitor */,
+				AE4B179E2D347EF100B8DB25 /* Frameworks */,
 				AE4B176D2D347EA300B8DB25 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +167,17 @@
 				AE4B176C2D347EA300B8DB25 /* PPTAMinimal.app */,
 				AE4B177C2D347EA500B8DB25 /* PPTAMinimalTests.xctest */,
 				AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */,
+				AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		AE4B179E2D347EF100B8DB25 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +190,13 @@
 				AE4B17682D347EA300B8DB25 /* Sources */,
 				AE4B17692D347EA300B8DB25 /* Frameworks */,
 				AE4B176A2D347EA300B8DB25 /* Resources */,
+				AE4B17AD2D347EF100B8DB25 /* Embed Foundation Extensions */,
+				AE4B17CD2D34869800B8DB25 /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AE4B17A72D347EF100B8DB25 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
@@ -163,6 +254,28 @@
 			productReference = AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		AE4B179C2D347EF100B8DB25 /* AppMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE4B17AA2D347EF100B8DB25 /* Build configuration list for PBXNativeTarget "AppMonitor" */;
+			buildPhases = (
+				AE4B17992D347EF100B8DB25 /* Sources */,
+				AE4B179A2D347EF100B8DB25 /* Frameworks */,
+				AE4B179B2D347EF100B8DB25 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AE4B17A12D347EF100B8DB25 /* AppMonitor */,
+			);
+			name = AppMonitor;
+			packageProductDependencies = (
+			);
+			productName = AppMonitor;
+			productReference = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +297,9 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = AE4B176B2D347EA300B8DB25;
 					};
+					AE4B179C2D347EF100B8DB25 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 				};
 			};
 			buildConfigurationList = AE4B17672D347EA300B8DB25 /* Build configuration list for PBXProject "PPTAMinimal" */;
@@ -203,6 +319,7 @@
 				AE4B176B2D347EA300B8DB25 /* PPTAMinimal */,
 				AE4B177B2D347EA500B8DB25 /* PPTAMinimalTests */,
 				AE4B17852D347EA500B8DB25 /* PPTAMinimalUITests */,
+				AE4B179C2D347EF100B8DB25 /* AppMonitor */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +340,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AE4B17842D347EA500B8DB25 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE4B179B2D347EF100B8DB25 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +377,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AE4B17992D347EF100B8DB25 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +396,11 @@
 			isa = PBXTargetDependency;
 			target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
 			targetProxy = AE4B17872D347EA500B8DB25 /* PBXContainerItemProxy */;
+		};
+		AE4B17A72D347EF100B8DB25 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AE4B179C2D347EF100B8DB25 /* AppMonitor */;
+			targetProxy = AE4B17A62D347EF100B8DB25 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -393,17 +529,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PPTAMinimal/PPTAMinimal.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PPTAMinimal/Preview Content\"";
 				DEVELOPMENT_TEAM = FTF69APMQ4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "We need access to the user's contacts in order to select peer coaches";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -422,17 +561,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PPTAMinimal/PPTAMinimal.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PPTAMinimal/Preview Content\"";
 				DEVELOPMENT_TEAM = FTF69APMQ4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "We need access to the user's contacts in order to select peer coaches";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -518,6 +660,60 @@
 			};
 			name = Release;
 		};
+		AE4B17AB2D347EF100B8DB25 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AppMonitor/AppMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppMonitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AppMonitor;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.AppMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AE4B17AC2D347EF100B8DB25 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AppMonitor/AppMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppMonitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AppMonitor;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.AppMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -553,6 +749,15 @@
 			buildConfigurations = (
 				AE4B17972D347EA500B8DB25 /* Debug */,
 				AE4B17982D347EA500B8DB25 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AE4B17AA2D347EF100B8DB25 /* Build configuration list for PBXNativeTarget "AppMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE4B17AB2D347EF100B8DB25 /* Debug */,
+				AE4B17AC2D347EF100B8DB25 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
