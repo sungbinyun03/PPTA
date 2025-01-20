@@ -1,2 +1,28 @@
-GoogleService-Info.plist
+# Ignore macOS system files
+PPTAMinimal/.DS_Store
+
+# Ignore the GoogleService-Info.plist file in the PPTAMinimal directory
+PPTAMinimal/GoogleService-Info.plist
+
+# Ignore all `.log` files
+*.log
+
+# Ignore a specific file
+secrets.txt
+
+# Ignore everything in a directory
+node_modules/
+
+# Ignore specific file types in a folder
+logs/*.txt
+
+# Ignore specific folders or files
+build/
+dist/
 .DS_Store
+
+# Ignore a file except for a specific one
+!important.log
+
+# Ignore all files starting with "temp"
+temp*
