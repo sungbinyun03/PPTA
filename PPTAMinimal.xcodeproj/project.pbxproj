@@ -12,6 +12,7 @@
 		8AE0926C2D3EE8DB00F1EA5A /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE0926B2D3EE8DB00F1EA5A /* FirebaseStorage */; };
 		8AE092762D3EFAAB00F1EA5A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE092752D3EFAAB00F1EA5A /* GoogleSignIn */; };
 		8AE092782D3EFAAB00F1EA5A /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE092772D3EFAAB00F1EA5A /* GoogleSignInSwift */; };
+		8AE0927C2D3EFD1F00F1EA5A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 8AE0927B2D3EFD1F00F1EA5A /* .gitignore */; };
 		AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */; };
 		AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -65,6 +66,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8AE0927B2D3EFD1F00F1EA5A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		AE4B176C2D347EA300B8DB25 /* PPTAMinimal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PPTAMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B177C2D347EA500B8DB25 /* PPTAMinimalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -171,6 +173,7 @@
 		AE4B17632D347EA300B8DB25 = {
 			isa = PBXGroup;
 			children = (
+				8AE0927B2D3EFD1F00F1EA5A /* .gitignore */,
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
 				AE4B177F2D347EA500B8DB25 /* PPTAMinimalTests */,
 				AE4B17892D347EA500B8DB25 /* PPTAMinimalUITests */,
@@ -357,6 +360,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8AE0927C2D3EFD1F00F1EA5A /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
