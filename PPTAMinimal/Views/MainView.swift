@@ -31,22 +31,36 @@ struct MainView: View {
         categories: UserSettingsManager.shared.loadAppTokkens().categoryTokens
     )
     
+    // Authentication
+    @EnvironmentObject var viewModel: AuthViewModel
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    timeLimitDisplay
-                    monitoringButtons
-                    selectedAppsSection
-                    contactsSection
+        Group {
+            if viewModel.userSession != nil {
+                NavigationView {
+                    VStack {
+                        ScrollView {
+                            ProfileView()
+                                .padding()
+                            
+                            VStack(spacing: 24) {
+                                timeLimitDisplay
+                                monitoringButtons
+                                selectedAppsSection
+                                contactsSection
+                            }
+                            .onAppear {
+                                requestScreenTimePermission()
+                                NotificationManager.shared.requestAuthorization()
+                            }
+                            .padding()
+                        }
+                    }
+                    .navigationTitle("PPTA")
                 }
-                .onAppear {
-                    requestScreenTimePermission()
-                    NotificationManager.shared.requestAuthorization()
-                }
-                .padding()
+            } else {
+                LoginView()
             }
-            .navigationTitle("PPTA")
         }
     }
 }
