@@ -1,6 +1,6 @@
 //
 //  UserSettingsManager.swift
-//  Moo-Tivation
+//  PPTAMinimal
 //
 //  Created by Sungbin on 6/18/24.
 //

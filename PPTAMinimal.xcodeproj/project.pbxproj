@@ -92,20 +92,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-    8AE0927A2D3EFAF800F1EA5A /* Exceptions for "PPTAMinimal" folder in "PPTAMinimal" target */ = {
-        isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-        membershipExceptions = (
-            Info.plist,
-        );
-        target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
-    };
-    AE20EB642D481E3400D27B4D /* Exceptions for "PPTAReport" folder in "PPTAReport" target */ = {
-        isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-        membershipExceptions = (
-            Info.plist,
-        );
-        target = AE20EB562D481E3400D27B4D /* PPTAReport */;
-    };
+		8AE0927A2D3EFAF800F1EA5A /* Exceptions for "PPTAMinimal" folder in "PPTAMinimal" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
+		};
+		AE20EB642D481E3400D27B4D /* Exceptions for "PPTAReport" folder in "PPTAReport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
+		};
 		AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (

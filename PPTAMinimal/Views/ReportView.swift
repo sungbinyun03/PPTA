@@ -29,7 +29,7 @@ struct ReportView: View {
     }
     
     @State var context: DeviceActivityReport.Context = .init(rawValue: "Total Activity")
-    
+    @State private var selection = FamilyActivitySelection()
     @State var filter = DeviceActivityFilter(
         segment: .daily(
             during: Calendar.current.dateInterval(of: .day, for: .now)!
@@ -54,16 +54,18 @@ struct ReportView: View {
             
             if isMonitoring {
                 Task {
-                    let appTokens = UserSettingsManager.shared.loadAppTokens().applicationTokens
-                    let newFilter = DeviceActivityFilter(
-                        segment: .daily(
-                            during: Calendar.current.dateInterval(of: .day, for: .now)!
-                        ),
-                        users: .all,
-                        devices: .init([.iPhone]),
-                        applications: appTokens
-                    )
-                    filter = newFilter
+                    UserSettingsManager.shared.loadSettings { settings in
+                        selection = settings.applications
+                        filter = DeviceActivityFilter(
+                            segment: .daily(
+                                during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+                            ),
+                            users: .all,
+                            devices: .init([.iPhone]),
+                            applications: selection.applicationTokens,
+                            categories: selection.categoryTokens
+                        )
+                    }
                 }
             }
         }

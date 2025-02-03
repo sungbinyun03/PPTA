@@ -16,7 +16,8 @@ struct MainView: View {
     @State private var showingTimePicker = false
     
     @State private var isMonitoring = false
-    
+    @State private var filter: DeviceActivityFilter?
+
     // Contacts
     @State private var showingContactPicker = false
     @State private var selectedContacts: [CNContact] = []
@@ -52,18 +53,7 @@ struct MainView: View {
                                 requestScreenTimePermission()
                                 NotificationManager.shared.requestAuthorization()
                                 
-                                UserSettingsManager.shared.loadSettings { settings in
-                                    selection = settings.applications
-                                    filter = DeviceActivityFilter(
-                                        segment: .daily(
-                                            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-                                        ),
-                                        users: .all,
-                                        devices: .init([.iPhone]),
-                                        applications: selection.applicationTokens,
-                                        categories: selection.categoryTokens
-                                    )
-                                }
+                                
                             }
                             .padding()
                         }
