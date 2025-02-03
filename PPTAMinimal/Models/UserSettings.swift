@@ -17,19 +17,15 @@ struct PeerCoach: Codable, Identifiable {
 }
 
 final class UserSettings: Codable {
-    
     // MARK: - Properties
-    
     var applications: FamilyActivitySelection
-    
     var thresholdHour: Int
     var thresholdMinutes: Int
-    
+    //placeholders
     var notificationText: String
-    
     var onboardingCompleted: Bool
-
     var peerCoaches: [PeerCoach]
+    
     
     // MARK: Init
     init(

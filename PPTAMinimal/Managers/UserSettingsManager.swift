@@ -41,7 +41,7 @@ class UserSettingsManager {
         }
     }
     
-    func loadAppTokkens() -> FamilyActivitySelection {
+    func loadAppTokens() -> FamilyActivitySelection {
         return loadSettings().applications
     }
     

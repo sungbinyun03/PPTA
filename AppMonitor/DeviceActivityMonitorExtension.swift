@@ -10,7 +10,6 @@ import ManagedSettings
 import Foundation
 
 // Optionally override any of the functions below.
-// Make sure that your class name matches the NSExtensionPrincipalClass in your Info.plist.
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     let store = ManagedSettingsStore()

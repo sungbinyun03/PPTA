@@ -7,11 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AE20EB632D481E3400D27B4D /* PPTAReport.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = AE20EB572D481E3400D27B4D /* PPTAReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */; };
 		AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		AE20EB612D481E3400D27B4D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AE4B17642D347EA300B8DB25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AE20EB562D481E3400D27B4D;
+			remoteInfo = PPTAReport;
+		};
 		AE4B177D2D347EA500B8DB25 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = AE4B17642D347EA300B8DB25 /* Project object */;
@@ -53,6 +61,7 @@
 			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
 			dstSubfolderSpec = 16;
 			files = (
+				AE20EB632D481E3400D27B4D /* PPTAReport.appex in Embed ExtensionKit Extensions */,
 			);
 			name = "Embed ExtensionKit Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -60,6 +69,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AE20EB572D481E3400D27B4D /* PPTAReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = PPTAReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B176C2D347EA300B8DB25 /* PPTAMinimal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PPTAMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B177C2D347EA500B8DB25 /* PPTAMinimalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -68,6 +78,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AE20EB642D481E3400D27B4D /* Exceptions for "PPTAReport" folder in "PPTAReport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
+		};
 		AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -88,6 +105,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AE20EB582D481E3400D27B4D /* PPTAReport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AE20EB642D481E3400D27B4D /* Exceptions for "PPTAReport" folder in "PPTAReport" target */,
+			);
+			path = PPTAReport;
+			sourceTree = "<group>";
+		};
 		AE4B176E2D347EA300B8DB25 /* PPTAMinimal */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -117,6 +142,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AE20EB542D481E3400D27B4D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE4B17692D347EA300B8DB25 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -156,6 +188,7 @@
 				AE4B177F2D347EA500B8DB25 /* PPTAMinimalTests */,
 				AE4B17892D347EA500B8DB25 /* PPTAMinimalUITests */,
 				AE4B17A12D347EF100B8DB25 /* AppMonitor */,
+				AE20EB582D481E3400D27B4D /* PPTAReport */,
 				AE4B179E2D347EF100B8DB25 /* Frameworks */,
 				AE4B176D2D347EA300B8DB25 /* Products */,
 			);
@@ -168,6 +201,7 @@
 				AE4B177C2D347EA500B8DB25 /* PPTAMinimalTests.xctest */,
 				AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */,
 				AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */,
+				AE20EB572D481E3400D27B4D /* PPTAReport.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -183,6 +217,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AE20EB562D481E3400D27B4D /* PPTAReport */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE20EB652D481E3400D27B4D /* Build configuration list for PBXNativeTarget "PPTAReport" */;
+			buildPhases = (
+				AE20EB532D481E3400D27B4D /* Sources */,
+				AE20EB542D481E3400D27B4D /* Frameworks */,
+				AE20EB552D481E3400D27B4D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AE20EB582D481E3400D27B4D /* PPTAReport */,
+			);
+			name = PPTAReport;
+			packageProductDependencies = (
+			);
+			productName = PPTAReport;
+			productReference = AE20EB572D481E3400D27B4D /* PPTAReport.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
 		AE4B176B2D347EA300B8DB25 /* PPTAMinimal */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AE4B17902D347EA500B8DB25 /* Build configuration list for PBXNativeTarget "PPTAMinimal" */;
@@ -197,6 +253,7 @@
 			);
 			dependencies = (
 				AE4B17A72D347EF100B8DB25 /* PBXTargetDependency */,
+				AE20EB622D481E3400D27B4D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
@@ -286,6 +343,9 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					AE20EB562D481E3400D27B4D = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					AE4B176B2D347EA300B8DB25 = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -320,11 +380,19 @@
 				AE4B177B2D347EA500B8DB25 /* PPTAMinimalTests */,
 				AE4B17852D347EA500B8DB25 /* PPTAMinimalUITests */,
 				AE4B179C2D347EF100B8DB25 /* AppMonitor */,
+				AE20EB562D481E3400D27B4D /* PPTAReport */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AE20EB552D481E3400D27B4D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE4B176A2D347EA300B8DB25 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -356,6 +424,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AE20EB532D481E3400D27B4D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE4B17682D347EA300B8DB25 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -387,6 +462,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		AE20EB622D481E3400D27B4D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
+			targetProxy = AE20EB612D481E3400D27B4D /* PBXContainerItemProxy */;
+		};
 		AE4B177E2D347EA500B8DB25 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
@@ -405,6 +485,60 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		AE20EB662D481E3400D27B4D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PPTAReport/PPTAReport.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PPTAReport/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PPTAReport;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.PPTAReport;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AE20EB672D481E3400D27B4D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PPTAReport/PPTAReport.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PPTAReport/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PPTAReport;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.PPTAReport;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		AE4B178E2D347EA500B8DB25 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -717,6 +851,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AE20EB652D481E3400D27B4D /* Build configuration list for PBXNativeTarget "PPTAReport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE20EB662D481E3400D27B4D /* Debug */,
+				AE20EB672D481E3400D27B4D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AE4B17672D347EA300B8DB25 /* Build configuration list for PBXProject "PPTAMinimal" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
