@@ -31,16 +31,16 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
         super.eventDidReachThreshold(event, activity: activity)
-        let userSettings = UserSettingsManager.shared.loadSettings()
-        let selectedAppTokens = userSettings.applications.applicationTokens
-                
-        store.shield.applications = selectedAppTokens
-
         
-        NotificationManager.shared.sendNotification(
-               title: "Time Up",
-               body: "You're Done!"
-           )
+        UserSettingsManager.shared.loadSettings { userSettings in
+            let selectedAppTokens = userSettings.applications.applicationTokens
+            self.store.shield.applications = selectedAppTokens
+            
+            NotificationManager.shared.sendNotification(
+                title: "Time Up",
+                body: "You're Done!"
+            )
+        }
     }
     
     override func intervalWillStartWarning(for activity: DeviceActivityName) {

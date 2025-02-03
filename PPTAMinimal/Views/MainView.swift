@@ -20,17 +20,25 @@ struct MainView: View {
     // Contacts
     @State private var showingContactPicker = false
     @State private var selectedContacts: [CNContact] = []
-    
 
+    // Authentication
+    @EnvironmentObject var viewModel: AuthViewModel
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    timeLimitDisplay
-                    monitoringButtons
-                    selectedAppsSection
-                    contactsSection
-                    NavigationLink(destination: ReportView(isMonitoring: isMonitoring)) {
+        Group {
+            if viewModel.userSession != nil {
+                NavigationView {
+                    VStack {
+                        ScrollView {
+                            ProfileView()
+                                .padding()
+                            
+                            VStack(spacing: 24) {
+                                timeLimitDisplay
+                                monitoringButtons
+                                selectedAppsSection
+                                contactsSection
+                                NavigationLink(destination: ReportView(isMonitoring: isMonitoring)) {
                                             Text("View Activity Report")
                                                 .bold()
                                                 .frame(maxWidth: .infinity)
@@ -38,16 +46,34 @@ struct MainView: View {
                                                 .background(Color.blue)
                                                 .foregroundColor(.white)
                                                 .cornerRadius(10)
+                                }
+                            }
+                            .onAppear {
+                                requestScreenTimePermission()
+                                NotificationManager.shared.requestAuthorization()
+                                
+                                UserSettingsManager.shared.loadSettings { settings in
+                                    selection = settings.applications
+                                    filter = DeviceActivityFilter(
+                                        segment: .daily(
+                                            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+                                        ),
+                                        users: .all,
+                                        devices: .init([.iPhone]),
+                                        applications: selection.applicationTokens,
+                                        categories: selection.categoryTokens
+                                    )
+                                }
+                            }
+                            .padding()
+                        }
                     }
+                    .navigationTitle("PPTA")
+
                 }
-                
-                .onAppear {
-                    requestScreenTimePermission()
-                    NotificationManager.shared.requestAuthorization()
-                }
-                .padding()
+            } else {
+                LoginView()
             }
-            .navigationTitle("PPTA")
         }
     }
 }

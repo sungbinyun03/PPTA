@@ -8,6 +8,8 @@
 import Foundation
 import FamilyControls
 import ManagedSettings
+import FirebaseFirestore
+
 
 struct PeerCoach: Codable, Identifiable {
     let id = UUID()
@@ -18,10 +20,11 @@ struct PeerCoach: Codable, Identifiable {
 
 final class UserSettings: Codable {
     // MARK: - Properties
+    @DocumentID var id: String? // for Firestore
     var applications: FamilyActivitySelection
     var thresholdHour: Int
     var thresholdMinutes: Int
-    //placeholders
+
     var notificationText: String
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach]
@@ -29,6 +32,7 @@ final class UserSettings: Codable {
     
     // MARK: Init
     init(
+        id: String? = nil,
         applications: FamilyActivitySelection = .init(),
         thresholdHour: Int = 0,
         thresholdMinutes: Int = 0,
@@ -36,6 +40,7 @@ final class UserSettings: Codable {
         onboardingCompleted: Bool = false,
         peerCoaches: [PeerCoach] = []
     ) {
+        self.id = id
         self.applications = applications
         self.thresholdHour = thresholdHour
         self.thresholdMinutes = thresholdMinutes
