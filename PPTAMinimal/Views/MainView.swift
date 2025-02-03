@@ -4,6 +4,7 @@ import DeviceActivity
 import Contacts
 import ContactsUI
 
+
 struct MainView: View {
     // MARK: - States
     @State private var selection = FamilyActivitySelection()
@@ -19,20 +20,7 @@ struct MainView: View {
     // Contacts
     @State private var showingContactPicker = false
     @State private var selectedContacts: [CNContact] = []
-    
-    // WIP!
-    @State private var filter: DeviceActivityFilter?
-    
-//    @State private var filter = DeviceActivityFilter(
-//        segment: .daily(
-//            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-//        ),
-//        users: .all,
-//        devices: .init([.iPhone]),
-//        applications: UserSettingsManager.shared.loadAppTokkens().applicationTokens,
-//        categories: UserSettingsManager.shared.loadAppTokkens().categoryTokens
-//    )
-    
+
     // Authentication
     @EnvironmentObject var viewModel: AuthViewModel
     
@@ -50,6 +38,15 @@ struct MainView: View {
                                 monitoringButtons
                                 selectedAppsSection
                                 contactsSection
+                                NavigationLink(destination: ReportView(isMonitoring: isMonitoring)) {
+                                            Text("View Activity Report")
+                                                .bold()
+                                                .frame(maxWidth: .infinity)
+                                                .padding()
+                                                .background(Color.blue)
+                                                .foregroundColor(.white)
+                                                .cornerRadius(10)
+                                }
                             }
                             .onAppear {
                                 requestScreenTimePermission()
@@ -72,6 +69,7 @@ struct MainView: View {
                         }
                     }
                     .navigationTitle("PPTA")
+
                 }
             } else {
                 LoginView()
@@ -304,6 +302,7 @@ extension MainView {
             notificationText: "Time's up!",
             onboardingCompleted: true
         )
+        
         UserSettingsManager.shared.saveSettings(newUserSettings)
         
         DeviceActivityManager.shared.startDeviceActivityMonitoring(

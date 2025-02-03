@@ -51,10 +51,12 @@ class UserSettingsManager {
         }
     }
     
+
     func loadAppTokens(completion: @escaping (FamilyActivitySelection) -> Void) {
         loadSettings { settings in
             completion(settings.applications)
         }
+
     }
     
     func loadNotificationText(completion: @escaping (String) -> Void) {
