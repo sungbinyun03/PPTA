@@ -21,15 +21,17 @@ struct MainView: View {
     @State private var selectedContacts: [CNContact] = []
     
     // WIP!
-    @State private var filter = DeviceActivityFilter(
-        segment: .daily(
-            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-        ),
-        users: .all,
-        devices: .init([.iPhone]),
-        applications: UserSettingsManager.shared.loadAppTokkens().applicationTokens,
-        categories: UserSettingsManager.shared.loadAppTokkens().categoryTokens
-    )
+    @State private var filter: DeviceActivityFilter?
+    
+//    @State private var filter = DeviceActivityFilter(
+//        segment: .daily(
+//            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+//        ),
+//        users: .all,
+//        devices: .init([.iPhone]),
+//        applications: UserSettingsManager.shared.loadAppTokkens().applicationTokens,
+//        categories: UserSettingsManager.shared.loadAppTokkens().categoryTokens
+//    )
     
     // Authentication
     @EnvironmentObject var viewModel: AuthViewModel
@@ -52,6 +54,19 @@ struct MainView: View {
                             .onAppear {
                                 requestScreenTimePermission()
                                 NotificationManager.shared.requestAuthorization()
+                                
+                                UserSettingsManager.shared.loadSettings { settings in
+                                    selection = settings.applications
+                                    filter = DeviceActivityFilter(
+                                        segment: .daily(
+                                            during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+                                        ),
+                                        users: .all,
+                                        devices: .init([.iPhone]),
+                                        applications: selection.applicationTokens,
+                                        categories: selection.categoryTokens
+                                    )
+                                }
                             }
                             .padding()
                         }

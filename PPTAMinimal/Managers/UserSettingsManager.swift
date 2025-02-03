@@ -7,52 +7,68 @@
 
 import Foundation
 import FamilyControls
+import FirebaseAuth
 
 class UserSettingsManager {
     static let shared = UserSettingsManager()
     private init() {}
     
-    private let appGroupID = "group.com.sungbinyun.com.PPTADev" 
-    private var userDefaults: UserDefaults? {
-        return UserDefaults(suiteName: appGroupID)
-    }
-    private let settingsKey = "UserSettings"
+    private let firestoreService = FirestoreService()
     
+    private var userID: String? {
+        return Auth.auth().currentUser?.uid
+    }
+
     func saveSettings(_ settings: UserSettings) {
-        do {
-            let data = try JSONEncoder().encode(settings)
-            userDefaults?.set(data, forKey: settingsKey)
-        } catch {
-            print("Failed to save user settings: \(error)")
+        guard let userID = userID else {
+            print("ERROR: No user is logged in. Cannot save settings.")
+            return
+        }
+
+        firestoreService.saveUserSettings(userId: userID, settings: settings) { error in
+            if let error = error {
+                print("Failed to save user settings to Firestore: \(error.localizedDescription)")
+            } else {
+                print("User settings saved successfully for user \(userID)!")
+            }
         }
     }
     
-    func loadSettings() -> UserSettings {
-        guard let data = userDefaults?.data(forKey: settingsKey) else {
-            return UserSettings()
+    func loadSettings(completion: @escaping (UserSettings) -> Void) {
+        guard let userID = userID else {
+            print("ERROR: No user is logged in. Cannot load settings.")
+            completion(UserSettings()) // Provide default settings
+            return
         }
-        
-        do {
-            let settings = try JSONDecoder().decode(UserSettings.self, from: data)
-            return settings
-        } catch {
-            print("Failed to load user settings: \(error)")
-            return UserSettings()
+
+        firestoreService.fetchUserSettings(userId: userID) { settings, error in
+            if let settings = settings {
+                completion(settings)
+            } else if let error = error {
+                print("Failed to load user settings from Firestore: \(error.localizedDescription)")
+                completion(UserSettings()) // Return default settings if fetch fails
+            }
         }
     }
     
-    func loadAppTokkens() -> FamilyActivitySelection {
-        return loadSettings().applications
+    func loadAppTokens(completion: @escaping (FamilyActivitySelection) -> Void) {
+        loadSettings { settings in
+            completion(settings.applications)
+        }
     }
     
-    func loadNotificationText() -> String {
-        return loadSettings().notificationText
+    func loadNotificationText(completion: @escaping (String) -> Void) {
+        loadSettings { settings in
+            completion(settings.notificationText)
+        }
     }
     
-    func loadHoursAndMinutes() -> TimeInterval {
-        let hours = loadSettings().thresholdHour
-        let minutes = loadSettings().thresholdMinutes
-        let totalSeconds = (hours * 3600) + (minutes * 60)
-        return TimeInterval(totalSeconds)
+    func loadHoursAndMinutes(completion: @escaping (TimeInterval) -> Void) {
+        loadSettings { settings in
+            let hours = settings.thresholdHour
+            let minutes = settings.thresholdMinutes
+            let totalSeconds = (hours * 3600) + (minutes * 60)
+            completion(TimeInterval(totalSeconds))
+        }
     }
 }

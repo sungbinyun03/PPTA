@@ -26,10 +26,6 @@ struct ProfileView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .padding(.top, 4)
-                    
-                    Text(user.email)
-                        .font(.footnote)
-                        .foregroundStyle(.gray)
                 }
                 
                 Spacer()
@@ -37,9 +33,21 @@ struct ProfileView: View {
                 Button {
                     viewModel.signOut()
                 } label: {
-                    SettingsRowView(imageName: "arrow.left.circle.fill",
-                                    title: "Sign Out",
-                                    tintColor: .red)
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.left")
+                            .imageScale(.small)
+                        
+                        Text("Sign Out")
+                            .font(.footnote)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(.red, lineWidth: 1)
+                    )
                 }
             }
         }

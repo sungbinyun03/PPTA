@@ -38,9 +38,13 @@ struct ContactsPickerView: UIViewControllerRepresentable {
          func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
             parent.selectedContacts.append(contentsOf: contacts)
             let newCoaches = contacts.map { convertCNContactToPeerCoach($0) }
-            var currentSettings = UserSettingsManager.shared.loadSettings()
-            currentSettings.peerCoaches.append(contentsOf: newCoaches)
-            UserSettingsManager.shared.saveSettings(currentSettings)
+            
+            UserSettingsManager.shared.loadSettings { currentSettings in
+                 var updatedSettings = currentSettings
+                 updatedSettings.peerCoaches.append(contentsOf: newCoaches)
+                 UserSettingsManager.shared.saveSettings(updatedSettings)
+            }
+            
             parent.presentationMode.wrappedValue.dismiss()
          }
         

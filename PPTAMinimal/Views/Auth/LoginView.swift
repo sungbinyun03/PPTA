@@ -1,11 +1,8 @@
-//
-//  LoginView.swift
-//  PPTAMinimal
-//
-//  Created by Jovy Zhou on 1/20/25.
-//
-
 import SwiftUI
+import GoogleSignIn
+import GoogleSignInSwift
+import _AuthenticationServices_SwiftUI
+import FirebaseAuth
 
 struct LoginView: View {
     @State private var email = ""
@@ -31,6 +28,7 @@ struct LoginView: View {
                 .padding(.horizontal)
                 .padding(.top, 12)
                 
+                // MARK: - Normal Sign-In Button
                 Button {
                     Task {
                         try await viewModel.signIn(withEmail: email, password: password)
@@ -50,6 +48,49 @@ struct LoginView: View {
                 .cornerRadius(10)
                 .padding(.top, 24)
                 
+                HStack {
+                    VStack { Divider() }
+                    Text("or")
+                    VStack { Divider() }
+                }
+                .padding(.vertical, 8)
+                
+                // MARK: - Google Sign-In Button
+                Button(action: {
+                    Task {
+                        await viewModel.signInWithGoogle()
+                    }
+                }) {
+                    HStack {
+                        Image("google-icon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                        
+                        Text("Sign in with Google")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(Color.primary)
+                    .frame(width: UIScreen.main.bounds.width - 32, height: 48)
+                }
+                .background(Color(uiColor: .systemGray6))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(.systemGray), lineWidth: 1)
+                )
+                .padding(.vertical, 4)
+                
+                // MARK: - Apple Sign-In Button
+                SignInWithAppleButton { request in
+                    viewModel.handleSignInWithAppleRequest(request)
+                } onCompletion: { result in
+                    viewModel.handleSignInWithAppleCompletion(result)
+                }
+                .frame(width: UIScreen.main.bounds.width - 32, height: 48)
+                .cornerRadius(10)
+                .padding(.vertical, 4)
+
                 Spacer()
                 
                 NavigationLink {
@@ -64,6 +105,8 @@ struct LoginView: View {
                     .font(.system(size: 14))
                 }
             }
+            .padding(.horizontal)
+            .background(Color(uiColor: .systemBackground))
         }
     }
 }
