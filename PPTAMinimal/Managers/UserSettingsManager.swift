@@ -43,6 +43,7 @@ class UserSettingsManager {
 
         firestoreService.fetchUserSettings(userId: userID) { settings, error in
             if let settings = settings {
+                print(userID, settings)
                 completion(settings)
             } else if let error = error {
                 print("Failed to load user settings from Firestore: \(error.localizedDescription)")
