@@ -16,6 +16,7 @@ class UserSettingsManager {
     private let firestoreService = FirestoreService()
     
     private var userID: String? {
+        print("DEBUG userID: \(Auth.auth().currentUser?.uid ?? "nil")")
         return Auth.auth().currentUser?.uid
     }
 
@@ -40,9 +41,12 @@ class UserSettingsManager {
             completion(UserSettings()) // Provide default settings
             return
         }
+        
+        print("CHECKING")
 
         firestoreService.fetchUserSettings(userId: userID) { settings, error in
             if let settings = settings {
+                print(userID, settings)
                 completion(settings)
             } else if let error = error {
                 print("Failed to load user settings from Firestore: \(error.localizedDescription)")

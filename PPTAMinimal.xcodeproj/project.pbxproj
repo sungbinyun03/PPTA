@@ -110,11 +110,11 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Managers/DeviceActivityManager.swift,
-				Managers/FirestoreManager.swift,
 				Managers/NotificationManager.swift,
 				Managers/UserSettingsManager.swift,
 				Models/User.swift,
 				Models/UserSettings.swift,
+				Services/FirestoreService.swift,
 			);
 			target = AE4B179C2D347EF100B8DB25 /* AppMonitor */;
 		};

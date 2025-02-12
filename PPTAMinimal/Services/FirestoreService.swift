@@ -25,6 +25,7 @@ class FirestoreService {
     // Fetch user settings
     func fetchUserSettings(userId: String, completion: @escaping (UserSettings?, Error?) -> Void) {
         let docRef = db.collection("userSettings").document(userId)
+        print("userID: \(userId)")
         
         docRef.getDocument { document, error in
             if let document = document, document.exists {
