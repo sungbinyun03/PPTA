@@ -9,6 +9,7 @@ struct MainView: View {
     // MARK: - States
     @State private var selection = FamilyActivitySelection()
     @State private var isPickerPresented = false
+    @State private var userSettings: UserSettings = UserSettings()
     
     // Threshold Time
     @State private var hours: Int = 1
@@ -53,7 +54,16 @@ struct MainView: View {
                                 requestScreenTimePermission()
                                 NotificationManager.shared.requestAuthorization()
                                 
-                                
+                                UserSettingsManager.shared.loadSettings { loadedSettings in
+                                    print("Fetched settings: \(loadedSettings)")
+                                    
+                                    // Store settings
+                                    self.userSettings = loadedSettings
+                                    
+                                    self.selection = loadedSettings.applications
+                                    self.hours = loadedSettings.thresholdHour
+                                    self.minutes = loadedSettings.thresholdMinutes
+                                }
                             }
                             .padding()
                         }
