@@ -2,7 +2,7 @@
 PPTAMinimal/.DS_Store
 
 # Ignore the GoogleService-Info.plist file in the PPTAMinimal directory
-PPTAMinimal/GoogleService-Info.plist
+**/GoogleService-Info.plist
 
 # Ignore all `.log` files
 *.log
