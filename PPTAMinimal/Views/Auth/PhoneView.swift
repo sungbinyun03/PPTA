@@ -70,7 +70,7 @@ struct PhoneVerificationView: View {
             (verificationID, error) in
             if let error = error {
                 print("Error details: \(error.localizedDescription)")
-                        print("Debug error info: \(error)") 
+                        print("Debug error info: \(error)")
                 self.errorMessage = error.localizedDescription
                 return
             }
