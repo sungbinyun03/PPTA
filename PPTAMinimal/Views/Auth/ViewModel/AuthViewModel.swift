@@ -13,6 +13,8 @@ import GoogleSignIn
 import GoogleSignInSwift
 import AuthenticationServices
 import CryptoKit
+import FirebaseMessaging
+
 
 protocol AuthenticationFormProtocol {
     var formIsValid: Bool { get }
@@ -31,7 +33,7 @@ class AuthViewModel: ObservableObject {
             await fetchUser()
         }
     }
-
+    
     // MARK: - Email/Password Authentication
     func signIn(withEmail email: String, password: String) async throws {
         do {
@@ -52,40 +54,40 @@ class AuthViewModel: ObservableObject {
             print("DEBUG: Failed to get top view controller.")
             return
         }
-
+        
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: topVC)
             guard let idToken = result.user.idToken else {
                 print("DEBUG: Failed to get ID token.")
                 return
             }
-
+            
             let credential = GoogleAuthProvider.credential(withIDToken: idToken.tokenString,
                                                            accessToken: result.user.accessToken.tokenString)
-
+            
             let authResult = try await Auth.auth().signIn(with: credential)
             self.userSession = authResult.user
-           
+            
             // Check if user exists in Firestore
             let userRef = Firestore.firestore().collection("users").document(authResult.user.uid)
             let document = try? await userRef.getDocument()
-
+            
             if document?.exists == false {
                 // If user does not exist, create a new entry
                 let newUser = User(id: authResult.user.uid,
                                    name: result.user.profile?.name ?? "Unknown",
                                    email: authResult.user.email ?? "No Email")
-
+                
                 let encodedUser = try Firestore.Encoder().encode(newUser)
                 try await userRef.setData(encodedUser)
             }
-
+            
             await fetchUser()
         } catch {
             print("DEBUG: Google Sign-In failed: \(error.localizedDescription)")
         }
     }
-
+    
     // MARK: - Apple Sign-In
     func handleSignInWithAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
         request.requestedScopes = [.fullName, .email]
@@ -93,7 +95,7 @@ class AuthViewModel: ObservableObject {
         currentNonce = nonce
         request.nonce = sha256(nonce)
     }
-
+    
     func handleSignInWithAppleCompletion(_ result: Result<ASAuthorization, Error>) {
         if case .failure(let failure) = result {
             print("DEBUG: Apple Sign-In failed: \(failure.localizedDescription)")
@@ -111,25 +113,25 @@ class AuthViewModel: ObservableObject {
                     print("DEBUG: Failed to decode ID token.")
                     return
                 }
-
+                
                 let credential = OAuthProvider.appleCredential(
                     withIDToken: idTokenString,
                     rawNonce: nonce,
                     fullName: appleIDCredential.fullName
                 )
-
+                
                 Task {
                     do {
                         let result = try await Auth.auth().signIn(with: credential)
                         self.userSession = result.user
                         print("DEBUG: Apple Sign-In successful. UID: \(result.user.uid)")
-
+                        
                         // Extract the user's name (if available) during the first sign-in
                         let userFullName = [
                             appleIDCredential.fullName?.givenName,
                             appleIDCredential.fullName?.familyName
                         ].compactMap { $0 }.joined(separator: " ")
-
+                        
                         // Save user to Firestore
                         let userRef = Firestore.firestore().collection("users").document(result.user.uid)
                         let document = try? await userRef.getDocument()
@@ -153,13 +155,19 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     // MARK: - User Management
     func createUser(withEmail email: String, password: String, name: String) async throws {
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
             self.userSession = result.user
-            let user = User(id: result.user.uid, name: name, email: email)
+            let user = User(
+                id: result.user.uid,
+                name: name,
+                email: email,
+                phoneNumber: nil,
+                fcmToken: nil
+            )
             let encodedUser = try Firestore.Encoder().encode(user)
             try await Firestore.firestore().collection("users").document(user.id).setData(encodedUser)
             await fetchUser()
@@ -167,7 +175,7 @@ class AuthViewModel: ObservableObject {
             print("DEBUG: Failed to create user with error \(error.localizedDescription)")
         }
     }
-
+    
     func signOut() {
         do {
             try Auth.auth().signOut()
@@ -178,7 +186,7 @@ class AuthViewModel: ObservableObject {
             print("DEBUG: Failed to sign out with error \(error.localizedDescription)")
         }
     }
-
+    
     func fetchUser() async {
         guard let uid = Auth.auth().currentUser?.uid else {
             print("DEBUG: No user session found.")
@@ -189,7 +197,7 @@ class AuthViewModel: ObservableObject {
             if let user = try? snapshot.data(as: User.self) {
                 DispatchQueue.main.async {
                     self.currentUser = user
-                    print("DEBUG: User fetched: \(user.name)")
+                    print("DEBUG: User fetched: \(user)")
                 }
             } else {
                 print("DEBUG: User not found in Firestore. Returning to login.")
@@ -203,7 +211,36 @@ class AuthViewModel: ObservableObject {
                 self.userSession = nil  // Redirect to login
             }
         }
-    }}
+    }
+    
+    func updateUserPhoneNumber(phoneNumber: String) async {
+            guard let uid = Auth.auth().currentUser?.uid else { return }
+            // Ideally, normalize phoneNumber to E.164 if not already
+            let normalized = phoneNumber
+            do {
+                try await Firestore.firestore().collection("users").document(uid)
+                    .updateData(["phoneNumber": normalized])
+                await fetchUser()
+            } catch {
+                print("DEBUG: Failed to update phone number: \(error.localizedDescription)")
+            }
+        }
+        
+        // MARK: - Update FCM Token
+    func updateFCMToken(_ token: String) {
+            guard let uid = Auth.auth().currentUser?.uid else { return }
+            Task {
+                do {
+                    try await Firestore.firestore().collection("users").document(uid)
+                        .updateData(["fcmToken": token])
+                    await fetchUser()
+                } catch {
+                    print("DEBUG: Failed to update FCM token: \(error.localizedDescription)")
+                }
+            }
+        }
+    
+}
 
 // MARK: - Helpers for Apple Sign-In
 private func randomNonceString(length: Int = 32) -> String {

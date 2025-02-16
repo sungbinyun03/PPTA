@@ -13,6 +13,7 @@ class NotificationManager {
     private init() {}
     
     func requestAuthorization() {
+    
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
                 print("Error requesting notif authorization: \(error)")

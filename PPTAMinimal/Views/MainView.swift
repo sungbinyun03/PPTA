@@ -24,6 +24,7 @@ struct MainView: View {
 
     // Authentication
     @EnvironmentObject var viewModel: AuthViewModel
+    @State private var showPhoneVerificationSheet = false
     
     var body: some View {
         Group {
@@ -54,6 +55,15 @@ struct MainView: View {
                                 NotificationManager.shared.requestAuthorization()
                                 
                                 
+                            }
+                            .onChange(of: viewModel.currentUser) { oldUser, newUser in
+                                if let newUser = newUser, newUser.phoneNumber == nil {
+                                    showPhoneVerificationSheet = true
+                                }
+                            }
+                            .sheet(isPresented: $showPhoneVerificationSheet) {
+                                                    PhoneVerificationView()
+                                                        .environmentObject(viewModel)
                             }
                             .padding()
                         }

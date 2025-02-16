@@ -7,6 +7,14 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-538124351649-ios-a05b36a12c3c4f616198e0</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLName</key>
 			<string>Google Sign In</string>
 			<key>CFBundleURLSchemes</key>
@@ -15,7 +23,13 @@
 			</array>
 		</dict>
 	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
 	<key>GIDClientID</key>
 	<string>538124351649-p4jd6vv6mftt5ku1f0bv0ktdo734m600.apps.googleusercontent.com</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

@@ -7,10 +7,12 @@
 
 import Foundation
 
-struct User: Identifiable, Codable {
+struct User: Identifiable, Codable, Equatable {
     let id: String
     let name: String
     let email: String
+    var phoneNumber: String?
+    var fcmToken: String?
     
     var intiials: String {
         let formatter = PersonNameComponentsFormatter()
@@ -21,6 +23,14 @@ struct User: Identifiable, Codable {
         
         return ""
     }
+    
+    init(id: String, name: String, email: String, phoneNumber: String? = nil, fcmToken: String? = nil) {
+            self.id = id
+            self.name = name
+            self.email = email
+            self.phoneNumber = phoneNumber
+            self.fcmToken = fcmToken
+        }
 }
 
 extension User {

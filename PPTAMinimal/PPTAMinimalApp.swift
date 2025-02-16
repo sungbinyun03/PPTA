@@ -8,33 +8,55 @@
 import SwiftUI
 import Firebase
 import GoogleSignIn
+import FirebaseAuth
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-  func application(_ application: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-      FirebaseApp.configure()
-      
-      return true
-  }
-    
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication,
+                       didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+          FirebaseApp.configure()
+          
+          return true
+      }
+        
     func application(_ app: UIApplication,
                      open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-      return GIDSignIn.sharedInstance.handle(url)
+        
+        if Auth.auth().canHandle(url) {
+            return true
+        }
+        
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
+        }
+        return false
     }
+    
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data){
+        Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+        print("@@ TOKEN RECEIVED: \(deviceToken.map { String(format: "%02x", $0)}.joined())")
+    }
+    
+    func application(_ application: UIApplication, didReceiveRemoteNotification notification: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
+        
+        if Auth.auth().canHandleNotification(notification){
+            completionHandler(.noData)
+            return
+        }
+    }
+ 
 }
 
 @main
 struct PPTAMinimalApp: App {
-    // register app delegate for Firebase setup
+    // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    
     @StateObject var viewModel = AuthViewModel()
-    
     
     var body: some Scene {
         WindowGroup {
             MainView()
+                // 4) Inject the same AuthViewModel into SwiftUI environment
                 .environmentObject(viewModel)
         }
     }
