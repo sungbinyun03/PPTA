@@ -8,10 +8,13 @@
 import Foundation
 import FamilyControls
 import FirebaseAuth
+import Combine
 
-class UserSettingsManager {
+
+final class UserSettingsManager : ObservableObject{
     static let shared = UserSettingsManager()
     private init() {}
+    @Published var userSettings: UserSettings = UserSettings()
     
     private let firestoreService = FirestoreService()
     
@@ -32,6 +35,11 @@ class UserSettingsManager {
                 print("User settings saved successfully for user \(userID)!")
             }
         }
+        DispatchQueue.main.async {
+                   self.userSettings = settings
+                   print("@@@@ User settings saved successfully")
+               }
+      
     }
     
     func loadSettings(completion: @escaping (UserSettings) -> Void) {

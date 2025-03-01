@@ -16,6 +16,7 @@ struct PeerCoach: Codable, Identifiable {
     let givenName: String
     let familyName: String
     let phoneNumber: String
+    var fcmToken: String?  // New field
 }
 
 final class UserSettings: Codable {

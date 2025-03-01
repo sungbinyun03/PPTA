@@ -9,7 +9,8 @@ struct MainView: View {
     // MARK: - States
     @State private var selection = FamilyActivitySelection()
     @State private var isPickerPresented = false
-    @State private var userSettings: UserSettings = UserSettings()
+    @ObservedObject var userSettingsManager = UserSettingsManager.shared
+    
     
     // Threshold Time
     @State private var hours: Int = 1
@@ -18,75 +19,78 @@ struct MainView: View {
     
     @State private var isMonitoring = false
     @State private var filter: DeviceActivityFilter?
-
+    
     // Contacts
     @State private var showingContactPicker = false
     @State private var selectedContacts: [CNContact] = []
-
+    
     // Authentication
     @EnvironmentObject var viewModel: AuthViewModel
     @State private var showPhoneVerificationSheet = false
-    
     var body: some View {
         Group {
             if viewModel.userSession != nil {
-                NavigationView {
-                    VStack {
-                        ScrollView {
-                            ProfileView()
-                                .padding()
-                            
-                            VStack(spacing: 24) {
-                                timeLimitDisplay
-                                monitoringButtons
-                                selectedAppsSection
-                                contactsSection
-                                NavigationLink(destination: ReportView(isMonitoring: isMonitoring)) {
-                                            Text("View Activity Report")
-                                                .bold()
-                                                .frame(maxWidth: .infinity)
-                                                .padding()
-                                                .background(Color.blue)
-                                                .foregroundColor(.white)
-                                                .cornerRadius(10)
-                                }
-                            }
-                            .onAppear {
-                                requestScreenTimePermission()
-                                NotificationManager.shared.requestAuthorization()
-                                
-                                UserSettingsManager.shared.loadSettings { loadedSettings in
-                                    print("Fetched settings: \(loadedSettings)")
-                                    
-                                    // Store settings
-                                    self.userSettings = loadedSettings
-                                    
-                                    self.selection = loadedSettings.applications
-                                    self.hours = loadedSettings.thresholdHour
-                                    self.minutes = loadedSettings.thresholdMinutes
-                                }
-                            }
-                            .onChange(of: viewModel.currentUser) { oldUser, newUser in
-                                if let newUser = newUser, newUser.phoneNumber == nil {
-                                    showPhoneVerificationSheet = true
-                                }
-                            }
-                            .sheet(isPresented: $showPhoneVerificationSheet) {
-                                                    PhoneVerificationView()
-                                                        .environmentObject(viewModel)
-                            }
-                            .padding()
-                        }
-                    }
-                    .navigationTitle("PPTA")
-
-                }
+                mainContent
             } else {
                 LoginView()
             }
         }
     }
+    private var mainContent: some View {
+        NavigationView {
+            VStack {
+                ScrollView {
+                    ProfileView().padding()
+                    mainVStack
+                        .onAppear(perform: loadInitialSettings)
+                        .onChange(of: viewModel.currentUser) { _, newUser in
+                            if let newUser = newUser, newUser.phoneNumber == nil {
+                                showPhoneVerificationSheet = true
+                            }
+                        }
+                        .sheet(isPresented: $showPhoneVerificationSheet) {
+                            PhoneVerificationView().environmentObject(viewModel)
+                        }
+                        .padding()
+                }
+            }
+            .navigationTitle("PPTA")
+        }
+    }
+    
+    private var mainVStack: some View {
+        VStack(spacing: 24) {
+            timeLimitDisplay
+            monitoringButtons
+            selectedAppsSection
+            contactsSection
+            activityReportLink
+        }
+    }
+    
+    private func loadInitialSettings() {
+        requestScreenTimePermission()
+        NotificationManager.shared.requestAuthorization()
+        UserSettingsManager.shared.loadSettings { loadedSettings in
+            self.selection = loadedSettings.applications
+            self.hours = loadedSettings.thresholdHour
+            self.minutes = loadedSettings.thresholdMinutes
+        }
+    }
+    
+    private var activityReportLink: some View {
+        NavigationLink(destination: ReportView(isMonitoring: isMonitoring)) {
+            Text("View Activity Report")
+                .bold()
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+        }
+    }
 }
+
 // MARK:Subviews
 extension MainView {
     
@@ -245,32 +249,23 @@ extension MainView {
             .sheet(isPresented: $showingContactPicker) {
                 ContactsPickerView(selectedContacts: $selectedContacts)
             }
-            
-            if selectedContacts.isEmpty {
+            let peerCoaches = userSettingsManager.userSettings.peerCoaches
+            if peerCoaches.isEmpty {
                 Text("No peer coaches selected.")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(selectedContacts, id: \.identifier) { contact in
+                ForEach(peerCoaches, id: \.id) { coach in
                     HStack {
-                        if let imageData = contact.imageData,
-                           let img = UIImage(data: imageData) {
-                            Image(uiImage: img)
-                                .resizable()
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                                .padding(.trailing, 8)
-                        } else {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 40))
-                                .padding(.trailing, 8)
-                        }
-                        
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 40))
+                            .padding(.trailing, 8)
+
                         VStack(alignment: .leading) {
-                            Text(contact.givenName + " " + contact.familyName)
+                            Text("\(coach.givenName) \(coach.familyName)")
                                 .font(.body)
-                            if let phone = contact.phoneNumbers.first?.value.stringValue {
-                                Text(phone).font(.subheadline).foregroundColor(.secondary)
-                            }
+                            Text(coach.phoneNumber)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
                         Spacer()
                     }
@@ -278,6 +273,7 @@ extension MainView {
                     Divider()
                 }
             }
+
         }
     }
 }
@@ -310,7 +306,8 @@ extension MainView {
             thresholdHour: hours,
             thresholdMinutes: minutes,
             notificationText: "Time's up!",
-            onboardingCompleted: true
+            onboardingCompleted: true,
+            peerCoaches: userSettingsManager.userSettings.peerCoaches
         )
         
         UserSettingsManager.shared.saveSettings(newUserSettings)
