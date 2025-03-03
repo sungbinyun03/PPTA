@@ -72,14 +72,18 @@ struct EnableNotificationsView: View {
                 ForEach(0..<4) { index in
                     Circle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 8, height: 8)
                 }
                 
                 Circle()
                     .fill(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
+                
+                Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
             }
-            .padding(.bottom)
+            .padding(.bottom, 20)
         }
         .padding()
         .onChange(of: permissionGranted) { _, newValue in
@@ -93,15 +97,7 @@ struct EnableNotificationsView: View {
     }
     
     private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            DispatchQueue.main.async {
-                permissionRequested = true
-                permissionGranted = granted
-                
-                if let error = error {
-                    print("Error requesting notification permission: \(error)")
-                }
-            }
-        }
+        NotificationManager.shared.requestAuthorization()
+        permissionGranted = true
     }
 }

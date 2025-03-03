@@ -69,7 +69,7 @@ struct WelcomeView: View {
                     .fill(Color(red: 0.36, green: 0.42, blue: 0.26))
                     .frame(width: 8, height: 8)
                 
-                ForEach(0..<3) { _ in
+                ForEach(0..<5) { _ in
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)

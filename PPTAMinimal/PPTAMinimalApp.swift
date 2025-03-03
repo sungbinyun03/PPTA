@@ -54,6 +54,14 @@ struct PPTAMinimalApp: App {
     @StateObject var viewModel = AuthViewModel()
     @AppStorage("onboardingComplete") private var onboardingComplete = false
     
+    // For testing
+    private let resetOnboardingForTesting = true // Set to false when not needed
+    init() {
+        if resetOnboardingForTesting {
+            UserDefaults.standard.set(false, forKey: "onboardingComplete")
+        }
+    }
+    
     var body: some Scene {
         WindowGroup {
             if onboardingComplete {

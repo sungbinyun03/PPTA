@@ -89,20 +89,20 @@ struct CreateProfileView: View {
                 ForEach(0..<2) { index in
                     Circle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 8, height: 8)
                 }
                 
                 Circle()
                     .fill(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
                 
-                ForEach(0..<2) { _ in
+                ForEach(0..<3) { _ in
                     Circle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 8, height: 8)
                 }
             }
-            .padding(.bottom)
+            .padding(.bottom, 20)
         }
         .padding()
     }

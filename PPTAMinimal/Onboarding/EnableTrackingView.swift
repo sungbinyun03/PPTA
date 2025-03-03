@@ -10,7 +10,6 @@ import FamilyControls
 
 struct EnableTrackingView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
-    @State private var isRequestingPermission = false
     @State private var permissionGranted = false
     
     var body: some View {
@@ -64,18 +63,20 @@ struct EnableTrackingView: View {
                 ForEach(0..<3) { index in
                     Circle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 8, height: 8)
                 }
                 
                 Circle()
                     .fill(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
                 
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 10, height: 10)
+                ForEach(0..<2) { _ in
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
             }
-            .padding(.bottom)
+            .padding(.bottom, 20)
         }
         .padding()
         .onChange(of: permissionGranted) { _, newValue in
@@ -89,18 +90,19 @@ struct EnableTrackingView: View {
     }
     
     private func requestScreenTimePermission() {
-        isRequestingPermission = true
         let center = AuthorizationCenter.shared
-        
-        Task {
-            do {
-                try await center.requestAuthorization(for: .individual)
-                isRequestingPermission = false
-                permissionGranted = center.authorizationStatus == .approved
-            } catch {
-                isRequestingPermission = false
-                print("Failed to request screen time authorization: \(error)")
+        if center.authorizationStatus != .approved {
+            Task {
+                do {
+                    try await center.requestAuthorization(for: .individual)
+                    print("Requested FamilyControls/ScreenTime permission.")
+                } catch {
+                    print("Failed to request screen time auth: \(error)")
+                }
             }
+        } else {
+            print("Already approved for Screen Time.")
         }
+        permissionGranted = true
     }
 }

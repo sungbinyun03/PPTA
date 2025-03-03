@@ -6,107 +6,200 @@
 //
 
 import SwiftUI
+import GoogleSignIn
+import GoogleSignInSwift
+import _AuthenticationServices_SwiftUI
 
 struct RegistrationView: View {
-    @State private var email = ""
     @State private var name = ""
+    @State private var email = ""
     @State private var password = ""
-    @State private var confirmPassword = ""
+    @State private var agreedToTerms = false
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var viewModel: AuthViewModel
     
+    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
+    private let backgroundColor = Color(UIColor.systemBackground)
+    private let textFieldBackground = Color(red: 0.92, green: 0.92, blue: 0.92)
+    
     var body: some View {
-        VStack {
-            Spacer()
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sign up")
+                    .font(.title)
+                    .fontWeight(.medium)
+                    .foregroundColor(primaryColor)
+                
+                Text("Make an account to get started")
+                    .font(.subheadline)
+                    .foregroundColor(primaryColor)
+            }
+            .padding(.top, 20)
             
-            VStack(spacing: 24) {
-                InputView(text: $email,
-                          title: "Email Address",
-                          placeholder: "name@example.com")
-                .autocapitalization(.none)
-                
-                InputView(text: $name,
-                          title: "Name",
-                          placeholder: "Enter your name")
-                
-                InputView(text: $password,
-                          title: "Password",
-                          placeholder: "Enter your password",
-                          isSecureField: true)
-                
-                ZStack(alignment: .trailing) {
-                    InputView(text: $confirmPassword,
-                              title: "Confirm Password",
-                              placeholder: "Confirm your password",
-                              isSecureField: true)
+            // Form fields
+            VStack(alignment: .leading, spacing: 20) {
+                // Name field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Name")
+                        .font(.body)
+                        .foregroundColor(primaryColor)
                     
-                    if !password.isEmpty && !confirmPassword.isEmpty {
-                        if password == confirmPassword {
-                            Image(systemName: "checkmark.circle.fill")
-                                .imageScale(.large)
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color(.systemGreen))
-                        } else {
-                            Image(systemName: "xmark.circle.fill")
-                                .imageScale(.large)
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color(.systemRed))
+                    TextField("", text: $name)
+                        .padding()
+                        .background(textFieldBackground)
+                        .cornerRadius(8)
+                }
+                
+                // Email field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Email address")
+                        .font(.body)
+                        .foregroundColor(primaryColor)
+                    
+                    TextField("", text: $email)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding()
+                        .background(textFieldBackground)
+                        .cornerRadius(8)
+                }
+                
+                // Password field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Password")
+                        .font(.body)
+                        .foregroundColor(primaryColor)
+                    
+                    SecureField("", text: $password)
+                        .padding()
+                        .background(textFieldBackground)
+                        .cornerRadius(8)
+                }
+                
+                // Terms and conditions
+                HStack(alignment: .top, spacing: 12) {
+                    Button(action: { agreedToTerms.toggle() }) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(primaryColor, lineWidth: 1)
+                                .frame(width: 24, height: 24)
+                                .background(agreedToTerms ? primaryColor.opacity(0.1) : .clear)
+                            
+                            if agreedToTerms {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(primaryColor)
+                                    .font(.system(size: 14, weight: .bold))
+                            }
                         }
                     }
+                    
+                    VStack(alignment: .leading) {
+                        Text("By signing up, I agree to ")
+                            .foregroundColor(.secondary) +
+                        Text("Peer Pressure's Terms and Conditions")
+                            .foregroundColor(primaryColor)
+                            .fontWeight(.medium)
+                    }
+                    .font(.caption)
                 }
-            }
-            .padding(.horizontal)
-            .padding(.top, 12)
-            
-            Button {
-                Task {
-                    await viewModel.createUser(withEmail: email,
-                                                   password: password,
-                                                   name: name)
-                }
-            } label: {
+                
+                // OR divider
                 HStack {
-                    Text("SIGN UP")
-                        .fontWeight(.semibold)
-                    Image(systemName: "arrow.right")
+                    VStack { Divider() }
+                    Text("or")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    VStack { Divider() }
                 }
-                .foregroundColor(.white)
-                .frame(width: UIScreen.main.bounds.width - 32, height: 48)
+                .padding(.vertical, 8)
+                
+                // Auth buttons
+                HStack(spacing: 20) {
+                    Spacer()
+                    
+                    // Google button
+                    Button(action: {
+                        Task {
+                            await viewModel.signInWithGoogle()
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(textFieldBackground)
+                                .frame(width: 60, height: 60)
+                            
+                            Text("G")
+                                .font(.title2)
+                                .fontWeight(.black)
+                                .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.2))
+                        }
+                    }
+                    
+                    // Apple Sign-In
+                    Button(action: {
+                        let appleSignInView = AppleSignInButton()
+                            .environmentObject(viewModel)
+                        
+                        // Present the controller
+                        let hostingController = UIHostingController(rootView: appleSignInView)
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let window = windowScene.windows.first,
+                           let rootViewController = window.rootViewController {
+                            rootViewController.present(hostingController, animated: true)
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(textFieldBackground)
+                                .frame(width: 60, height: 60)
+                            
+                            Image(systemName: "apple.logo")
+                                .font(.title2)
+                                .foregroundColor(.black)
+                        }
+                    }
+                    
+                    Spacer()
+                }
             }
-            .background(Color(.systemBlue))
-            .disabled(!formIsValid)
-            .opacity(formIsValid ? 1.0 : 0.5)
-            .cornerRadius(10)
-            .padding(.top, 24)
             
             Spacer()
             
-            Button {
-                dismiss()
-            } label: {
-                HStack(spacing: 3) {
-                    Text("Already have an account?")
-                    Text("Sign in")
-                        .fontWeight(.bold)
+            // Next button
+            Button(action: {
+                Task {
+                    await viewModel.createUser(withEmail: email, password: password, name: name)
                 }
-                .font(.system(size: 14))
+            }) {
+                Text("Next")
+                    .font(.headline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(formIsValid ? primaryColor : Color.gray)
+                    .cornerRadius(10)
             }
-
+            .disabled(!formIsValid)
         }
+        .padding(.horizontal)
+        .background(backgroundColor)
+        .padding(.bottom, 20)
     }
-}
-
-extension RegistrationView: AuthenticationFormProtocol {
+    
     var formIsValid: Bool {
         return !email.isEmpty
-        && email.contains("@")
-        && !password.isEmpty
-        && password.count > 5
-        && confirmPassword == password
-        && !name.isEmpty
+            && email.contains("@")
+            && !password.isEmpty
+            && password.count > 5
+            && !name.isEmpty
+            && agreedToTerms
     }
 }
 
 #Preview {
     RegistrationView()
+        .environmentObject(AuthViewModel())
 }
