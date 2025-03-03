@@ -52,12 +52,17 @@ struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel()
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
     
     var body: some Scene {
         WindowGroup {
-            MainView()
-                // 4) Inject the same AuthViewModel into SwiftUI environment
-                .environmentObject(viewModel)
+            if onboardingComplete {
+                MainView()
+                    .environmentObject(viewModel)
+            } else {
+                OnboardingContainerView()
+                    .environmentObject(viewModel)
+            }
         }
     }
 }

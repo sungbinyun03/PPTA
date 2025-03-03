@@ -9,7 +9,7 @@ import Foundation
 import FamilyControls
 import FirebaseAuth
 
-class UserSettingsManager {
+class UserSettingsManager: ObservableObject {
     static let shared = UserSettingsManager()
     private init() {}
     
