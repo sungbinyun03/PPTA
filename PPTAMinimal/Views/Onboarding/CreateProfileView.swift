@@ -73,25 +73,8 @@ struct CreateProfileView: View {
                 }
             }
             
-            // Page indicator
-            HStack {
-                ForEach(0..<2) { index in
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
-                
-                Circle()
-                    .fill(Color("primaryColor"))
-                    .frame(width: 8, height: 8)
-                
-                ForEach(0..<3) { _ in
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
-            }
-            .padding(.bottom, 20)
+            PageIndicator(page: 2)
+                .padding(.bottom, 20)
         }
         .padding()
     }

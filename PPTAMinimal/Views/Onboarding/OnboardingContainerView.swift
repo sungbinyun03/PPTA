@@ -41,7 +41,7 @@ struct OnboardingContainerView: View {
                             coordinator.goBack()
                         }) {
                             Image(systemName: "chevron.left")
-                                .foregroundColor(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
+                                .foregroundColor(Color("primaryColor"))
                         }
                     }
                 }
@@ -51,7 +51,7 @@ struct OnboardingContainerView: View {
                         Button("Skip") {
                             coordinator.skipToMainApp()
                         }
-                        .foregroundColor(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
+                        .foregroundColor(Color("primaryColor"))
                     }
                 }
             }

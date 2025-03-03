@@ -10,7 +10,7 @@ import SwiftUI
 struct PrimaryButton: View {
     let title: String
     var isDisabled: Bool = false
-    var enabledBackground: Color = Color("primaryColor")
+    var enabledBackground: Color = Color("primaryButtonColor")
     var disabledBackground: Color = .gray
     var cornerRadius: CGFloat = 10
     let action: () -> Void

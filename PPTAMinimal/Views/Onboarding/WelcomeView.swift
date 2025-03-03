@@ -55,19 +55,8 @@ struct WelcomeView: View {
             .padding(.horizontal)
             .padding(.bottom, 20)
             
-            // Page indicators
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color("primaryColor"))
-                    .frame(width: 8, height: 8)
-                
-                ForEach(0..<5) { _ in
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
-            }
-            .padding(.bottom, 20)
+            PageIndicator()
+                .padding(.bottom, 20)
         }
         .padding()
     }

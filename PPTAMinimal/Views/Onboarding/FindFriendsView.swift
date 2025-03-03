@@ -79,18 +79,8 @@ struct FindFriendsView: View {
             }
             
             // Page indicator
-            HStack(spacing: 8) {
-                ForEach(0..<5) { index in
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
-                
-                Circle()
-                    .fill(primaryColor)
-                    .frame(width: 8, height: 8)
-            }
-            .padding(.bottom, 20)
+            PageIndicator(page: 5)
+                .padding(.bottom, 20)
         }
         .padding()
         .onAppear {
@@ -174,7 +164,7 @@ struct FindFriendsView: View {
     }
     
     private func saveSelectedContacts() {
-        // Convert CNContacts to your PeerCoach model
+        // Convert CNContacts to PeerCoach model
         let peerCoaches = selectedContacts.map { contact in
             let phoneNumber = contact.phoneNumbers.first?.value.stringValue ?? ""
             return PeerCoach(
@@ -210,7 +200,7 @@ struct ContactCardView: View {
     let onAdd: () -> Void
     
     private let cardBackground = Color(red: 0.9, green: 0.9, blue: 0.9)
-    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
+    private let primaryColor = Color("primaryColor")
     
     var body: some View {
         HStack {
