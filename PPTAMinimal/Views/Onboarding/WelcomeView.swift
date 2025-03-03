@@ -18,7 +18,7 @@ struct WelcomeView: View {
                 Text("Welcome!")
                     .font(.largeTitle)
                     .fontWeight(.medium)
-                    .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+                    .foregroundColor(Color("primaryColor"))
                 
                 Text("👋")
                     .font(.largeTitle)
@@ -40,25 +40,17 @@ struct WelcomeView: View {
             Text("Set goals together")
                 .font(.title2)
                 .fontWeight(.medium)
-                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+                .foregroundColor(Color("primaryColor"))
             
             Text("Stay focused with friends")
                 .font(.body)
-                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+                .foregroundColor(Color("primaryColor"))
                 .padding(.bottom, 20)
             
             Spacer()
             
-            Button(action: {
+            PrimaryButton(title: "Get Started") {
                 coordinator.advance()
-            }) {
-                Text("Get Started")
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(red: 0.36, green: 0.42, blue: 0.26))
-                    .cornerRadius(8)
             }
             .padding(.horizontal)
             .padding(.bottom, 20)
@@ -66,7 +58,7 @@ struct WelcomeView: View {
             // Page indicators
             HStack(spacing: 8) {
                 Circle()
-                    .fill(Color(red: 0.36, green: 0.42, blue: 0.26))
+                    .fill(Color("primaryColor"))
                     .frame(width: 8, height: 8)
                 
                 ForEach(0..<5) { _ in

@@ -15,49 +15,30 @@ struct EnableNotificationsView: View {
     
     var body: some View {
         VStack(spacing: 24) {
-            Text("Enable Notifs")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            // Bell icon from the provided design
-            Image(systemName: "bell.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
-                .foregroundColor(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                .overlay(
-                    // Hand ringing bell - simplified representation
-                    Path { path in
-                        path.move(to: CGPoint(x: 30, y: 70))
-                        path.addLine(to: CGPoint(x: 15, y: 85))
-                    }
-                    .stroke(Color.black, lineWidth: 3)
-                )
-                .padding()
-            
-            Text("Allow Notifications")
-                .font(.headline)
-            
-            Text("We'll use these to keep you informed!")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
             Spacer()
             
-            Button(action: {
-                requestNotificationPermission()
-            }) {
-                Text(permissionGranted ? "Permission Granted!" : "Enable")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(permissionGranted ? Color.green : Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .cornerRadius(10)
-            }
-            .disabled(permissionGranted)
+            Text("Enable Notifs")
+                .font(.largeTitle)
+                .fontWeight(.medium)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+            
+            // Bell icon from the provided design
+            Image("onboarding-illustration-notifs")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 220, height: 240)
+            
+            Text("Allow Notifications")
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+            
+            Text("We'll use these to keep you informed!")
+                .font(.body)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+                .padding(.bottom, 20)
+            
+            Spacer()
             
             Button(action: {
                 coordinator.advance()
@@ -65,7 +46,24 @@ struct EnableNotificationsView: View {
                 Text("I'll do this later")
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 8)
+            
+            PrimaryButton(title: "Enable", isDisabled: permissionGranted) {
+                requestNotificationPermission()
+            }
+            
+//            Button(action: {
+//                requestNotificationPermission()
+//            }) {
+//                Text(permissionGranted ? "Permission Granted!" : "Enable")
+//                    .fontWeight(.medium)
+//                    .foregroundColor(.white)
+//                    .frame(maxWidth: .infinity)
+//                    .padding()
+//                    .background(permissionGranted ? Color.green : Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
+//                    .cornerRadius(8)
+//            }
+//            .disabled(permissionGranted)
+//            .padding(.bottom, 20)
             
             // Page indicator
             HStack {
@@ -100,4 +98,8 @@ struct EnableNotificationsView: View {
         NotificationManager.shared.requestAuthorization()
         permissionGranted = true
     }
+}
+
+#Preview {
+    EnableNotificationsView(coordinator: OnboardingCoordinator())
 }

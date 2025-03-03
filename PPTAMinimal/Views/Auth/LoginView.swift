@@ -10,9 +10,9 @@ struct LoginView: View {
     @State private var showingAppleSignIn = false
     @EnvironmentObject var viewModel: AuthViewModel
     
-    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
+    private let primaryColor = Color("primaryColor")
     private let backgroundColor = Color(UIColor.systemBackground)
-    private let textFieldBackground = Color(red: 0.92, green: 0.92, blue: 0.92)
+    private let textFieldBackground = Color("backgroundGray")
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -32,30 +32,10 @@ struct LoginView: View {
             // Form fields
             VStack(alignment: .leading, spacing: 20) {
                 // Email field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Email address")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                    
-                    TextField("", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .padding()
-                        .background(textFieldBackground)
-                        .cornerRadius(8)
-                }
+                InputView(text: $email, title: "Email address", placeholder: "name@example.com")
                 
                 // Password field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Password")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                    
-                    SecureField("", text: $password)
-                        .padding()
-                        .background(textFieldBackground)
-                        .cornerRadius(8)
-                }
+                InputView(text: $password, title: "Password", placeholder: "********", isSecureField: true)
                 
                 // Forgot password
                 HStack {
@@ -69,7 +49,7 @@ struct LoginView: View {
                     }
                 }
                 
-                // OR divider
+                // Divider
                 HStack {
                     VStack { Divider() }
                     Text("or")
@@ -102,7 +82,7 @@ struct LoginView: View {
                         }
                     }
                     
-                    // Apple Sign-In
+                    // Apple button
                     Button(action: {
                         showingAppleSignIn = true
                     }) {

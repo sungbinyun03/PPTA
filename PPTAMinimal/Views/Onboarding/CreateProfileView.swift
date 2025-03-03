@@ -16,14 +16,17 @@ struct CreateProfileView: View {
     
     var body: some View {
         VStack(spacing: 24) {
+            Spacer()
+            
             Text("Create Profile")
                 .font(.largeTitle)
-                .fontWeight(.bold)
+                .fontWeight(.medium)
+                .foregroundStyle(Color("primaryColor"))
             
             // Profile image placeholder
             Circle()
                 .stroke(Color.gray, lineWidth: 1)
-                .frame(width: 100, height: 100)
+                .frame(width: 160, height: 160)
                 .overlay(
                     Image(systemName: "person.fill")
                         .resizable()
@@ -32,22 +35,19 @@ struct CreateProfileView: View {
                         .padding(20)
                 )
             
-            // Display name field
-            VStack(alignment: .leading) {
-                Text("Display Name")
-                    .font(.headline)
-                TextField("Display Name", text: $displayName)
-                    .padding()
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.gray, lineWidth: 1)
-                    )
-            }
-            
-            // Focus areas
-            VStack(alignment: .leading) {
+            // Display Name Field Container
+            InputView(
+                text: $displayName,
+                title: "Display Name",
+                placeholder: "John Doe"
+            )
+            .borderedContainer()
+        
+            // Focus Areas Container
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Focus Areas")
-                    .font(.headline)
+                    .foregroundStyle(Color("primaryColor"))
+                    .font(.body)
                 
                 // Tag grid
                 FlowLayout(spacing: 10) {
@@ -62,27 +62,16 @@ struct CreateProfileView: View {
                     }
                 }
             }
+            .borderedContainer()
             
             Spacer()
             
-            Button(action: {
-                if !displayName.isEmpty {
-                    // Update user profile
-                    Task {
-                        await viewModel.updateUserDisplayName(displayName: displayName)
-                        coordinator.advance()
-                    }
+            PrimaryButton(title: "Next", isDisabled: displayName.isEmpty) {
+                Task {
+                    await viewModel.updateUserDisplayName(displayName: displayName)
+                    coordinator.advance()
                 }
-            }) {
-                Text("Next")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(displayName.isEmpty ? Color.gray : Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .cornerRadius(10)
             }
-            .disabled(displayName.isEmpty)
             
             // Page indicator
             HStack {
@@ -93,7 +82,7 @@ struct CreateProfileView: View {
                 }
                 
                 Circle()
-                    .fill(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
+                    .fill(Color("primaryColor"))
                     .frame(width: 8, height: 8)
                 
                 ForEach(0..<3) { _ in
@@ -119,9 +108,9 @@ struct TagView: View {
             Text(tag)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)) : Color.gray.opacity(0.2))
-                .foregroundColor(isSelected ? .white : .black)
-                .cornerRadius(16)
+                .background(isSelected ? Color("primaryColor") : Color("backgroundGray"))
+                .foregroundColor(isSelected ? .white : Color("primaryColor"))
+                .cornerRadius(10)
         }
     }
 }
@@ -171,4 +160,8 @@ struct FlowLayout: Layout {
             x += size.width + spacing
         }
     }
+}
+
+#Preview {
+    CreateProfileView(coordinator: OnboardingCoordinator())
 }

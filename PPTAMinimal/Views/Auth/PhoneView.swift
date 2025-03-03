@@ -20,9 +20,9 @@ struct PhoneVerificationView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     
-    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
+    private let primaryColor = Color("primaryColor")
     private let backgroundColor = Color(UIColor.systemBackground)
-    private let textFieldBackground = Color(red: 0.92, green: 0.92, blue: 0.92)
+    private let textFieldBackground = Color("backgroundGray")
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -46,33 +46,25 @@ struct PhoneVerificationView: View {
     
     // MARK: - Phone Entry View
     var phoneEntryView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
+        VStack(alignment: .center, spacing: 20) {
             Text("Phone Verification")
                 .font(.title)
                 .fontWeight(.medium)
                 .foregroundColor(primaryColor)
                 .padding(.top, 20)
             
-            // Subtitle
             Text("Enter your phone number to verify your account")
                 .font(.subheadline)
                 .foregroundColor(primaryColor)
                 .padding(.bottom, 10)
             
-            // Phone number input
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Phone Number")
-                    .font(.body)
-                    .foregroundColor(primaryColor)
-                
-                TextField("+1 (XXX) XXX-XXXX", text: $phoneNumber)
-                    .keyboardType(.phonePad)
-                    .padding()
-                    .background(textFieldBackground)
-                    .cornerRadius(8)
-                    .focused($isTextFieldFocused)
-            }
+            Image("onboarding-illustration-verify")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 200, height: 200)
+            
+            InputView(text: $phoneNumber, title: "Phone Number", placeholder: "(123) 456-789")
+                .borderedContainer()
             
             // Error message if any
             if let errorMessage = errorMessage {
@@ -138,7 +130,7 @@ struct PhoneVerificationView: View {
                 .opacity(0)
                 .frame(height: 0)
                 .onChange(of: verificationCode) { _, newValue in
-                    // Limit to 5 digits
+                    // Limit to 6 digits
                     if newValue.count > 6 {
                         verificationCode = String(newValue.prefix(5))
                     }
@@ -292,20 +284,9 @@ struct PhoneVerificationView: View {
             verificationCode: verificationCode
         )
         
-        // For new user flow, we might not have a current user yet
         if let currentUser = Auth.auth().currentUser {
-            // Existing user - link the phone credential
             do {
                 _ = try await currentUser.link(with: credential)
-                await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
-                dismiss()
-            } catch {
-                self.errorMessage = error.localizedDescription
-            }
-        } else {
-            // New user flow - sign in with the phone credential
-            do {
-                let result = try await Auth.auth().signIn(with: credential)
                 await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
                 dismiss()
             } catch {
@@ -325,9 +306,9 @@ struct VerificationDigitField: View {
     
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(textFieldBackground)
-                .frame(width: 48, height: 56)
+                .frame(width: 55, height: 70)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(code.count > index ? primaryColor : Color.clear, lineWidth: 2)
@@ -342,7 +323,6 @@ struct VerificationDigitField: View {
             }
         }
         .contentShape(Rectangle())
-        .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
     }
 }
 

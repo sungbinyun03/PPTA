@@ -18,9 +18,9 @@ struct RegistrationView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var viewModel: AuthViewModel
     
-    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
+    private let primaryColor = Color("primaryColor")
     private let backgroundColor = Color(UIColor.systemBackground)
-    private let textFieldBackground = Color(red: 0.92, green: 0.92, blue: 0.92)
+    private let textFieldBackground = Color("backgroundGray")
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -40,42 +40,13 @@ struct RegistrationView: View {
             // Form fields
             VStack(alignment: .leading, spacing: 20) {
                 // Name field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Name")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                    
-                    TextField("", text: $name)
-                        .padding()
-                        .background(textFieldBackground)
-                        .cornerRadius(8)
-                }
+                InputView(text: $name, title: "Name", placeholder: "John Doe")
                 
                 // Email field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Email address")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                    
-                    TextField("", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .padding()
-                        .background(textFieldBackground)
-                        .cornerRadius(8)
-                }
+                InputView(text: $email, title: "Phone Number", placeholder: "name@example.com")
                 
                 // Password field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Password")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                    
-                    SecureField("", text: $password)
-                        .padding()
-                        .background(textFieldBackground)
-                        .cornerRadius(8)
-                }
+                InputView(text: $password, title: "Password", placeholder: "********", isSecureField: true)
                 
                 // Terms and conditions
                 HStack(alignment: .top, spacing: 12) {

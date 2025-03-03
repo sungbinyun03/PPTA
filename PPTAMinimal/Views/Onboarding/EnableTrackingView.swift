@@ -14,41 +14,30 @@ struct EnableTrackingView: View {
     
     var body: some View {
         VStack(spacing: 24) {
-            Text("Enable Tracking")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            // Tracking icon
-            Image(systemName: "megaphone.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
-                .foregroundColor(Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                .padding()
-            
-            Text("Allow Screentime Tracking")
-                .font(.headline)
-            
-            Text("We'll use this to help you stay focused!")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
             Spacer()
             
-            Button(action: {
-                requestScreenTimePermission()
-            }) {
-                Text(permissionGranted ? "Permission Granted!" : "Enable")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(permissionGranted ? Color.green : Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
-                    .cornerRadius(10)
-            }
-            .disabled(permissionGranted)
+            Text("Enable Tracking")
+                .font(.largeTitle)
+                .fontWeight(.medium)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+            
+            // Tracking icon
+            Image("onboarding-illustration-tracking")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 340, height: 250)
+            
+            Text("Allow Screentime Tracking")
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+            
+            Text("We'll use this to help you stay focused!")
+                .font(.body)
+                .foregroundColor(Color(red: 0.36, green: 0.42, blue: 0.26))
+                .padding(.bottom, 20)
+            
+            Spacer()
             
             Button(action: {
                 coordinator.advance()
@@ -56,7 +45,24 @@ struct EnableTrackingView: View {
                 Text("I'll do this later")
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 8)
+            
+            PrimaryButton(title: "Enable", isDisabled: permissionGranted) {
+                requestScreenTimePermission()
+            }
+            
+//            Button(action: {
+//                requestScreenTimePermission()
+//            }) {
+//                Text(permissionGranted ? "Permission Granted!" : "Enable")
+//                    .fontWeight(.medium)
+//                    .foregroundColor(.white)
+//                    .frame(maxWidth: .infinity)
+//                    .padding()
+//                    .background(permissionGranted ? Color.green : Color(UIColor(red: 0.36, green: 0.42, blue: 0.26, alpha: 1.0)))
+//                    .cornerRadius(8)
+//            }
+//            .disabled(permissionGranted)
+//            .padding(.bottom, 20)
             
             // Page indicator
             HStack {
@@ -105,4 +111,8 @@ struct EnableTrackingView: View {
         }
         permissionGranted = true
     }
+}
+
+#Preview {
+    EnableTrackingView(coordinator: OnboardingCoordinator())
 }
