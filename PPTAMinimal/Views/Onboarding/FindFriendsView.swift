@@ -39,8 +39,8 @@ struct FindFriendsView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 15)
                     .stroke(.black, lineWidth: 1)
-                    .background(Color.white)
-                    .frame(width: 330, height: 415)
+                    .background(Color.white.cornerRadius(15))
+                    .frame(width: 330, height: 430)
                 
                 if contacts.isEmpty {
                     VStack {
@@ -60,11 +60,14 @@ struct FindFriendsView: View {
                                 )
                             }
                         }
-                        .padding()
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
                     }
+                    .frame(width: 320, height: 410)
+                    .clipShape(RoundedRectangle(cornerRadius: 15))
                 }
             }
-            .frame(height: 400)
+            .frame(height: 430)
             
             Spacer()
             
@@ -199,7 +202,7 @@ struct ContactCardView: View {
     let isSelected: Bool
     let onAdd: () -> Void
     
-    private let cardBackground = Color(red: 0.9, green: 0.9, blue: 0.9)
+    private let cardBackground = Color("backgroundGray")
     private let primaryColor = Color("primaryColor")
     
     var body: some View {
