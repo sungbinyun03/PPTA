@@ -12,6 +12,7 @@ import GoogleSignIn
 import AuthenticationServices
 import CryptoKit
 
+
 protocol AuthenticationFormProtocol {
     var formIsValid: Bool { get }
 }
@@ -25,6 +26,8 @@ class AuthViewModel: ObservableObject {
     private let userRepository: UserRepository
     private let googleSignInService: GoogleSignInService
     private let appleSignInService: AppleSignInService
+    static let shared = AuthViewModel()
+
     
     init(
         authService: AuthService = AuthService(),
@@ -158,11 +161,31 @@ class AuthViewModel: ObservableObject {
         }
         return ""
     }
+    
+    func storeCurrentUserName() {
+        if let currentUser = currentUser {
+            UserDefaults.standard.set(currentUser.name, forKey: "currentUserName")
+        }
+    }
 
     
     func fetchUser() async {
-        guard let uid = authService.currentUser?.uid else { return }
-        do { self.currentUser = try await userRepository.fetchUser(by: uid) } catch { print("DEBUG: fetchUser error: \(error.localizedDescription)") }
+        guard let uid = authService.currentUser?.uid else {
+            self.userSession = nil
+            return
+        }
+        do {
+            self.currentUser = try await userRepository.fetchUser(by: uid)
+            self.storeCurrentUserName()
+            // If there's a stored FCM token from before login
+            if let storedToken = UserDefaults.standard.string(forKey: "fcmToken") {
+                await updateFCMToken(storedToken)
+                UserDefaults.standard.removeObject(forKey: "fcmToken")
+            }
+        } catch {
+            print("DEBUG: fetchUser error: \(error.localizedDescription)")
+            DispatchQueue.main.async { self.userSession = nil }
+        }
     }
     
     func updateUserPhoneNumber(phoneNumber: String) async {

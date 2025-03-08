@@ -30,17 +30,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
-        super.eventDidReachThreshold(event, activity: activity)
-        
-        UserSettingsManager.shared.loadSettings { userSettings in
-            let selectedAppTokens = userSettings.applications.applicationTokens
-            self.store.shield.applications = selectedAppTokens
-            
-            NotificationManager.shared.sendNotification(
-                title: "Time Up",
-                body: "You're Done!"
-            )
-        }
+        super.eventDidReachThreshold(event, activity: activity)        
+        let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? "Your friend"
+        let notificationBody = "\(currentUserName) has reached their daily time limit!"
+
+        NotificationManager.shared.sendPushNotification(
+            title: "Time is Up!",
+            body: notificationBody
+        )
+    
     }
     
     override func intervalWillStartWarning(for activity: DeviceActivityName) {
@@ -57,10 +55,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventWillReachThresholdWarning(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
         super.eventWillReachThresholdWarning(event, activity: activity)
-        NotificationManager.shared.sendNotification(
-               title: "Usage Window About to End",
-               body: "Your time interval will end soon!"
-           )
+//        NotificationManager.shared.sendNotification(
+//               title: "Usage Window About to End",
+//               body: "Your time interval will end soon!"
+//           )
+        
+        UserSettingsManager.shared.loadSettings { userSettings in
+            let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? ""
+
+            let peerCoaches = userSettings.peerCoaches
+            let notificationBody = "Your friend \(currentUserName) has reached the time limit!"
+
+            NotificationManager.shared.sendPushNotification(
+                title: "Time is Up!",
+                body: notificationBody
+            )
+            
+        }
         // Handle the warning before the event reaches its threshold.
     }
 }

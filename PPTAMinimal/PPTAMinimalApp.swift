@@ -9,15 +9,19 @@ import SwiftUI
 import Firebase
 import GoogleSignIn
 import FirebaseAuth
+import FirebaseMessaging
 
-class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     func application(_ application: UIApplication,
                        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           FirebaseApp.configure()
-          
+          UNUserNotificationCenter.current().delegate = self
+          Messaging.messaging().delegate = self  // Add this line
+          application.registerForRemoteNotifications()  // Add this line
           return true
       }
-        
+    
     func application(_ app: UIApplication,
                      open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
@@ -44,7 +48,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
     }
- 
+    
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+            guard let token = fcmToken else { return }
+            print("FCM Token: \(token)")
+            // Store token in Firestore
+            Task {
+                await AuthViewModel.shared.updateFCMToken(token)
+            }
+        }
 }
 
 @main

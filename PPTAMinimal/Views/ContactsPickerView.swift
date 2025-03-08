@@ -7,6 +7,8 @@
 
 import SwiftUI
 import ContactsUI
+import FirebaseFirestore
+
 
 struct ContactsPickerView: UIViewControllerRepresentable {
     
@@ -35,30 +37,61 @@ struct ContactsPickerView: UIViewControllerRepresentable {
         }
 
         // Multiple contact selection
-         func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
-            parent.selectedContacts.append(contentsOf: contacts)
-            let newCoaches = contacts.map { convertCNContactToPeerCoach($0) }
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
+            let group = DispatchGroup()
+            var newCoaches: [PeerCoach] = []
             
-            UserSettingsManager.shared.loadSettings { currentSettings in
-                 var updatedSettings = currentSettings
-                 updatedSettings.peerCoaches.append(contentsOf: newCoaches)
-                 UserSettingsManager.shared.saveSettings(updatedSettings)
+            for contact in contacts {
+                group.enter()
+                convertCNContactToPeerCoach(contact) { peerCoach in
+                    newCoaches.append(peerCoach)
+                    group.leave()
+                }
             }
             
-            parent.presentationMode.wrappedValue.dismiss()
-         }
+            group.notify(queue: .main) {
+                print("All peer coaches processed: \(newCoaches)")
+                UserSettingsManager.shared.loadSettings { currentSettings in
+                    var updatedSettings = currentSettings
+                    updatedSettings.peerCoaches.append(contentsOf: newCoaches)
+                    
+                    DispatchQueue.main.async {
+                        UserSettingsManager.shared.saveSettings(updatedSettings)
+                    }
+           
+                }
+                DispatchQueue.main.async {
+                    self.parent.presentationMode.wrappedValue.dismiss()
+                }
+                
+                
+            }
+        }
         
         func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
             parent.presentationMode.wrappedValue.dismiss()
         }
         
-        func convertCNContactToPeerCoach(_ contact: CNContact) -> PeerCoach {
+        func convertCNContactToPeerCoach(_ contact: CNContact, completion: @escaping (PeerCoach) -> Void) {
+            print("##### CONVERT CALL")
             let phone = contact.phoneNumbers.first?.value.stringValue ?? ""
-            return PeerCoach(
-                givenName: contact.givenName,
-                familyName: contact.familyName,
-                phoneNumber: phone
-            )
+            let db = Firestore.firestore()
+            db.collection("users").whereField("phoneNumber", isEqualTo: phone).getDocuments { snapshot, error in
+                var token: String? = nil
+                if let document = snapshot?.documents.first {
+                    token = document.data()["fcmToken"] as? String
+                }
+                
+                let peerCoach = PeerCoach(
+                    givenName: contact.givenName,
+                    familyName: contact.familyName,
+                    phoneNumber: phone,
+                    fcmToken: token
+                )
+                
+                print("###### COACH : \(peerCoach)")
+                completion(peerCoach)
+            }
         }
     }
 }
