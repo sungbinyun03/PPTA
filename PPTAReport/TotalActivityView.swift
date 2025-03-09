@@ -14,13 +14,13 @@ struct TotalActivityView: View {
     var body: some View {
         VStack(spacing: 4) {
             Spacer(minLength: 24)
-            Text("Total Screentime:")
-                .font(.callout)
-                .foregroundColor(.secondary)
-            Text(activityReport.totalDuration.toString())
-                .font(.largeTitle)
-                .bold()
-                .padding(.bottom, 8)
+//            Text("Total Screentime:")
+//                .font(.callout)
+//                .foregroundColor(.secondary)
+//            Text(activityReport.totalDuration.toString())
+//                .font(.largeTitle)
+//                .bold()
+//                .padding(.bottom, 8)
             List {
                 Section {
                     ForEach(activityReport.apps) { eachApp in
@@ -28,6 +28,8 @@ struct TotalActivityView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden) // Hides the default background
+            .background(Color.clear)
         }
     }
 }
@@ -46,29 +48,29 @@ struct ListRow: View {
                 Text(eachApp.displayName)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
+//                    HStack(spacing: 4) {
+//                        Text("Pickups")
+//                            .font(.footnote)
+//                            .foregroundColor(.secondary)
+//                            .frame(width: 72, alignment: .leading)
+//                        Text("\(eachApp.numberOfPickups) Times")
+//                            .font(.headline)
+//                            .bold()
+//                            .frame(minWidth: 52, alignment: .trailing)
+//                    }
                     HStack(spacing: 4) {
-                        Text("Pickups")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                            .frame(width: 72, alignment: .leading)
-                        Text("\(eachApp.numberOfPickups) Times")
-                            .font(.headline)
-                            .bold()
-                            .frame(minWidth: 52, alignment: .trailing)
-                    }
-                    HStack(spacing: 4) {
-                        Text("Time")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                            .frame(width: 72, alignment: .leading)
+//                        Text("Time")
+//                            .font(.footnote)
+//                            .foregroundColor(.secondary)
+//                            .frame(width: 72, alignment: .leading)
                         Text(String(eachApp.duration.toString()))
                             .font(.headline)
-                            .bold()
+//                            .bold()
                             .frame(minWidth: 52, alignment: .trailing)
                     }
                 }
             }
         }
-        .background(.clear)
+        .listRowBackground(Color.clear)
     }
 }

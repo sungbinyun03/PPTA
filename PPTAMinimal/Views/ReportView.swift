@@ -39,6 +39,7 @@ struct ReportView: View {
     )
     
     var body: some View {
+        
         VStack {
             if AuthorizationCenter.shared.authorizationStatus == .approved {
                 DeviceActivityReport(context, filter: filter)
