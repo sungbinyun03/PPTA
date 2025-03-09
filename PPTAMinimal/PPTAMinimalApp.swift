@@ -70,11 +70,26 @@ struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel()
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
+    
+    // For testing
+    private let resetOnboardingForTesting = true // Set to false when not needed
+    init() {
+        if resetOnboardingForTesting {
+            UserDefaults.standard.set(false, forKey: "onboardingComplete")
+        }
+    }
     
     var body: some Scene {
         WindowGroup {
-            TabNavigator()
+            if onboardingComplete {
+               TabNavigator()
                 .environmentObject(viewModel)
+            } else {
+                OnboardingContainerView()
+                    .environmentObject(viewModel)
+            }
+
         }
     }
 }

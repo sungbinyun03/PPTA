@@ -204,4 +204,15 @@ class AuthViewModel: ObservableObject {
         do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
         catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
     }
+    
+    func updateUserDisplayName(displayName: String) async {
+        guard let uid = authService.currentUser?.uid else { return }
+        
+        do {
+            try await userRepository.updateUserField(uid: uid, field: "name", value: displayName)
+            await fetchUser() // Refresh the current user data
+        } catch {
+            print("DEBUG: Failed to update display name: \(error.localizedDescription)")
+        }
+    }
 }
