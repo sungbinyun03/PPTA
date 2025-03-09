@@ -17,8 +17,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           FirebaseApp.configure()
           UNUserNotificationCenter.current().delegate = self
-          Messaging.messaging().delegate = self  // Add this line
-          application.registerForRemoteNotifications()  // Add this line
+          Messaging.messaging().delegate = self
+          application.registerForRemoteNotifications()
           return true
       }
     
@@ -52,6 +52,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
             guard let token = fcmToken else { return }
             print("FCM Token: \(token)")
+            for family in UIFont.familyNames {
+                print("Family: \(family)")
+                for name in UIFont.fontNames(forFamilyName: family) {
+                    print("  \(name)")
+                }
+            }
             // Store token in Firestore
             Task {
                 await AuthViewModel.shared.updateFCMToken(token)
@@ -77,12 +83,13 @@ struct PPTAMinimalApp: App {
     var body: some Scene {
         WindowGroup {
             if onboardingComplete {
-                MainView()
-                    .environmentObject(viewModel)
+               TabNavigator()
+                .environmentObject(viewModel)
             } else {
                 OnboardingContainerView()
                     .environmentObject(viewModel)
             }
+
         }
     }
 }

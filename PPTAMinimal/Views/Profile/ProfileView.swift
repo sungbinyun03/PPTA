@@ -4,52 +4,50 @@
 //
 //  Created by Jovy Zhou on 1/20/25.
 //
-
 import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var viewModel: AuthViewModel
-    
+
     var body: some View {
         if let user = viewModel.currentUser {
-            HStack(spacing: 15) {
-                Text(user.intiials)
-                    .font(.title)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(width: 72, height: 72)
-                    .background(Color(.systemGray3))
-                    .clipShape(Circle())
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(user.name)
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 12) {
+                    Text(user.intiials)
+                        .font(.title)
                         .fontWeight(.semibold)
-                        .padding(.top, 4)
+                        .foregroundStyle(.white)
+                        .frame(width: 58, height: 58)
+                        .background(Color(.systemGray3))
+                        .clipShape(Circle())
+                        .offset(y: -4) // Moves the circle slightly higher
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        let fullName = viewModel.currentUser?.name ?? "User"
+                        let firstName = fullName.components(separatedBy: " ").first ?? fullName
+
+                        // Welcome Message with Custom Font
+                        (Text("Welcome Back, ") +
+                             Text("\(firstName)").font(.custom("BambiBold", size: 20)) +
+                             Text("!").font(.system(size: 20, weight: .bold)))
+                            .font(.custom("BambiBold", size: 18))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .layoutPriority(1)
+
+                            Text("Ready for another study session?")
+                                .font(.custom("SatoshiVariable-Bold_Light", size: 14))
+                                .foregroundStyle(Color(.darkGray))                    }
                 }
-                
-                Spacer()
-                
-                Button {
-                    viewModel.signOut()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.left")
-                            .imageScale(.small)
-                        
-                        Text("Sign Out")
-                            .font(.footnote)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(.red, lineWidth: 1)
-                    )
-                }
+
+                // Longer Divider
+                Rectangle()
+                    .fill(Color(.systemGray4))
+                    .frame(height: 1)
+                    .frame(maxWidth: .infinity) // Extends the divider across the width
+                    .padding(.horizontal, -16) // Extends slightly beyond normal padding
             }
+            .padding(.horizontal, 24) // Keeps the main layout structured
         }
     }
 }

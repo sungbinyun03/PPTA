@@ -31,5 +31,10 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>X_BAMBI.TTF</string>
+		<string>Satoshi-Variable.ttf</string>
+	</array>
 </dict>
 </plist>

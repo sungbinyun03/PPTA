@@ -107,6 +107,13 @@
 			);
 			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
 		};
+		AE3655622D78044600B876EC /* Exceptions for "PPTAMinimal" folder in "PPTAReport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Assets/Satoshi-Variable.ttf",
+			);
+			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
+		};
 		AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -142,6 +149,7 @@
 			exceptions = (
 				8AE0927A2D3EFAF800F1EA5A /* Exceptions for "PPTAMinimal" folder in "PPTAMinimal" target */,
 				AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */,
+				AE3655622D78044600B876EC /* Exceptions for "PPTAMinimal" folder in "PPTAReport" target */,
 			);
 			path = PPTAMinimal;
 			sourceTree = "<group>";

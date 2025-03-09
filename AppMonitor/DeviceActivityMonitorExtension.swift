@@ -30,16 +30,22 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
-        super.eventDidReachThreshold(event, activity: activity)        
-        let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? "Your friend"
-        let notificationBody = "\(currentUserName) has reached their daily time limit!"
+            super.eventDidReachThreshold(event, activity: activity)
 
-        NotificationManager.shared.sendPushNotification(
-            title: "Time is Up!",
-            body: notificationBody
-        )
-    
-    }
+            // Extract the app's Bundle ID from event name
+            let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
+            let appName = getAppName(for: appBundleID)
+            let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? "Your friend"
+            let notificationBody = "\(currentUserName) has reached their time limit for \(appName)!"
+            NotificationManager.shared.sendNotification(
+               title: "Usage Window Ended",
+               body: "\(appBundleID)"
+            )
+//            NotificationManager.shared.sendPushNotification(
+//                title: "Time is Up!",
+//                body: notificationBody
+//            )
+        }
     
     override func intervalWillStartWarning(for activity: DeviceActivityName) {
         super.intervalWillStartWarning(for: activity)
@@ -54,24 +60,28 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     }
     
     override func eventWillReachThresholdWarning(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
-        super.eventWillReachThresholdWarning(event, activity: activity)
-//        NotificationManager.shared.sendNotification(
-//               title: "Usage Window About to End",
-//               body: "Your time interval will end soon!"
-//           )
-        
-        UserSettingsManager.shared.loadSettings { userSettings in
+            super.eventWillReachThresholdWarning(event, activity: activity)
+
+            let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
+
+            let appName = getAppName(for: appBundleID)
             let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? ""
 
-            let peerCoaches = userSettings.peerCoaches
-            let notificationBody = "Your friend \(currentUserName) has reached the time limit!"
-
+            let notificationBody = "\(currentUserName) is about to reach their time limit for \(appName)!"
             NotificationManager.shared.sendPushNotification(
-                title: "Time is Up!",
-                body: notificationBody
-            )
-            
+                    title: "Time Almost Up!",
+                    body: notificationBody
+                )
         }
-        // Handle the warning before the event reaches its threshold.
-    }
+        
+
+    
+    private func getAppName(for bundleID: String) -> String {
+            let appMappings: [String: String] = [
+                "com.apple.youtube": "YouTube",
+                "com.apple.tiktok": "TikTok",
+                "com.apple.instagram": "Instagram"
+            ]
+            return appMappings[bundleID] ?? "an app"
+        }
 }
