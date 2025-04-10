@@ -16,7 +16,7 @@ struct PeerCoach: Codable, Identifiable {
     let givenName: String
     let familyName: String
     let phoneNumber: String
-    var fcmToken: String?  // New field
+    var fcmToken: String?
 }
 
 final class UserSettings: Codable {
@@ -25,8 +25,7 @@ final class UserSettings: Codable {
     var applications: FamilyActivitySelection
     var thresholdHour: Int
     var thresholdMinutes: Int
-
-    var notificationText: String
+    var selectedMode: String = "Chill"
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach]
     
@@ -37,7 +36,6 @@ final class UserSettings: Codable {
         applications: FamilyActivitySelection = .init(),
         thresholdHour: Int = 0,
         thresholdMinutes: Int = 0,
-        notificationText: String = "",
         onboardingCompleted: Bool = false,
         peerCoaches: [PeerCoach] = []
     ) {
@@ -45,7 +43,6 @@ final class UserSettings: Codable {
         self.applications = applications
         self.thresholdHour = thresholdHour
         self.thresholdMinutes = thresholdMinutes
-        self.notificationText = notificationText
         self.onboardingCompleted = onboardingCompleted
         self.peerCoaches = peerCoaches
     }

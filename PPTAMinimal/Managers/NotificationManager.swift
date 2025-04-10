@@ -24,6 +24,7 @@ class NotificationManager {
     }
     //LOCAL
     func sendNotification(title: String, body: String) {
+        print("@@@@@@@ CALLED")
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

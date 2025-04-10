@@ -120,7 +120,9 @@ struct SettingsView: View {
     private var settingsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             if selectedTab == "Settings" {
-                settingsRow(icon: "app.badge", text: "App Preferences")
+                NavigationLink(destination: AppSelectView()) {
+                    settingsRow(icon: "app.badge", text: "Monitored Apps")
+                }
                 NavigationLink(destination: LimitSettingsView()) {
                     settingsRow(icon: "clock", text: "Limit Settings")
                 }

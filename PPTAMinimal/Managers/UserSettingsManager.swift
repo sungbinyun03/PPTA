@@ -67,12 +67,7 @@ final class UserSettingsManager : ObservableObject{
         }
 
     }
-    
-    func loadNotificationText(completion: @escaping (String) -> Void) {
-        loadSettings { settings in
-            completion(settings.notificationText)
-        }
-    }
+
     
     func loadHoursAndMinutes(completion: @escaping (TimeInterval) -> Void) {
         loadSettings { settings in
