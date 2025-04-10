@@ -26,7 +26,7 @@ struct CreateProfileView: View {
             // Profile image placeholder
             Circle()
                 .stroke(Color.gray, lineWidth: 1)
-                .frame(width: 160, height: 160)
+                .frame(width: 140, height: 140)
                 .overlay(
                     Image(systemName: "person.fill")
                         .resizable()

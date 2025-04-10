@@ -52,16 +52,22 @@ class AuthViewModel: ObservableObject {
         } catch { print("DEBUG: signIn error: \(error.localizedDescription)") }
     }
     
-    func createUser(withEmail email: String, password: String, name: String) async {
-        do {
-            let firebaseUser = try await authService.createUser(withEmail: email, password: password)
-            self.userSession = firebaseUser
-            
-            let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: nil, fcmToken: nil)
-            try await userRepository.saveUser(newUser)
-            
-            await fetchUser()
-        } catch { print("DEBUG: createUser error: \(error.localizedDescription)") }
+    func createUser(withEmail email: String, password: String, name: String) async throws {
+        let firebaseUser = try await authService.createUser(withEmail: email, password: password)
+        self.userSession = firebaseUser
+        
+        let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: nil, fcmToken: nil)
+        try await userRepository.saveUser(newUser)
+        
+        let defaultSettings = UserSettings(
+            thresholdHour: 1,
+            thresholdMinutes: 0,
+            onboardingCompleted: false,
+            peerCoaches: []
+        )
+        UserSettingsManager.shared.saveSettings(defaultSettings)
+
+        await fetchUser()
     }
     
     // MARK: - Google Sign-In

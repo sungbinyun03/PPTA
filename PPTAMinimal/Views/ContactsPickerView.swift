@@ -52,7 +52,7 @@ struct ContactsPickerView: UIViewControllerRepresentable {
             group.notify(queue: .main) {
                 print("All peer coaches processed: \(newCoaches)")
                 UserSettingsManager.shared.loadSettings { currentSettings in
-                    var updatedSettings = currentSettings
+                    let updatedSettings = currentSettings
                     updatedSettings.peerCoaches.append(contentsOf: newCoaches)
                     
                     DispatchQueue.main.async {

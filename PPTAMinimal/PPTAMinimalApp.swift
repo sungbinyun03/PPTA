@@ -52,12 +52,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
             guard let token = fcmToken else { return }
             print("FCM Token: \(token)")
-            for family in UIFont.familyNames {
-                print("Family: \(family)")
-                for name in UIFont.fontNames(forFamilyName: family) {
-                    print("  \(name)")
-                }
-            }
+//            for family in UIFont.familyNames {
+//                print("Family: \(family)")
+//                for name in UIFont.fontNames(forFamilyName: family) {
+//                    print("  \(name)")
+//                }
+//            }
             // Store token in Firestore
             Task {
                 await AuthViewModel.shared.updateFCMToken(token)

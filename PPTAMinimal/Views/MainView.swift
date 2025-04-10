@@ -165,7 +165,6 @@ extension MainView {
             .disabled(isMonitoring)
             
             Button(action: {
-                stopMonitoring()
             }) {
                 Text("Stop")
                     .bold()
@@ -305,7 +304,6 @@ extension MainView {
             applications: selection,
             thresholdHour: hours,
             thresholdMinutes: minutes,
-            notificationText: "Time's up!",
             onboardingCompleted: true,
             peerCoaches: userSettingsManager.userSettings.peerCoaches
         )
@@ -326,10 +324,5 @@ extension MainView {
             }
         }
     }
-    
-    private func stopMonitoring() {
-        DeviceActivityManager.shared.handleStopDeviceActivityMonitoring()
-        isMonitoring = false
-        print("Monitoring stopped.")
-    }
+
 }

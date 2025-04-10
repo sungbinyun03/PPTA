@@ -132,7 +132,7 @@ struct PhoneVerificationView: View {
                 .onChange(of: verificationCode) { _, newValue in
                     // Limit to 6 digits
                     if newValue.count > 6 {
-                        verificationCode = String(newValue.prefix(5))
+                        verificationCode = String(newValue.prefix(6))
                     }
                     
                     // Auto-verify when code is complete
@@ -272,7 +272,7 @@ struct PhoneVerificationView: View {
         // Clear any previous errors
         errorMessage = nil
         
-        guard verificationCode.count == 5, !verificationID.isEmpty else {
+        guard verificationCode.count == 6, !verificationID.isEmpty else {
             if verificationCode.isEmpty {
                 errorMessage = "Please enter the verification code"
             }

@@ -21,7 +21,6 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                title: "Usage Window Started",
                body: "You’ll soon be monitored for daily limits!"
            )
-        // Handle the start of the interval.
     }
     
     override func intervalDidEnd(for activity: DeviceActivityName) {
@@ -31,16 +30,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
             super.eventDidReachThreshold(event, activity: activity)
-
-            // Extract the app's Bundle ID from event name
-            let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
+            NotificationManager.shared.sendNotification(
+               title: "Usage Window Ended",
+               body: "TIME's UP"
+            )
+            store.shield.applications = UserSettingsManager.shared.userSettings.applications.applicationTokens
+            
+            // Un-shield after 2 hours
+            let unlockTime: TimeInterval = 2 * 60
+            DispatchQueue.main.asyncAfter(deadline: .now() + unlockTime) { [weak self] in
+                self?.store.shield.applications = nil
+                print("Removed shield after 2 min.")
+                        }
+                    let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
             let appName = getAppName(for: appBundleID)
             let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? "Your friend"
             let notificationBody = "\(currentUserName) has reached their time limit for \(appName)!"
-            NotificationManager.shared.sendNotification(
-               title: "Usage Window Ended",
-               body: "\(appBundleID)"
-            )
+            
 //            NotificationManager.shared.sendPushNotification(
 //                title: "Time is Up!",
 //                body: notificationBody

@@ -15,7 +15,6 @@ class DeviceActivityManager {
     private init() {}
     let deviceActivityCenter = DeviceActivityCenter()
     
-    // MARK: Start Monitoring
     func startDeviceActivityMonitoring(
         appTokens: FamilyActivitySelection,
         hour: Int,
@@ -24,12 +23,12 @@ class DeviceActivityManager {
     ) {
         let thresholdComponents = DateComponents(hour: hour, minute: minute)
         
-        // Full-day schedule
+        // Monitor from midnight to 23:59, repeating daily
         let schedule = DeviceActivitySchedule(
             intervalStart: DateComponents(hour: 0, minute: 0),
             intervalEnd: DateComponents(hour: 23, minute: 59),
             repeats: true,
-            warningTime: DateComponents(minute: 5)
+            warningTime: DateComponents(minute: 5) // optional
         )
         
         let event = DeviceActivityEvent(
@@ -50,15 +49,14 @@ class DeviceActivityManager {
             print("Schedule: \(schedule)")
             print("Event: \(eventName) => threshold \(thresholdComponents)")
             print("Apps: \(appTokens.applicationTokens)")
-            
+                        
             completion(.success(()))
         } catch {
             completion(.failure(error))
         }
     }
     
-    // MARK: Stop Monitoring
-    func handleStopDeviceActivityMonitoring() {
+    func stopMonitoring() {
         deviceActivityCenter.stopMonitoring()
         print("Stopped all device activity monitoring.")
     }
