@@ -14,10 +14,14 @@ struct FindFriendsView: View {
     @EnvironmentObject var viewModel: AuthViewModel
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     @State private var contacts: [CNContact] = []
+    @State private var appUsers: [AppUserContact] = []
     @State private var selectedContacts: [CNContact] = []
+    @State private var selectedAppUsers: [AppUserContact] = []
     @State private var showNoContactsAlert = false
     @State private var showNeedPermissionAlert = false
+    @State private var isLoading = true
     
+    private let firestoreService = FirestoreService()
     private let primaryColor = Color("primaryColor")
     private let cardBackground = Color(red: 0.9, green: 0.9, blue: 0.9)
     
@@ -42,26 +46,61 @@ struct FindFriendsView: View {
                     .background(Color.white.cornerRadius(15))
                     .frame(width: 330, height: 430)
                 
-                if contacts.isEmpty {
+                if isLoading {
                     VStack {
                         Text("Loading contacts...")
                             .foregroundColor(.gray)
+                        ProgressView()
                     }
                 } else {
                     ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(contacts, id: \.identifier) { contact in
-                                ContactCardView(
-                                    contact: contact,
-                                    isSelected: isContactSelected(contact),
-                                    onAdd: {
-                                        addContact(contact)
+                        VStack(alignment: .leading, spacing: 16) {
+                            // App Users Section
+                            if !appUsers.isEmpty {
+                                Text("Friends on App")
+                                    .font(.headline)
+                                    .foregroundColor(primaryColor)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 8)
+                                
+                                VStack(spacing: 12) {
+                                    ForEach(appUsers, id: \.id) { appUserContact in
+                                        AppUserCardView(
+                                            appUserContact: appUserContact,
+                                            isSelected: isAppUserSelected(appUserContact),
+                                            onAdd: {
+                                                addAppUser(appUserContact)
+                                            }
+                                        )
                                     }
-                                )
+                                }
+                                .padding(.horizontal, 16)
+                                
+                                Divider()
+                                    .padding(.vertical, 8)
                             }
+                            
+                            // Other Contacts Section
+                            Text("Invite Friends")
+                                .font(.headline)
+                                .foregroundColor(primaryColor)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                            
+                            VStack(spacing: 12) {
+                                ForEach(contacts, id: \.identifier) { contact in
+                                    ContactCardView(
+                                        contact: contact,
+                                        isSelected: isContactSelected(contact),
+                                        onAdd: {
+                                            addContact(contact)
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 16)
                         }
                         .padding(.vertical, 12)
-                        .padding(.horizontal, 16)
                     }
                     .frame(width: 320, height: 410)
                     .clipShape(RoundedRectangle(cornerRadius: 15))
@@ -112,9 +151,29 @@ struct FindFriendsView: View {
                     self.fetchContacts()
                 } else {
                     self.showNeedPermissionAlert = true
+                    self.isLoading = false
                 }
             }
         }
+    }
+    
+    // Function to normalize phone numbers for consistent comparison
+    private func normalizePhoneNumber(_ phoneNumber: String) -> String {
+        // Remove all non-numeric characters
+        var normalized = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        
+        // If number starts with country code "1", remove it
+        if normalized.hasPrefix("1") && normalized.count > 10 {
+            // Remove the leading "1" if followed by a 10-digit number
+            normalized = String(normalized.dropFirst())
+        }
+        
+        // Return just the last 10 digits to handle any other country codes
+        if normalized.count > 10 {
+            normalized = String(normalized.suffix(10))
+        }
+        
+        return normalized
     }
     
     private func fetchContacts() {
@@ -131,23 +190,80 @@ struct FindFriendsView: View {
             do {
                 let request = CNContactFetchRequest(keysToFetch: keysToFetch)
                 var fetchedContacts: [CNContact] = []
+                var phoneNumbers: [String] = []
+                var phoneToContactMap: [String: CNContact] = [:]
                 
                 try contactStore.enumerateContacts(with: request) { contact, _ in
                     if !contact.phoneNumbers.isEmpty {
                         fetchedContacts.append(contact)
+                        
+                        // Extract phone numbers for app user check
+                        for phoneNumber in contact.phoneNumbers {
+                            // Format phone number to match database format
+                            let formattedNumber = self.normalizePhoneNumber(phoneNumber.value.stringValue)
+                            
+                            // Add formatted phone number to the list
+                            phoneNumbers.append(formattedNumber)
+                            
+                            // Map the formatted number to its contact
+                            phoneToContactMap[formattedNumber] = contact
+                        }
                     }
                 }
                 
-                DispatchQueue.main.async {
-                    if fetchedContacts.isEmpty {
-                        self.showNoContactsAlert = true
-                    } else {
-                        self.contacts = fetchedContacts
+                // Find app users among contacts
+                self.firestoreService.fetchUsersByPhoneNumbers(phoneNumbers: phoneNumbers) { appUsers in
+                    // Create mapping of app users to contacts
+                    var appUserContacts: [AppUserContact] = []
+                    var contactsToRemove: [String] = []
+                    
+                    // Get current user ID
+                    let currentUserId = self.viewModel.currentUser?.id
+                    
+                    for appUser in appUsers {
+                        // Skip if this is the current user
+                        if appUser.id == currentUserId {
+                            continue
+                        }
+                        
+                        if let appUserPhone = appUser.phoneNumber {
+                            let normalizedAppUserPhone = self.normalizePhoneNumber(appUserPhone)
+                            
+                            // Find matching contact using the normalized phone number
+                            if let matchingContact = phoneToContactMap[normalizedAppUserPhone] {
+                                // Create AppUserContact
+                                let appUserContact = AppUserContact(
+                                    id: UUID().uuidString,
+                                    contact: matchingContact,
+                                    user: appUser
+                                )
+                                appUserContacts.append(appUserContact)
+                                
+                                // Mark for removal from regular contacts
+                                contactsToRemove.append(matchingContact.identifier)
+                            }
+                        }
+                    }
+                    
+                    // Remove app users from regular contacts list
+                    let filteredContacts = fetchedContacts.filter { contact in
+                        !contactsToRemove.contains(contact.identifier)
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self.contacts = filteredContacts
+                        self.appUsers = appUserContacts
+                        self.isLoading = false
+                        
+                        if filteredContacts.isEmpty && appUserContacts.isEmpty {
+                            self.showNoContactsAlert = true
+                        }
                     }
                 }
             } catch {
                 print("Error fetching contacts: \(error)")
                 DispatchQueue.main.async {
+                    self.isLoading = false
                     self.showNoContactsAlert = true
                 }
             }
@@ -158,6 +274,10 @@ struct FindFriendsView: View {
         return selectedContacts.contains(where: { $0.identifier == contact.identifier })
     }
     
+    private func isAppUserSelected(_ appUserContact: AppUserContact) -> Bool {
+        return selectedAppUsers.contains(where: { $0.id == appUserContact.id })
+    }
+    
     private func addContact(_ contact: CNContact) {
         if isContactSelected(contact) {
             selectedContacts.removeAll(where: { $0.identifier == contact.identifier })
@@ -166,9 +286,17 @@ struct FindFriendsView: View {
         }
     }
     
+    private func addAppUser(_ appUserContact: AppUserContact) {
+        if isAppUserSelected(appUserContact) {
+            selectedAppUsers.removeAll(where: { $0.id == appUserContact.id })
+        } else {
+            selectedAppUsers.append(appUserContact)
+        }
+    }
+    
     private func saveSelectedContacts() {
         // Convert CNContacts to PeerCoach model
-        let peerCoaches = selectedContacts.map { contact in
+        let regularPeerCoaches = selectedContacts.map { contact in
             let phoneNumber = contact.phoneNumbers.first?.value.stringValue ?? ""
             return PeerCoach(
                 givenName: contact.givenName,
@@ -177,10 +305,23 @@ struct FindFriendsView: View {
             )
         }
         
+        // Convert AppUserContacts to PeerCoach model with FCM token
+        let appUserPeerCoaches = selectedAppUsers.map { appUserContact in
+            return PeerCoach(
+                givenName: appUserContact.contact.givenName,
+                familyName: appUserContact.contact.familyName,
+                phoneNumber: appUserContact.user.phoneNumber ?? "",
+                fcmToken: appUserContact.user.fcmToken
+            )
+        }
+        
+        // Combine both types of peer coaches
+        let allPeerCoaches = regularPeerCoaches + appUserPeerCoaches
+        
         // Save to UserSettings
         UserSettingsManager.shared.loadSettings { currentSettings in
             var updatedSettings = currentSettings
-            updatedSettings.peerCoaches.append(contentsOf: peerCoaches)
+            updatedSettings.peerCoaches.append(contentsOf: allPeerCoaches)
             
             DispatchQueue.main.async {
                 UserSettingsManager.shared.saveSettings(updatedSettings)
@@ -194,6 +335,82 @@ struct FindFriendsView: View {
         if UIApplication.shared.canOpenURL(settingsUrl) {
             UIApplication.shared.open(settingsUrl)
         }
+    }
+}
+
+// Helper struct to associate a contact with an app user
+struct AppUserContact: Identifiable {
+    var id: String
+    var contact: CNContact
+    var user: User
+}
+
+struct AppUserCardView: View {
+    let appUserContact: AppUserContact
+    let isSelected: Bool
+    let onAdd: () -> Void
+    
+    private let cardBackground = Color("backgroundGray")
+    private let primaryColor = Color("primaryColor")
+    
+    var body: some View {
+        HStack {
+            // Contact Avatar
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 40, height: 40)
+                
+                if let imageData = appUserContact.contact.thumbnailImageData, let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
+                } else {
+                    Text(appUserContact.contact.givenName.prefix(1) + appUserContact.contact.familyName.prefix(1))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Contact Name
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(appUserContact.contact.givenName) \(appUserContact.contact.familyName)")
+                    .font(.body)
+                    .foregroundColor(.black)
+                
+                Text("Already using the app")
+                    .font(.caption)
+                    .foregroundColor(primaryColor)
+            }
+            .padding(.leading, 8)
+            
+            Spacer()
+            
+            // Add Button
+            Button(action: onAdd) {
+                ZStack {
+                    Circle()
+                        .fill(primaryColor)
+                        .frame(width: 28, height: 28)
+                    
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(cardBackground)
+        .cornerRadius(12)
     }
 }
 
