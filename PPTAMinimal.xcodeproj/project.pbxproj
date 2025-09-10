@@ -104,6 +104,20 @@
 			);
 			target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
 		};
+		98C22FCA2E6D040D0099A1CE /* Exceptions for "PPTAMinimal" folder in "PPTAMinimalTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = AE4B177B2D347EA500B8DB25 /* PPTAMinimalTests */;
+		};
+		98C22FCB2E6D040D0099A1CE /* Exceptions for "PPTAMinimal" folder in "PPTAMinimalUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = AE4B17852D347EA500B8DB25 /* PPTAMinimalUITests */;
+		};
 		AE20EB642D481E3400D27B4D /* Exceptions for "PPTAReport" folder in "PPTAReport" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -115,12 +129,14 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Assets/Satoshi-Variable.ttf",
+				"GoogleService-Info.plist",
 			);
 			target = AE20EB562D481E3400D27B4D /* PPTAReport */;
 		};
 		AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"GoogleService-Info.plist",
 				Managers/DeviceActivityManager.swift,
 				Managers/NotificationManager.swift,
 				Managers/UnlockService.swift,
@@ -154,6 +170,8 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				8AE0927A2D3EFAF800F1EA5A /* Exceptions for "PPTAMinimal" folder in "PPTAMinimal" target */,
+				98C22FCA2E6D040D0099A1CE /* Exceptions for "PPTAMinimal" folder in "PPTAMinimalTests" target */,
+				98C22FCB2E6D040D0099A1CE /* Exceptions for "PPTAMinimal" folder in "PPTAMinimalUITests" target */,
 				AE4B17B62D3482D500B8DB25 /* Exceptions for "PPTAMinimal" folder in "AppMonitor" target */,
 				AE3655622D78044600B876EC /* Exceptions for "PPTAMinimal" folder in "PPTAReport" target */,
 			);

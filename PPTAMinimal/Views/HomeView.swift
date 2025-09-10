@@ -21,7 +21,7 @@ struct HomeView: View {
         NavigationView {
             VStack(spacing: 12) {
                 ProfileView()
-                weeklyStatsSection
+                DashboardView()
                 reportSection
                 peerCoachesSection
             }
@@ -63,20 +63,6 @@ struct HomeView: View {
             }
             Text("Weekly stats")
                 .font(.custom("SatoshiVariable-Bold_Light", size: 20))
-            
-            VStack(spacing: 10) {
-                HStack(spacing: 14) {
-                    Button("Daily Focus Average") { }
-                    Button("Daily Focus Average") { }
-                }
-                .buttonStyle(StatButtonStyle())
-                
-                HStack(spacing: 14) {
-                    Button("Time over limit") { }
-                    Button("More Text") { }
-                }
-                .buttonStyle(StatButtonStyle())
-            }
         }
     }
     
@@ -171,17 +157,6 @@ struct HomeView: View {
                 print("Error starting monitoring: \(error)")
             }
         }
-    }
-}
-
-// MARK: - Custom Button Style
-struct StatButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: 160, minHeight: 90)
-            .background(Color(red: 0.4392, green: 0.4784, blue: 0.3843))
-            .foregroundColor(.white)
-            .cornerRadius(15)
     }
 }
 
