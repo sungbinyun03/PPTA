@@ -28,7 +28,7 @@ struct OnboardingContainerView: View {
                 case .findFriends:
                     FindFriendsView(coordinator: coordinator)
                 case .completed:
-                    MainView() // Your existing main app view
+                    HomeView() 
                         .environmentObject(authViewModel)
                 }
             }

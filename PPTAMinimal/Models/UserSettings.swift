@@ -22,12 +22,19 @@ struct PeerCoach: Codable, Identifiable {
 final class UserSettings: Codable {
     // MARK: - Properties
     @DocumentID var id: String? // for Firestore
-    var applications: FamilyActivitySelection
+    var applications: FamilyActivitySelection //selected apps
     var thresholdHour: Int
     var thresholdMinutes: Int
     var selectedMode: String = "Chill"
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach]
+    var profileImageURL: URL?
+    
+    private enum CodingKeys: String, CodingKey {
+            case applications, thresholdHour, thresholdMinutes,
+                 selectedMode, onboardingCompleted,
+                 peerCoaches, profileImageURL
+        }
     
     
     // MARK: Init
@@ -46,4 +53,6 @@ final class UserSettings: Codable {
         self.onboardingCompleted = onboardingCompleted
         self.peerCoaches = peerCoaches
     }
+    
+    
 }

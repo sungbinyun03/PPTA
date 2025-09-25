@@ -4,7 +4,7 @@
 //
 //  Created by Sungbin on 6/18/24.
 //
-
+//WHERE WE TALK W FIREBASE
 import Foundation
 import FamilyControls
 import FirebaseAuth
@@ -27,7 +27,7 @@ final class UserSettingsManager : ObservableObject{
             print("ERROR: No user is logged in. Cannot save settings.")
             return
         }
-
+        
         firestoreService.saveUserSettings(userId: userID, settings: settings) { error in
             if let error = error {
                 print("Failed to save user settings to Firestore: \(error.localizedDescription)")
@@ -35,6 +35,15 @@ final class UserSettingsManager : ObservableObject{
                 print("User settings saved successfully for user \(userID)!")
             }
         }
+        
+        let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+            do {
+                let data = try JSONEncoder().encode(settings)          
+                suite?.set(data, forKey: "UserSettings")
+            } catch {
+                print("❌ Failed to encode & persist UserSettings:", error)
+            }
+        
         DispatchQueue.main.async {
                    self.userSettings = settings
                    print("@@@@ User settings saved successfully")
@@ -60,21 +69,29 @@ final class UserSettingsManager : ObservableObject{
         }
     }
     
-
-    func loadAppTokens(completion: @escaping (FamilyActivitySelection) -> Void) {
-        loadSettings { settings in
-            completion(settings.applications)
+    func loadSettingsSyncFromDefaults() -> UserSettings {
+           let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+           guard let data = suite?.data(forKey: "UserSettings"),
+                 let settings = try? JSONDecoder().decode(UserSettings.self, from: data)
+           else { return UserSettings() }
+           return settings
+       }
+    
+    @MainActor
+    func update(_ transform: (inout UserSettings) -> Void) {
+        // 1. Start from the most recent in‑memory copy
+        var draft = userSettings
+        
+        // 2. If that’s still default, fall back to persisted snapshot
+        if draft.id == UserSettings().id {        // crude “isDefault” check
+            draft = loadSettingsSyncFromDefaults()
         }
-
+        
+        transform(&draft)
+        saveSettings(draft)
     }
 
     
-    func loadHoursAndMinutes(completion: @escaping (TimeInterval) -> Void) {
-        loadSettings { settings in
-            let hours = settings.thresholdHour
-            let minutes = settings.thresholdMinutes
-            let totalSeconds = (hours * 3600) + (minutes * 60)
-            completion(TimeInterval(totalSeconds))
-        }
-    }
 }
+
+

@@ -14,6 +14,7 @@ class DeviceActivityManager {
     static let shared = DeviceActivityManager()
     private init() {}
     let deviceActivityCenter = DeviceActivityCenter()
+    private let store = ManagedSettingsStore()
     
     func startDeviceActivityMonitoring(
         appTokens: FamilyActivitySelection,
@@ -59,5 +60,15 @@ class DeviceActivityManager {
     func stopMonitoring() {
         deviceActivityCenter.stopMonitoring()
         print("Stopped all device activity monitoring.")
+    }
+    
+    @MainActor
+    func handleRemoteUnlock(from coach: String) {
+        store.shield.applications = nil
+
+        NotificationManager.shared.sendNotification(
+            title: "Unlocked by \(coach)",
+            body: "Be Mindful of Your Screentime!"
+        )
     }
 }

@@ -30,19 +30,26 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
             super.eventDidReachThreshold(event, activity: activity)
+        
+            let settings = LocalSettingsStore.load()
+            store.shield.applications = settings.applications.applicationTokens
             NotificationManager.shared.sendNotification(
                title: "Usage Window Ended",
-               body: "TIME's UP"
+               body: String(settings.applications.applicationTokens.count)
             )
+        
             store.shield.applications = UserSettingsManager.shared.userSettings.applications.applicationTokens
-            
-            // Un-shield after 2 hours
-            let unlockTime: TimeInterval = 2 * 60
-            DispatchQueue.main.asyncAfter(deadline: .now() + unlockTime) { [weak self] in
-                self?.store.shield.applications = nil
-                print("Removed shield after 2 min.")
-                        }
-                    let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
+//            
+//            // Un-shield after 2 hours
+//            let unlockTime: TimeInterval = 2 * 60
+//            DispatchQueue.main.asyncAfter(deadline: .now() + unlockTime) { [weak self] in
+//                self?.store.shield.applications = nil
+//                print("Removed shield after 2 min.")
+//                        }
+//                    let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
+//
+//        
+            let appBundleID = event.rawValue.replacingOccurrences(of: "limit_", with: "")
             let appName = getAppName(for: appBundleID)
             let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? "Your friend"
             let notificationBody = "\(currentUserName) has reached their time limit for \(appName)!"

@@ -35,6 +35,7 @@ struct HomeView: View {
         }
         .onAppear {
             // 1. Load user settings from Firestore on launch
+            
             UserSettingsManager.shared.loadSettings { loadedSettings in
                 DispatchQueue.main.async {
                     UserSettingsManager.shared.userSettings = loadedSettings
@@ -42,12 +43,24 @@ struct HomeView: View {
                 
                 // 2. Always start monitoring once settings are loaded
                 startAlwaysOnMonitoring(with: loadedSettings)
+//
             }
         }
     }
     
     private var weeklyStatsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Button("Print unlock URL") {
+                if
+                  let childUID  = viewModel.currentUser?.id,
+                  let link = UnlockService.makeUnlockURL(
+                                childUID: childUID,
+                                coachUID: "TEST_COACH")
+                {
+                    print("UNLOCK LINK →", link.absoluteString)
+                    UIPasteboard.general.string = link.absoluteString
+                }
+            }
             Text("Weekly stats")
                 .font(.custom("SatoshiVariable-Bold_Light", size: 20))
             
@@ -134,10 +147,11 @@ struct HomeView: View {
         let monitoringKey = "isMonitoringActive"
         let alreadyActive = UserDefaults.standard.bool(forKey: monitoringKey)
         if alreadyActive {
-            NotificationManager.shared.sendNotification(
-               title: "Monitoring already active",
-               body: "Test"
-            )
+//            NotificationManager.shared.sendNotification(
+//               title: "Monitoring already active",
+//               body: "Test",
+//               isLock: true
+//            )
             print("Monitoring is already active, skipping re-start.")
             return
         }

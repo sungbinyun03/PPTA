@@ -24,6 +24,7 @@
 		AE20EB632D481E3400D27B4D /* PPTAReport.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = AE20EB572D481E3400D27B4D /* PPTAReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */; };
 		AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AEFDBA3D2DDEBBE000833B40 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AEFDBA3C2DDEBBE000833B40 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +91,9 @@
 		AE4B17862D347EA500B8DB25 /* PPTAMinimalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PPTAMinimalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceActivity.framework; path = System/Library/Frameworks/DeviceActivity.framework; sourceTree = SDKROOT; };
+		AEC0502E2DDEC26F0016A0CC /* ManagedSettings.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettings.framework; path = System/Library/Frameworks/ManagedSettings.framework; sourceTree = SDKROOT; };
+		AEC050302DDEC26F0016A0CC /* ManagedSettingsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettingsUI.framework; path = System/Library/Frameworks/ManagedSettingsUI.framework; sourceTree = SDKROOT; };
+		AEFDBA3C2DDEBBE000833B40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -119,7 +123,9 @@
 			membershipExceptions = (
 				Managers/DeviceActivityManager.swift,
 				Managers/NotificationManager.swift,
+				Managers/UnlockService.swift,
 				Managers/UserSettingsManager.swift,
+				Models/LocalSettingsStore.swift,
 				Models/User.swift,
 				Models/UserSettings.swift,
 				Services/FirestoreService.swift,
@@ -230,6 +236,7 @@
 		AE4B17632D347EA300B8DB25 = {
 			isa = PBXGroup;
 			children = (
+				AEFDBA3C2DDEBBE000833B40 /* Assets.xcassets */,
 				8AE0927B2D3EFD1F00F1EA5A /* .gitignore */,
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
 				AE4B177F2D347EA500B8DB25 /* PPTAMinimalTests */,
@@ -257,6 +264,8 @@
 			isa = PBXGroup;
 			children = (
 				AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */,
+				AEC0502E2DDEC26F0016A0CC /* ManagedSettings.framework */,
+				AEC050302DDEC26F0016A0CC /* ManagedSettingsUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -461,6 +470,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AEFDBA3D2DDEBBE000833B40 /* Assets.xcassets in Resources */,
 				8AE0927C2D3EFD1F00F1EA5A /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -728,6 +738,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PPTAMinimal/PPTAMinimal.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -761,6 +772,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PPTAMinimal/PPTAMinimal.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;

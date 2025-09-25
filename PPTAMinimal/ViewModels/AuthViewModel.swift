@@ -202,7 +202,9 @@ class AuthViewModel: ObservableObject {
     
     func updateFCMToken(_ token: String) async {
         guard let uid = authService.currentUser?.uid else { return }
-        try? await userRepository.updateUserField(uid: uid, field: "fcmToken", value: token)
+        try? await userRepository.updateUserField(
+            uid: uid, field: "fcmToken", value: token)
+        print(" Firestore ✅: Successfully updated FCM token for UID \(uid) to: \(token)")
         await fetchUser()
     }
     
