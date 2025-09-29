@@ -95,9 +95,20 @@ struct AppSelectView: View {
         // Update local userSettings
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
-        userSettingsManager.userSettings.applications = selection
+        
+        // Capture whether selection changed (simple proxy comparing tokens)
+        let old = userSettingsManager.userSettings.applications
+        // Reset streak if app selection changed
+        let appsChanged =
+            old.applicationTokens != selection.applicationTokens ||
+            old.categoryTokens != selection.categoryTokens
+        if appsChanged || userSettingsManager.userSettings.startDailyStreakDate == nil {
+            print("Streak start date reset due to app selection change")
+            userSettingsManager.userSettings.startDailyStreakDate = Date()
+        }
         
         // Save to Firestore
+        userSettingsManager.userSettings.applications = selection
         userSettingsManager.saveSettings(userSettingsManager.userSettings)
     }
 }

@@ -161,6 +161,17 @@ struct LimitSettingsView: View {
     private func saveToFirebase() {
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
+        
+        // Keep a snapshot for comparison
+        let old = userSettingsManager.userSettings
+        let oldTotal = old.thresholdHour * 3600 + old.thresholdMinutes * 60
+        let newTotal = hours * 3600 + minutes * 60
+        
+        // Reset streak if limit increased
+        if newTotal > oldTotal || userSettingsManager.userSettings.startDailyStreakDate == nil {
+            print("Streak start date reset due to increased threshold")
+            userSettingsManager.userSettings.startDailyStreakDate = Date()
+        }
 
         userSettingsManager.userSettings.thresholdHour = hours
         userSettingsManager.userSettings.thresholdMinutes = minutes

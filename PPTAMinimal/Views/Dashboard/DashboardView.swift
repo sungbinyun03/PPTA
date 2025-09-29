@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct DashboardView: View {
+    @StateObject private var viewModel = DashboardViewModel()
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Weekly stats")
@@ -15,8 +17,8 @@ struct DashboardView: View {
             
             VStack(spacing: 10) {
                 HStack(spacing: 14) {
-                    DashboardCellView(cellTitle: "Daily Time Limit", cellContent: "14h 45m") // TODO: Fetch values from viewModel
-                    DashboardCellView(cellTitle: "Daily Streak", cellContent: "8 Days") // TODO: Fetch values from viewModel
+                    DashboardCellView(cellTitle: "Daily Time Limit", cellContent: "\(viewModel.limitHours)h \(viewModel.limitMinutes)m")
+                    DashboardCellView(cellTitle: "Daily Streak", cellContent: viewModel.streakDays.map {"\($0) Days"} ?? "-")
                 }
                 HStack(spacing: 14) {
                     DashboardCellView(cellTitle: "Peers you watch", cellContent: "4") // TODO: Fetch values from viewModel
