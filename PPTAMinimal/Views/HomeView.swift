@@ -19,18 +19,21 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 12) {
-                ProfileView()
-                DashboardView()
-                reportSection
-                peerCoachesSection
-            }
-            .padding(.top, 0)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .navigationBarHidden(true)
-            // Present the ContactsPickerView sheet when needed
-            .sheet(isPresented: $isContactsPickerPresented) {
-                ContactsPickerView(selectedContacts: $selectedContacts)
+            ScrollView {
+                VStack(spacing: 12) {
+                    ProfileView()
+                    devPrintoutSection
+                    DashboardView()
+                    reportSection
+                    TraineeCoachView()
+                }
+                .padding(.top, 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .navigationBarHidden(true)
+                // Present the ContactsPickerView sheet when needed
+                .sheet(isPresented: $isContactsPickerPresented) {
+                    ContactsPickerView(selectedContacts: $selectedContacts)
+                }
             }
         }
         .onAppear {
@@ -48,8 +51,10 @@ struct HomeView: View {
         }
     }
     
-    private var weeklyStatsSection: some View {
+    private var devPrintoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Text("Dev Stuff")
+                .font(.custom("SatoshiVariable-Bold_Light", size: 20))
             Button("Print unlock URL") {
                 if
                   let childUID  = viewModel.currentUser?.id,
@@ -61,8 +66,6 @@ struct HomeView: View {
                     UIPasteboard.general.string = link.absoluteString
                 }
             }
-            Text("Weekly stats")
-                .font(.custom("SatoshiVariable-Bold_Light", size: 20))
         }
     }
     
