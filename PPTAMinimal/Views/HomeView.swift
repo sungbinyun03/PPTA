@@ -16,6 +16,11 @@ struct HomeView: View {
     @State private var isReportViewPresented = false
     @State private var isContactsPickerPresented = false
     @State private var selectedContacts: [CNContact] = []
+    private let previewMode: Bool
+    
+    init(previewMode: Bool = false) {
+        self.previewMode = previewMode
+    }
     
     var body: some View {
         NavigationView {
@@ -37,19 +42,50 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            // 1. Load user settings from Firestore on launch
-            
-            UserSettingsManager.shared.loadSettings { loadedSettings in
-                DispatchQueue.main.async {
-                    UserSettingsManager.shared.userSettings = loadedSettings
+            if previewMode {
+                seedPreviewData()
+            } else {
+                // 1. Load user settings from Firestore on launch
+                UserSettingsManager.shared.loadSettings { loadedSettings in
+                    DispatchQueue.main.async {
+                        UserSettingsManager.shared.userSettings = loadedSettings
+                    }
+                    
+                    // 2. Always start monitoring once settings are loaded
+                    startAlwaysOnMonitoring(with: loadedSettings)
                 }
-                
-                // 2. Always start monitoring once settings are loaded
-                startAlwaysOnMonitoring(with: loadedSettings)
-//
             }
         }
     }
+    
+    private func seedPreviewData() {
+        // Minimal fake user for AuthViewModel
+        if viewModel.currentUser == nil {
+            viewModel.currentUser = User(
+                id: "preview-user",
+                name: "Preview Name",
+                email: "preview@example.com"
+                // phoneNumber and fcmToken are optional; omit or set as needed
+            )
+        }
+
+        // Seed settings to drive UI — order and labels per model definition
+        UserSettingsManager.shared.userSettings = UserSettings(
+            applications: .init(),              // FamilyActivitySelection()
+            thresholdHour: 1,
+            thresholdMinutes: 30,
+            onboardingCompleted: true,
+            peerCoaches: [
+                .init(givenName: "Ada", familyName: "Lovelace", phoneNumber: "111", fcmToken: nil),
+                .init(givenName: "Alan", familyName: "Turing", phoneNumber: "222", fcmToken: nil)
+            ],
+            coaches: [],
+            trainees: []
+            // startDailyStreakDate: nil // optional
+        )
+
+    }
+
     
     private var devPrintoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -79,8 +115,12 @@ struct HomeView: View {
                         .padding(.bottom, 5)
                     
                     ScrollView {
-                        ReportView(isMonitoring: false)
-                            .frame(minHeight: 180, maxHeight: 220)
+                        if !previewMode {
+                            ReportView(isMonitoring: false)
+                                .frame(minHeight: 180, maxHeight: 220)
+                        } else {
+                            Text("Disabled during preview")
+                        }
                     }
                     .frame(height: 210)
                 }
@@ -181,5 +221,20 @@ struct PeerCoachAvatarView: View {
         let firstInitial = coach.givenName.first.map { String($0) } ?? ""
         let lastInitial = coach.familyName.first.map { String($0) } ?? ""
         return firstInitial + lastInitial
+    }
+}
+
+// Allows for preview by disabling or replacing all the iPhone-only functionality
+struct HomeView_Previews: PreviewProvider {
+    static var previews: some View {
+        let auth = AuthViewModel()
+        auth.currentUser = User(
+            id: "preview-user",
+            name: "Preview Name",
+            email: "preview@example.com"
+        )
+        
+        return HomeView(previewMode: true)
+            .environmentObject(auth)
     }
 }
