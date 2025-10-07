@@ -13,14 +13,27 @@ struct ProfileView: View {
         if let user = viewModel.currentUser {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 12) {
-                    Text(user.intiials)
-                        .font(.title)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .frame(width: 58, height: 58)
-                        .background(Color(.systemGray3))
-                        .clipShape(Circle())
-                        .offset(y: -4) // Moves the circle slightly higher
+                    NavigationLink(destination: SettingsView()) {
+                        Text(user.intiials)
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 58, height: 58)
+                            .background(Color(.systemGray3))
+                            .clipShape(Circle())
+                            .offset(y: -4) // Moves the circle slightly higher
+                            .overlay(alignment: .bottomTrailing) {
+                                Circle()
+                                    .fill(Color.white)  // white internal background
+                                    .frame(width: 20, height: 20)
+                                    .offset(y: -4)
+                                Image(systemName: "gearshape.fill") // filled gear for clear lines
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.gray) // gray gear lines
+                                    .offset(y: -4)
+                            }
+                    }
+                    .buttonStyle(.plain)
                     
                     VStack(alignment: .leading, spacing: 6) {
                         let fullName = viewModel.currentUser?.name ?? "User"
@@ -52,6 +65,17 @@ struct ProfileView: View {
     }
 }
 
-#Preview {
-    ProfileView()
+// Allows for preview by disabling or replacing all the required iPhone-only functionality
+struct ProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        let auth = AuthViewModel()
+        auth.currentUser = User(
+            id: "preview-user",
+            name: "Preview Name",
+            email: "preview@example.com"
+        )
+        
+        return ProfileView()
+            .environmentObject(auth)
+    }
 }

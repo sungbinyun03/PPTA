@@ -21,12 +21,6 @@ struct TabNavigator: View {
                     Image(systemName: "house.fill")
                     Text("Home")
                 }
-
-            SettingsView()
-                .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Settings")
-                }
         }
         .background(Color.white)
         .edgesIgnoringSafeArea(.all)
