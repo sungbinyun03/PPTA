@@ -29,7 +29,7 @@ struct StatusCenterView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
                     TraineeStatsRowView(trainees: filteredDummyTrainees)
-                    VStack(alignment: .leading, spacing: 25) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("Trainees")
                                 .font(.title2)
@@ -37,6 +37,20 @@ struct StatusCenterView: View {
                             Spacer()
                         }
                         .padding(.horizontal)
+                        // Trainee cells list
+                        VStack(spacing: 12) {
+                            ForEach(dummyTraineeIdxList, id: \.self) { idx in
+                                if idx >= 0 && idx < dummyTrainees.count {
+                                    let t = dummyTrainees[idx]
+                                    TraineeCellView(
+                                        name: t.name,
+                                        status: t.status,
+                                        profilePicUrl: nil
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
                         HStack(alignment: .top) {
                             Text("Coaches")
                                 .font(.title2)
@@ -44,6 +58,19 @@ struct StatusCenterView: View {
                             Spacer()
                         }
                         .padding(.horizontal)
+                        VStack(spacing: 12) {
+                            ForEach(dummyCoachIdxList, id: \.self) { idx in
+                                if idx >= 0 && idx < dummyCoaches.count {
+                                    let c = dummyCoaches[idx]
+                                    CoachCellView(
+                                        name: c.name,
+                                        isCutOff: true, // TODO: Wire it up to the current User's status
+                                        profilePicUrl: nil
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
                     }
                     .padding(.vertical)
                 }
@@ -64,27 +91,11 @@ struct DummyProfile: Identifiable {
   let username: String
   let role: Role
   let streakDays: Int
-  let status: StatusState
+  let status: TraineeStatus
   let monitoredApps: [String]    // up to 5
   let timeLimitMinutes: Int      // shared limit across monitored apps
 
       enum Role { case trainee, coach }
-
-      enum StatusState {
-          case allClear
-          case attentionNeeded
-          case cutOff
-          case noStatus
-
-          var ringColor: Color? {
-              switch self {
-              case .allClear: return .green
-              case .attentionNeeded: return .red
-              case .cutOff: return Color(white: 0.25)
-              case .noStatus: return nil
-              }
-          }
-      }
 
       var initials: String {
           let parts = name.split(separator: " ")
@@ -123,7 +134,7 @@ struct DummyProfile: Identifiable {
   username: "princessshuri",
   role: .trainee,
   streakDays: 12,
-  status: .allClear,
+  status: .attentionNeeded,
   monitoredApps: limitApps(["YouTube", "Reddit", "Safari",
   "Discord"]),
   timeLimitMinutes: 120
@@ -142,7 +153,7 @@ struct DummyProfile: Identifiable {
   username: "hawkeye2",
   role: .trainee,
   streakDays: 21,
-  status: .allClear,
+  status: .cutOff,
   monitoredApps: limitApps(["Instagram", "X", "YouTube", "Discord",
   "Safari"]),
   timeLimitMinutes: 75
