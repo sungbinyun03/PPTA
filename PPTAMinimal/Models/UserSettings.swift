@@ -32,6 +32,7 @@ final class UserSettings: Codable {
     var trainees: [PeerCoach] = []
     var profileImageURL: URL?
     var startDailyStreakDate: Date?
+    // TODO: Add a currentlyMonitoring option? Something to toggle monitoring on/off
     
     private enum CodingKeys: String, CodingKey {
             case applications, thresholdHour, thresholdMinutes,

@@ -19,7 +19,10 @@ struct TabNavigator: View {
             HomeView(previewMode: previewMode)
                 .tabItem {
                     Image(systemName: "house.fill")
-                    Text("Home")
+                }
+            StatusCenterView()
+                .tabItem {
+                    Image(systemName: "list.bullet")
                 }
         }
         .background(Color.white)
