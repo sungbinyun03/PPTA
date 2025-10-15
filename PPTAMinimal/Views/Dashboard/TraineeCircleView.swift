@@ -7,23 +7,6 @@
 
 import SwiftUI
 
-enum TraineeStatus {
-    case allClear
-    case attentionNeeded
-    case cutOff
-    case noStatus
-    
-    var ringColor: Color? {
-        switch self {
-        case .allClear: return .green
-        case .attentionNeeded: return .red
-        case .cutOff: return Color(white: 0.25) // dark gray
-        case .noStatus: return nil
-        }
-    }
-
-}
-
 struct TraineeCircleView: View {
     @StateObject private var viewModel: TraineeCoachViewModel
     private var index: Int
