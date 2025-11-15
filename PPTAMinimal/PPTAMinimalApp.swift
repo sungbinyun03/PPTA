@@ -16,9 +16,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication,
                        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           FirebaseApp.configure()
+          UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            }
           UNUserNotificationCenter.current().delegate = self
           Messaging.messaging().delegate = self
-          application.registerForRemoteNotifications()
           return true
       }
     
@@ -37,32 +42,47 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data){
+        #if DEBUG
         Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+        Messaging.messaging().apnsToken = deviceToken
+        #else
+        Auth.auth().setAPNSToken(deviceToken, type: .prod)
+        Messaging.messaging().apnsToken = deviceToken
+        #endif
+        print("🟢 APNs token registered")
         print("@@ TOKEN RECEIVED: \(deviceToken.map { String(format: "%02x", $0)}.joined())")
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification notification: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
-        
+        print("@@@ Received Remote Notification: \(notification)")
         if Auth.auth().canHandleNotification(notification){
             completionHandler(.noData)
             return
         }
+        if
+            let type  = notification["type"] as? String, type == "unlock",
+            let coach = notification["by"]   as? String
+        {
+            print("!!!! Unlock notification received! Type: \(type), By: \(coach)")
+            Task { @MainActor in
+                DeviceActivityManager.shared.handleRemoteUnlock(from: coach)
+                completionHandler(.newData)         
+            }
+            return
+        }
+
+        completionHandler(.noData)
     }
     
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
             guard let token = fcmToken else { return }
             print("FCM Token: \(token)")
-//            for family in UIFont.familyNames {
-//                print("Family: \(family)")
-//                for name in UIFont.fontNames(forFamilyName: family) {
-//                    print("  \(name)")
-//                }
-//            }
             // Store token in Firestore
             Task {
                 await AuthViewModel.shared.updateFCMToken(token)
             }
         }
+    
 }
 
 @main
