@@ -217,9 +217,7 @@ struct SettingsView: View {
                 settingsRow(icon: "lock.shield", text: "Security")
                 settingsRow(icon: "questionmark.circle", text: "Support")
             } else {
-                Text("Friends List Coming Soon")
-                    .font(.headline)
-                    .foregroundColor(.gray)
+                FriendsView()
             }
         }
     }

@@ -19,6 +19,17 @@ class UserRepository {
         return try snapshot.data(as: User.self)
     }
 
+    /// Find a user by an exact phone number match.
+    /// Pass phone numbers in the same format you store (e.g., E.164 like +15551234567).
+    func findUserByPhone(_ phoneNumber: String) async throws -> User? {
+        let query = try await db.collection(collectionName)
+            .whereField("phoneNumber", isEqualTo: phoneNumber)
+            .limit(to: 1)
+            .getDocuments()
+        guard let doc = query.documents.first else { return nil }
+        return try doc.data(as: User.self)
+    }
+
     /// Save or update a user document in Firestore.
     func saveUser(_ user: User) async throws {
         try db.collection(collectionName)
