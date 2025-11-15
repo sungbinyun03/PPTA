@@ -26,7 +26,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    ProfileView() // TODO: Need to fix the navigation bar so that scrolling doesn't have the status bar overlap with the content
+                    ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                     devPrintoutSection
                     DashboardView()
                     reportSection

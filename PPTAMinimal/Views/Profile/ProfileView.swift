@@ -8,6 +8,15 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var viewModel: AuthViewModel
+    private var headerPart1: String
+    private var headerPart2: String?
+    private var subHeader: String
+    
+    init(headerPart1: String, headerPart2: String? = nil, subHeader: String) {
+        self.headerPart1 = headerPart1
+        self.headerPart2 = headerPart2
+        self.subHeader = subHeader
+    }
 
     var body: some View {
         if let user = viewModel.currentUser {
@@ -38,17 +47,18 @@ struct ProfileView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         let fullName = viewModel.currentUser?.name ?? "User"
                         let firstName = fullName.components(separatedBy: " ").first ?? fullName
+                        let headerPart2ToShow = headerPart2?.isEmpty == false ? headerPart2! : firstName
 
                         // Welcome Message with Custom Font
-                        (Text("Welcome Back, ") +
-                             Text("\(firstName)").font(.custom("BambiBold", size: 20)) +
-                             Text("!").font(.system(size: 20, weight: .bold)))
+                        (Text(headerPart1) +
+                             Text("\(headerPart2ToShow)").font(.custom("BambiBold", size: 20)) +
+                         (headerPart2?.isEmpty == false ? Text("") : Text("!").font(.system(size: 20, weight: .bold))))
                             .font(.custom("BambiBold", size: 18))
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                             .layoutPriority(1)
 
-                            Text("Ready for another study session?")
+                        Text(subHeader)
                                 .font(.custom("SatoshiVariable-Bold_Light", size: 14))
                                 .foregroundStyle(Color(.darkGray))                    }
                 }
@@ -75,7 +85,7 @@ struct ProfileView_Previews: PreviewProvider {
             email: "preview@example.com"
         )
         
-        return ProfileView()
+        return ProfileView(headerPart1: "At the ", headerPart2: nil, subHeader: "Gotta be a sweat bro")
             .environmentObject(auth)
     }
 }

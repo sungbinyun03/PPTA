@@ -22,12 +22,7 @@ struct StatusCenterView: View {
         NavigationStack {
             ScrollView{
                 VStack(spacing: 5) {
-                    Text("Status Center")
-                        .font(.custom("BambiBold", size: 30))
-                        .foregroundColor(.black)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
+                    ProfileView(headerPart1: "", headerPart2: "Status Center", subHeader: "Your place for tracking accountability")
                     TraineeStatsRowView(trainees: filteredDummyTrainees)
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -75,13 +70,33 @@ struct StatusCenterView: View {
                     .padding(.vertical)
                 }
             }
+            // Reserve the top safe area so content does not overlap the status bar
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GeometryReader { geo in
+                    Color.white
+                        .frame(width: geo.size.width, height: geo.safeAreaInsets.top)
+                        .ignoresSafeArea() // keeps the paint tidy within the inset
+                }
+                .frame(height: 0) // prevents GeometryReader from taking extra space
+            }
             .scrollIndicators(.hidden)
         }
     }
 }
 
-#Preview {
-    StatusCenterView()
+// Allows for preview by disabling or replacing all the required iPhone-only functionality
+struct StatusCenterView_Previews: PreviewProvider {
+    static var previews: some View {
+        let auth = AuthViewModel()
+        auth.currentUser = User(
+            id: "preview-user",
+            name: "Preview Name",
+            email: "preview@example.com"
+        )
+        
+        return StatusCenterView()
+            .environmentObject(auth)
+    }
 }
 
 
