@@ -2,7 +2,7 @@
 //  FriendsView.swift
 //  PPTAMinimal
 //
-//  Created by Assistant on 11/11/25.
+//  Created by Damien Koh on 6/11/25.
 //
 
 import SwiftUI

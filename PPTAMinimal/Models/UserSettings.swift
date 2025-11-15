@@ -10,7 +10,7 @@ import FamilyControls
 import ManagedSettings
 import FirebaseFirestore
 
-
+// This struct is the same as Friend
 struct PeerCoach: Codable, Identifiable {
     let id = UUID()
     let givenName: String
@@ -27,13 +27,19 @@ final class UserSettings: Codable {
     var thresholdMinutes: Int
     var selectedMode: String = "Chill"
     var onboardingCompleted: Bool
-    var peerCoaches: [PeerCoach]
+    var peerCoaches: [PeerCoach] = [] // The same as friends
+    var coaches: [PeerCoach] = []
+    var trainees: [PeerCoach] = []
     var profileImageURL: URL?
+    var startDailyStreakDate: Date?
+    // TODO: Add a currentlyMonitoring option? Something to toggle monitoring on/off
     
     private enum CodingKeys: String, CodingKey {
             case applications, thresholdHour, thresholdMinutes,
                  selectedMode, onboardingCompleted,
-                 peerCoaches, profileImageURL
+                 peerCoaches, profileImageURL,
+                 coaches, trainees,
+                 startDailyStreakDate
         }
     
     
@@ -44,7 +50,10 @@ final class UserSettings: Codable {
         thresholdHour: Int = 0,
         thresholdMinutes: Int = 0,
         onboardingCompleted: Bool = false,
-        peerCoaches: [PeerCoach] = []
+        peerCoaches: [PeerCoach] = [],
+        coaches: [PeerCoach] = [],
+        trainees: [PeerCoach] = [],
+        startDailyStreakDate: Date? = nil
     ) {
         self.id = id
         self.applications = applications
@@ -52,6 +61,9 @@ final class UserSettings: Codable {
         self.thresholdMinutes = thresholdMinutes
         self.onboardingCompleted = onboardingCompleted
         self.peerCoaches = peerCoaches
+        self.coaches = coaches
+        self.trainees = trainees
+        self.startDailyStreakDate = startDailyStreakDate
     }
     
     

@@ -16,40 +16,89 @@ struct HomeView: View {
     @State private var isReportViewPresented = false
     @State private var isContactsPickerPresented = false
     @State private var selectedContacts: [CNContact] = []
+    private let previewMode: Bool
+    
+    init(previewMode: Bool = false) {
+        self.previewMode = previewMode
+    }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 12) {
-                ProfileView()
-                weeklyStatsSection
-                reportSection
-                peerCoachesSection
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
+                    devPrintoutSection
+                    DashboardView()
+                    reportSection
+                    TraineeCoachView()
+                }
+                .padding(.top, 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Present the ContactsPickerView sheet when needed
+                .sheet(isPresented: $isContactsPickerPresented) {
+                    ContactsPickerView(selectedContacts: $selectedContacts)
+                }
             }
-            .padding(.top, 0)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .navigationBarHidden(true)
-            // Present the ContactsPickerView sheet when needed
-            .sheet(isPresented: $isContactsPickerPresented) {
-                ContactsPickerView(selectedContacts: $selectedContacts)
+            // Reserve the top safe area so content does not overlap the status bar
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GeometryReader { geo in
+                    Color.white
+                        .frame(width: geo.size.width, height: geo.safeAreaInsets.top)
+                        .ignoresSafeArea() // keeps the paint tidy within the inset
+                }
+                .frame(height: 0) // prevents GeometryReader from taking extra space
             }
         }
         .onAppear {
-            // 1. Load user settings from Firestore on launch
-            
-            UserSettingsManager.shared.loadSettings { loadedSettings in
-                DispatchQueue.main.async {
-                    UserSettingsManager.shared.userSettings = loadedSettings
+            if previewMode {
+                seedPreviewData()
+            } else {
+                // 1. Load user settings from Firestore on launch
+                UserSettingsManager.shared.loadSettings { loadedSettings in
+                    DispatchQueue.main.async {
+                        UserSettingsManager.shared.userSettings = loadedSettings
+                    }
+                    
+                    // 2. Always start monitoring once settings are loaded
+                    startAlwaysOnMonitoring(with: loadedSettings)
                 }
-                
-                // 2. Always start monitoring once settings are loaded
-                startAlwaysOnMonitoring(with: loadedSettings)
-//
             }
         }
     }
     
-    private var weeklyStatsSection: some View {
+    private func seedPreviewData() {
+        // Minimal fake user for AuthViewModel
+        if viewModel.currentUser == nil {
+            viewModel.currentUser = User(
+                id: "preview-user",
+                name: "Preview Name",
+                email: "preview@example.com"
+                // phoneNumber and fcmToken are optional; omit or set as needed
+            )
+        }
+
+        // Seed settings to drive UI — order and labels per model definition
+        UserSettingsManager.shared.userSettings = UserSettings(
+            applications: .init(),              // FamilyActivitySelection()
+            thresholdHour: 1,
+            thresholdMinutes: 30,
+            onboardingCompleted: true,
+            peerCoaches: [
+                .init(givenName: "Ada", familyName: "Lovelace", phoneNumber: "111", fcmToken: nil),
+                .init(givenName: "Alan", familyName: "Turing", phoneNumber: "222", fcmToken: nil)
+            ],
+            coaches: [],
+            trainees: []
+            // startDailyStreakDate: nil // optional
+        )
+
+    }
+
+    
+    private var devPrintoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Text("Dev Stuff")
+                .font(.custom("SatoshiVariable-Bold_Light", size: 20))
             Button("Print unlock URL") {
                 if
                   let childUID  = viewModel.currentUser?.id,
@@ -60,22 +109,6 @@ struct HomeView: View {
                     print("UNLOCK LINK →", link.absoluteString)
                     UIPasteboard.general.string = link.absoluteString
                 }
-            }
-            Text("Weekly stats")
-                .font(.custom("SatoshiVariable-Bold_Light", size: 20))
-            
-            VStack(spacing: 10) {
-                HStack(spacing: 14) {
-                    Button("Daily Focus Average") { }
-                    Button("Daily Focus Average") { }
-                }
-                .buttonStyle(StatButtonStyle())
-                
-                HStack(spacing: 14) {
-                    Button("Time over limit") { }
-                    Button("More Text") { }
-                }
-                .buttonStyle(StatButtonStyle())
             }
         }
     }
@@ -90,8 +123,12 @@ struct HomeView: View {
                         .padding(.bottom, 5)
                     
                     ScrollView {
-                        ReportView(isMonitoring: false)
-                            .frame(minHeight: 180, maxHeight: 220)
+                        if !previewMode {
+                            ReportView(isMonitoring: false)
+                                .frame(minHeight: 180, maxHeight: 220)
+                        } else {
+                            Text("Disabled during preview")
+                        }
                     }
                     .frame(height: 210)
                 }
@@ -174,17 +211,6 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Custom Button Style
-struct StatButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: 160, minHeight: 90)
-            .background(Color(red: 0.4392, green: 0.4784, blue: 0.3843))
-            .foregroundColor(.white)
-            .cornerRadius(15)
-    }
-}
-
 // MARK: - PeerCoach Avatar
 struct PeerCoachAvatarView: View {
     let coach: PeerCoach
@@ -203,5 +229,20 @@ struct PeerCoachAvatarView: View {
         let firstInitial = coach.givenName.first.map { String($0) } ?? ""
         let lastInitial = coach.familyName.first.map { String($0) } ?? ""
         return firstInitial + lastInitial
+    }
+}
+
+// Allows for preview by disabling or replacing all the iPhone-only functionality
+struct HomeView_Previews: PreviewProvider {
+    static var previews: some View {
+        let auth = AuthViewModel()
+        auth.currentUser = User(
+            id: "preview-user",
+            name: "Preview Name",
+            email: "preview@example.com"
+        )
+        
+        return HomeView(previewMode: true)
+            .environmentObject(auth)
     }
 }
