@@ -21,16 +21,16 @@ struct ProfileView: View {
                             .frame(width: 58, height: 58)
                             .background(Color(.systemGray3))
                             .clipShape(Circle())
-                            .offset(y: -4) // Moves the circle slightly higher
+                            .offset(y:0) // Moves the circle slightly higher
                             .overlay(alignment: .bottomTrailing) {
                                 Circle()
                                     .fill(Color.white)  // white internal background
                                     .frame(width: 20, height: 20)
-                                    .offset(y: -4)
+                                    .offset(y: 0)
                                 Image(systemName: "gearshape.fill") // filled gear for clear lines
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(.gray) // gray gear lines
-                                    .offset(y: -4)
+                                    .offset(y: 0)
                             }
                     }
                     .buttonStyle(.plain)

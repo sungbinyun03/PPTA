@@ -34,11 +34,19 @@ struct HomeView: View {
                 }
                 .padding(.top, 0)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .navigationBarHidden(true)
                 // Present the ContactsPickerView sheet when needed
                 .sheet(isPresented: $isContactsPickerPresented) {
                     ContactsPickerView(selectedContacts: $selectedContacts)
                 }
+            }
+            // Reserve the top safe area so content does not overlap the status bar
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GeometryReader { geo in
+                    Color.white
+                        .frame(width: geo.size.width, height: geo.safeAreaInsets.top)
+                        .ignoresSafeArea() // keeps the paint tidy within the inset
+                }
+                .frame(height: 0) // prevents GeometryReader from taking extra space
             }
         }
         .onAppear {
