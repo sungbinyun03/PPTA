@@ -22,4 +22,7 @@ PPTAMinimal/.DS_Store
 # Ignore all files starting with "temp"
 temp*
 
+# Ignore cursor rules
+.cursor/
+
 **/*.xcuserstate
