@@ -10,6 +10,14 @@ import SwiftUI
 struct TraineeStatsRowView: View {
     // Feed accepts a list of trainees to render
     let trainees: [DummyProfile]
+    
+    // Optional callback when a trainee card is tapped
+    var onTraineeTapped: ((DummyProfile) -> Void)?
+    
+    init(trainees: [DummyProfile], onTraineeTapped: ((DummyProfile) -> Void)? = nil) {
+        self.trainees = trainees
+        self.onTraineeTapped = onTraineeTapped
+    }
 
     var body: some View {
         // Outer padding so the rounded container doesn't touch screen edges
@@ -18,13 +26,18 @@ struct TraineeStatsRowView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(trainees) { trainee in // TODO: Needs to be adjusted when fields get adjusted
-                            TraineeStatsCardView(
-                                name: trainee.name,
-                                streakDays: trainee.streakDays,
-                                timeLimitMinutes: trainee.timeLimitMinutes,
-                                monitoredApps: trainee.monitoredApps,
-                                profilePicUrl: nil
-                            )
+                            Button(action: {
+                                onTraineeTapped?(trainee)
+                            }) {
+                                TraineeStatsCardView(
+                                    name: trainee.name,
+                                    streakDays: trainee.streakDays,
+                                    timeLimitMinutes: trainee.timeLimitMinutes,
+                                    monitoredApps: trainee.monitoredApps,
+                                    profilePicUrl: nil
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

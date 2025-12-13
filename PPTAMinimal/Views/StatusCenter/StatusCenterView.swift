@@ -8,13 +8,37 @@
 import SwiftUI
 
 struct StatusCenterView: View {
+    // Index lists that reference dummyUsers array
     private var dummyTraineeIdxList: [Int] = [0, 1, 3, 4]
     private var dummyCoachIdxList: [Int] = [2, 4]
     
+    // State for showing friend profile modal
+    @State private var selectedProfile: SelectedProfile? = nil
+    @State private var showFriendProfile = false
+    
+    // Helper struct to pass profile data to modal
+    private struct SelectedProfile {
+        let name: String
+        let isTrainee: Bool
+        let isCoach: Bool
+        let apps: [String]
+        let profilePicUrl: String?
+    }
+    
+    // Helper to determine if a user at index is a trainee
+    private func isTrainee(at index: Int) -> Bool {
+        return dummyTraineeIdxList.contains(index)
+    }
+    
+    // Helper to determine if a user at index is a coach
+    private func isCoach(at index: Int) -> Bool {
+        return dummyCoachIdxList.contains(index)
+    }
+    
     private var filteredDummyTrainees: [DummyProfile] { // TODO: remove once we feed in the actual values and info (viewModel)
         dummyTraineeIdxList.compactMap { idx in
-            guard idx >= 0 && idx < dummyTrainees.count else { return nil }
-            return dummyTrainees[idx]
+            guard idx >= 0 && idx < dummyUsers.count else { return nil }
+            return dummyUsers[idx]
         }
     }
     
@@ -23,7 +47,19 @@ struct StatusCenterView: View {
             ScrollView{
                 VStack(spacing: 5) {
                     ProfileView(headerPart1: "", headerPart2: "Status Center", subHeader: "Your place for tracking accountability")
-                    TraineeStatsRowView(trainees: filteredDummyTrainees)
+                    TraineeStatsRowView(trainees: filteredDummyTrainees) { trainee in
+                        // Find the index of this trainee in dummyUsers
+                        if let index = dummyUsers.firstIndex(where: { $0.name == trainee.name }) {
+                            selectedProfile = SelectedProfile(
+                                name: trainee.name,
+                                isTrainee: isTrainee(at: index),
+                                isCoach: isCoach(at: index),
+                                apps: trainee.monitoredApps,
+                                profilePicUrl: nil
+                            )
+                            showFriendProfile = true
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("Trainees")
@@ -35,13 +71,25 @@ struct StatusCenterView: View {
                         // Trainee cells list
                         VStack(spacing: 12) {
                             ForEach(dummyTraineeIdxList, id: \.self) { idx in
-                                if idx >= 0 && idx < dummyTrainees.count {
-                                    let t = dummyTrainees[idx]
-                                    TraineeCellView(
-                                        name: t.name,
-                                        status: t.status,
-                                        profilePicUrl: nil
-                                    )
+                                if idx >= 0 && idx < dummyUsers.count {
+                                    let user = dummyUsers[idx]
+                                    Button(action: {
+                                        selectedProfile = SelectedProfile(
+                                            name: user.name,
+                                            isTrainee: isTrainee(at: idx),
+                                            isCoach: isCoach(at: idx),
+                                            apps: user.monitoredApps,
+                                            profilePicUrl: nil
+                                        )
+                                        showFriendProfile = true
+                                    }) {
+                                        TraineeCellView(
+                                            name: user.name,
+                                            status: user.status,
+                                            profilePicUrl: nil
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -55,13 +103,25 @@ struct StatusCenterView: View {
                         .padding(.horizontal)
                         VStack(spacing: 12) {
                             ForEach(dummyCoachIdxList, id: \.self) { idx in
-                                if idx >= 0 && idx < dummyCoaches.count {
-                                    let c = dummyCoaches[idx]
-                                    CoachCellView(
-                                        name: c.name,
-                                        isCutOff: true, // TODO: Wire it up to the current User's status
-                                        profilePicUrl: nil
-                                    )
+                                if idx >= 0 && idx < dummyUsers.count {
+                                    let user = dummyUsers[idx]
+                                    Button(action: {
+                                        selectedProfile = SelectedProfile(
+                                            name: user.name,
+                                            isTrainee: isTrainee(at: idx),
+                                            isCoach: isCoach(at: idx),
+                                            apps: user.monitoredApps,
+                                            profilePicUrl: nil
+                                        )
+                                        showFriendProfile = true
+                                    }) {
+                                        CoachCellView(
+                                            name: user.name,
+                                            isCutOff: true, // TODO: Wire it up to the current User's status
+                                            profilePicUrl: nil
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -80,6 +140,18 @@ struct StatusCenterView: View {
                 .frame(height: 0) // prevents GeometryReader from taking extra space
             }
             .scrollIndicators(.hidden)
+            .sheet(isPresented: $showFriendProfile) {
+                if let profile = selectedProfile {
+                    FriendProfileView(
+                        name: profile.name,
+                        friendshipStatus: .isFriend, // All users in StatusCenter are friends
+                        isTrainee: profile.isTrainee,
+                        isCoach: profile.isCoach,
+                        apps: profile.apps,
+                        profilePicUrl: profile.profilePicUrl
+                    )
+                }
+            }
         }
     }
 }
@@ -133,8 +205,10 @@ struct DummyProfile: Identifiable {
   "X", "Twitch", "Discord", "Safari", "Roblox"
   ]
 
-  // Sample data
-  private let dummyTrainees: [DummyProfile] = [
+  // Combined sample data - all users in one array
+  // Use dummyTraineeIdxList and dummyCoachIdxList to determine which users appear in each section
+  private let dummyUsers: [DummyProfile] = [
+  // Index 0 - Trainee
   .init(
   name: "Peter Parker",
   username: "spidey",
@@ -144,6 +218,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["TikTok", "Instagram", "YouTube"]),
   timeLimitMinutes: 90
   ),
+  // Index 1 - Trainee
   .init(
   name: "Shuri Wakanda",
   username: "princessshuri",
@@ -154,6 +229,7 @@ struct DummyProfile: Identifiable {
   "Discord"]),
   timeLimitMinutes: 120
   ),
+  // Index 2 - Coach (also appears in coaches list)
   .init(
   name: "Kamala Khan",
   username: "msmarvel",
@@ -163,6 +239,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["TikTok", "Snapchat", "Instagram"]),
   timeLimitMinutes: 60
   ),
+  // Index 3 - Trainee
   .init(
   name: "Kate Bishop",
   username: "hawkeye2",
@@ -172,10 +249,8 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["Instagram", "X", "YouTube", "Discord",
   "Safari"]),
   timeLimitMinutes: 75
-  )
-  ]
-
-  private let dummyCoaches: [DummyProfile] = [
+  ),
+  // Index 4 - Coach (also appears in trainees list, so this person is both)
   .init(
   name: "Tony Stark",
   username: "ironman",
@@ -185,6 +260,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["X", "YouTube", "Discord"]),
   timeLimitMinutes: 120
   ),
+  // Index 5 - Coach
   .init(
   name: "Steve Rogers",
   username: "cap",
@@ -194,6 +270,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["Reddit", "Safari"]),
   timeLimitMinutes: 90
   ),
+  // Index 6 - Coach
   .init(
   name: "Natasha Romanoff",
   username: "blackwidow",
@@ -203,6 +280,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["Instagram", "TikTok"]),
   timeLimitMinutes: 60
   ),
+  // Index 7 - Coach
   .init(
   name: "Bruce Banner",
   username: "hulk",
@@ -212,6 +290,7 @@ struct DummyProfile: Identifiable {
   monitoredApps: limitApps(["YouTube", "Reddit", "Twitch"]),
   timeLimitMinutes: 45
   ),
+  // Index 8 - Coach
   .init(
   name: "Thor Odinson",
   username: "thunder",
