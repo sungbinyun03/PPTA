@@ -27,8 +27,10 @@ struct TotalActivityReport: DeviceActivityReportScene {
         representing data: DeviceActivityResults<DeviceActivityData>) async -> ActivityReport {
         // Reformat the data into a configuration that can be used to create
         // the report's view.
+        print("TotalActivityReport.makeConfiguration: invoked with DeviceActivityResults")
         var totalActivityDuration: Double = 0
         var list: [AppDeviceActivity] = []
+        var appNames = Set<String>()
         
         for await eachData in data {
             for await activitySegment in eachData.activitySegments {
@@ -48,6 +50,11 @@ struct TotalActivityReport: DeviceActivityReportScene {
                             token: token
                         )
                         list.append(appActivity)
+                        
+                        let trimmedName = appName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmedName.isEmpty && trimmedName != "nil" {
+                            appNames.insert(trimmedName)
+                        }
                     }
                 }
 

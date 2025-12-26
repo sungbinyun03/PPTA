@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import FirebaseAuth
+import Contacts
 
 final class FriendsViewModel: ObservableObject {
     @Published var friends: [User] = []
@@ -87,6 +88,68 @@ final class FriendsViewModel: ObservableObject {
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Sends a friend request to a known user id.
+    @MainActor
+    func addFriend(userId otherUserId: String) async {
+        errorMessage = nil
+        guard let uid = currentUserId else { return }
+        guard otherUserId != uid else {
+            errorMessage = "You cannot add yourself."
+            return
+        }
+        do {
+            try await friendships.sendFriendRequest(from: uid, to: otherUserId)
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Adds friends by extracting phone numbers from selected contacts.
+    /// - Note: Uses all phone numbers per contact and de-dupes them.
+    @MainActor
+    func addFriends(fromContacts contacts: [CNContact]) async {
+        guard !contacts.isEmpty else { return }
+
+        // Deduplicate by phone number (after basic cleanup).
+        var phones: [String] = []
+        var seen = Set<String>()
+
+        for c in contacts {
+            for phone in c.phoneNumbers {
+                let raw = phone.value.stringValue
+                guard !raw.isEmpty else { continue }
+                let cleaned = raw.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
+                let normalized = cleaned.hasPrefix("+") ? cleaned : "+1\(cleaned)"
+                if !normalized.isEmpty, !seen.contains(normalized) {
+                    seen.insert(normalized)
+                    phones.append(normalized)
+                }
+            }
+        }
+
+        if phones.isEmpty {
+            errorMessage = "No phone numbers found on selected contacts."
+            return
+        }
+
+        // Try each phone number; keep going even if some fail.
+        var failures: [String] = []
+        for phone in phones {
+            await addFriend(byPhone: phone)
+            if let err = errorMessage {
+                failures.append("\(phone): \(err)")
+                errorMessage = nil
+            }
+        }
+
+        if !failures.isEmpty {
+            errorMessage = "Some invites failed:\n" + failures.prefix(3).joined(separator: "\n")
+        } else {
+            errorMessage = nil
         }
     }
     

@@ -6,10 +6,16 @@
 //
 
 import SwiftUI
+import Contacts
+import UIKit
 
 struct FriendsView: View {
     @StateObject private var vm = FriendsViewModel()
     @State private var phoneToAdd: String = ""
+    @State private var isContactsImportPresented = false
+    @State private var showContactsPermissionAlert = false
+    @State private var selectedUserId: String? = nil
+    @State private var showFriendProfile = false
     
     var body: some View {
         NavigationStack {
@@ -19,6 +25,13 @@ struct FriendsView: View {
                 VStack(spacing: 12) {
                     
                     HStack(spacing: 8) {
+                        Button {
+                            isContactsImportPresented = true
+                        } label: {
+                            Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus")
+                        }
+                        .buttonStyle(.bordered)
+
                         TextField("Add by phone number (+1...)", text: $phoneToAdd)
                             .textFieldStyle(.roundedBorder)
                         Button("Add") {
@@ -37,18 +50,24 @@ struct FriendsView: View {
                         if !vm.incomingRequests.isEmpty {
                             Section("Requests") {
                                 ForEach(vm.incomingRequests, id: \.friendship.id) { pair in
-                                    HStack {
-                                        Text(pair.user.name)
-                                        Spacer()
-                                        Button("Accept") {
-                                            Task { await vm.accept(pair.friendship.id) }
+                                    Button {
+                                        selectedUserId = pair.user.id
+                                        showFriendProfile = true
+                                    } label: {
+                                        HStack {
+                                            Text(pair.user.name)
+                                            Spacer()
+                                            Button("Accept") {
+                                                Task { await vm.accept(pair.friendship.id) }
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                            Button("Decline") {
+                                                Task { await vm.declineOrCancel(pair.friendship.id) }
+                                            }
+                                            .buttonStyle(.bordered)
                                         }
-                                        .buttonStyle(.borderedProminent)
-                                        Button("Decline") {
-                                            Task { await vm.declineOrCancel(pair.friendship.id) }
-                                        }
-                                        .buttonStyle(.bordered)
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -56,16 +75,22 @@ struct FriendsView: View {
                         if !vm.outgoingRequests.isEmpty {
                             Section("Pending") {
                                 ForEach(vm.outgoingRequests, id: \.friendship.id) { pair in
-                                    HStack {
-                                        Text(pair.user.name)
-                                        Spacer()
-                                        Text("Sent")
-                                            .foregroundColor(.secondary)
-                                        Button("Cancel") {
-                                            Task { await vm.declineOrCancel(pair.friendship.id) }
+                                    Button {
+                                        selectedUserId = pair.user.id
+                                        showFriendProfile = true
+                                    } label: {
+                                        HStack {
+                                            Text(pair.user.name)
+                                            Spacer()
+                                            Text("Sent")
+                                                .foregroundColor(.secondary)
+                                            Button("Cancel") {
+                                                Task { await vm.declineOrCancel(pair.friendship.id) }
+                                            }
+                                            .buttonStyle(.bordered)
                                         }
-                                        .buttonStyle(.bordered)
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -76,12 +101,18 @@ struct FriendsView: View {
                                     .foregroundColor(.secondary)
                             } else {
                                 ForEach(vm.friends, id: \.id) { friend in
-                                    HStack {
-                                        Text(friend.name)
-                                        Spacer()
-                                        Text(friend.email)
-                                            .foregroundColor(.secondary)
+                                    Button {
+                                        selectedUserId = friend.id
+                                        showFriendProfile = true
+                                    } label: {
+                                        HStack {
+                                            Text(friend.name)
+                                            Spacer()
+                                            Text(friend.email)
+                                                .foregroundColor(.secondary)
+                                        }
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -93,6 +124,25 @@ struct FriendsView: View {
                 .refreshable { await vm.refresh() }
             }
         }
+        .sheet(isPresented: $isContactsImportPresented) {
+            FriendsContactsImportView()
+        }
+        .sheet(isPresented: $showFriendProfile) {
+            if let id = selectedUserId {
+                FriendProfileSheetView(otherUserId: id)
+            }
+        }
+        .alert("Contacts Permission Required", isPresented: $showContactsPermissionAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Open Settings") { openAppSettings() }
+        } message: {
+            Text("To add friends from your contacts, please allow access in Settings.")
+        }
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 

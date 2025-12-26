@@ -29,6 +29,7 @@ struct HomeView: View {
                     ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                     devPrintoutSection
                     DashboardView()
+                    StreakBannerView()
                     reportSection
                     TraineeCoachView()
                 }
@@ -57,6 +58,12 @@ struct HomeView: View {
                 UserSettingsManager.shared.loadSettings { loadedSettings in
                     DispatchQueue.main.async {
                         UserSettingsManager.shared.userSettings = loadedSettings
+                        // Apply any pending status / streak updates that the
+                        // DeviceActivity extension recorded while the app
+                        // was not running.
+                        Task { @MainActor in
+                            await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+                        }
                     }
                     
                     // 2. Always start monitoring once settings are loaded
@@ -208,6 +215,54 @@ struct HomeView: View {
                 print("Error starting monitoring: \(error)")
             }
         }
+    }
+}
+
+// MARK: - Streak Banner
+
+struct StreakBannerView: View {
+    @ObservedObject private var settingsMgr = UserSettingsManager.shared
+    
+    private var streakDays: Int {
+        StreakCalculator.daysSince(
+            start: settingsMgr.userSettings.startDailyStreakDate,
+            calendar: .current
+        )
+    }
+    
+    private var isTracking: Bool {
+        settingsMgr.userSettings.isTracking
+    }
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Daily Streak")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                if !isTracking {
+                    Text("Tracking is paused")
+                        .font(.headline)
+                } else if streakDays > 0 {
+                    Text("\(streakDays) day\(streakDays == 1 ? "" : "s") strong")
+                        .font(.headline)
+                } else {
+                    Text("Streak starts today")
+                        .font(.headline)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color("primaryButtonColor").opacity(0.15))
+        )
+        .padding(.horizontal, 24)
     }
 }
 

@@ -34,6 +34,14 @@ struct FriendProfileView: View {
     
     /// Optional profile picture URL (if nil, shows initials)
     let profilePicUrl: String?
+
+    // MARK: - Role request / relationship actions (driven by backend)
+    let coachAction: FriendProfileViewModel.ActionConfig
+    let traineeAction: FriendProfileViewModel.ActionConfig
+    let onCoachPrimary: () -> Void
+    let onCoachSecondary: () -> Void
+    let onTraineePrimary: () -> Void
+    let onTraineeSecondary: () -> Void
     
     /// Environment value to dismiss the modal
     @Environment(\.dismiss) private var dismiss
@@ -197,22 +205,15 @@ struct FriendProfileView: View {
                         VStack(spacing: 12) {
                             // Request/Remove as Coach button
                             // Enabled only if they are a friend, otherwise disabled
-                            Button(action: {
-                                Task {
-                                    // TODO: Implement request/remove as coach logic
-                                    if isCoach {
-                                        // Remove as coach
-                                    } else {
-                                        // Request as coach
-                                    }
-                                }
-                            }) {
+                            Button(action: onCoachPrimary) {
                                 HStack {
-                                    Text(isCoach ? "Remove as Coach" : "Request as Coach")
+                                    Text(coachAction.title)
                                         .font(.system(size: 16, weight: .medium))
                                     Spacer()
                                 }
-                                .foregroundColor(friendshipStatus == .isFriend ? (isCoach ? .red : .primary) : .secondary)
+                                .foregroundColor(friendshipStatus == .isFriend
+                                                 ? (coachAction.isDestructive ? .red : (coachAction.enabled ? .primary : .secondary))
+                                                 : .secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
                                 .background(
@@ -224,26 +225,41 @@ struct FriendProfileView: View {
                                         )
                                 )
                             }
-                            .disabled(friendshipStatus != .isFriend)
+                            .disabled(friendshipStatus != .isFriend || !coachAction.enabled)
+
+                            if let secondary = coachAction.secondaryTitle {
+                                Button(action: onCoachSecondary) {
+                                    HStack {
+                                        Text(secondary)
+                                            .font(.system(size: 16, weight: .medium))
+                                        Spacer()
+                                    }
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.gray.opacity(0.08))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                            )
+                                    )
+                                }
+                                .disabled(friendshipStatus != .isFriend || !coachAction.secondaryEnabled)
+                            }
                             
                             // Request/Remove as Trainee button
                             // Enabled only if they are a friend, otherwise disabled
-                            Button(action: {
-                                Task {
-                                    // TODO: Implement request/remove as trainee logic
-                                    if isTrainee {
-                                        // Remove as trainee
-                                    } else {
-                                        // Request as trainee
-                                    }
-                                }
-                            }) {
+                            Button(action: onTraineePrimary) {
                                 HStack {
-                                    Text(isTrainee ? "Remove as Trainee" : "Request as Trainee")
+                                    Text(traineeAction.title)
                                         .font(.system(size: 16, weight: .medium))
                                     Spacer()
                                 }
-                                .foregroundColor(friendshipStatus == .isFriend ? (isTrainee ? .red : .primary) : .secondary)
+                                .foregroundColor(friendshipStatus == .isFriend
+                                                 ? (traineeAction.isDestructive ? .red : (traineeAction.enabled ? .primary : .secondary))
+                                                 : .secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
                                 .background(
@@ -255,7 +271,29 @@ struct FriendProfileView: View {
                                         )
                                 )
                             }
-                            .disabled(friendshipStatus != .isFriend)
+                            .disabled(friendshipStatus != .isFriend || !traineeAction.enabled)
+
+                            if let secondary = traineeAction.secondaryTitle {
+                                Button(action: onTraineeSecondary) {
+                                    HStack {
+                                        Text(secondary)
+                                            .font(.system(size: 16, weight: .medium))
+                                        Spacer()
+                                    }
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.gray.opacity(0.08))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                            )
+                                    )
+                                }
+                                .disabled(friendshipStatus != .isFriend || !traineeAction.secondaryEnabled)
+                            }
                             
                             // Friend request/status buttons based on friendship status
                             switch friendshipStatus {
@@ -443,6 +481,12 @@ struct FriendProfileView: View {
         isTrainee: false,
         isCoach: false,
         apps: ["TikTok", "YouTube", "Instagram", "Snapchat", "Reddit", "X", "Twitch"],
-        profilePicUrl: nil
+        profilePicUrl: nil,
+        coachAction: .init(title: "Request as Coach", enabled: true),
+        traineeAction: .init(title: "Request as Trainee", enabled: true),
+        onCoachPrimary: {},
+        onCoachSecondary: {},
+        onTraineePrimary: {},
+        onTraineeSecondary: {}
     )
 }

@@ -211,6 +211,9 @@ struct SettingsView: View {
                 NavigationLink(destination: AppSelectView()) {
                     settingsRow(icon: "app.badge", text: "Monitored Apps")
                 }
+                NavigationLink(destination: MonitoredAppsDebugView()) {
+                    settingsRow(icon: "list.bullet.rectangle", text: "Monitored Apps (Debug)")
+                }
                 NavigationLink(destination: LimitSettingsView()) {
                     settingsRow(icon: "clock", text: "Limit Settings")
                 }

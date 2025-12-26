@@ -9,12 +9,12 @@ import SwiftUI
 
 struct TraineeStatsRowView: View {
     // Feed accepts a list of trainees to render
-    let trainees: [DummyProfile]
+    let trainees: [StatusCenterPerson]
     
     // Optional callback when a trainee card is tapped
-    var onTraineeTapped: ((DummyProfile) -> Void)?
+    var onTraineeTapped: ((StatusCenterPerson) -> Void)?
     
-    init(trainees: [DummyProfile], onTraineeTapped: ((DummyProfile) -> Void)? = nil) {
+    init(trainees: [StatusCenterPerson], onTraineeTapped: ((StatusCenterPerson) -> Void)? = nil) {
         self.trainees = trainees
         self.onTraineeTapped = onTraineeTapped
     }
@@ -25,7 +25,7 @@ struct TraineeStatsRowView: View {
             VStack(alignment: .leading, spacing: 12) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(trainees) { trainee in // TODO: Needs to be adjusted when fields get adjusted
+                        ForEach(trainees) { trainee in
                             Button(action: {
                                 onTraineeTapped?(trainee)
                             }) {
@@ -34,7 +34,7 @@ struct TraineeStatsRowView: View {
                                     streakDays: trainee.streakDays,
                                     timeLimitMinutes: trainee.timeLimitMinutes,
                                     monitoredApps: trainee.monitoredApps,
-                                    profilePicUrl: nil
+                                    profilePicUrl: trainee.profileImageURL?.absoluteString
                                 )
                             }
                             .buttonStyle(.plain)
@@ -55,14 +55,17 @@ struct TraineeStatsRowView: View {
 }
 
 #Preview {
-    // Minimal preview using the dummy data declared in StatusCenterView.swift
-    TraineeStatsRowView(trainees: [.init(
-        name: "Peter Parker",
-        username: "spidey",
-        role: .trainee,
-        streakDays: 6,
-        status: .allClear,
-        monitoredApps: ["TikTok", "Instagram", "YouTube"],
-        timeLimitMinutes: 90
-        )])
+    TraineeStatsRowView(trainees: [
+        .init(
+            id: "preview-user",
+            name: "Peter Parker",
+            profileImageURL: nil,
+            isCoach: false,
+            isTrainee: true,
+            traineeStatus: .attentionNeeded,
+            streakDays: 6,
+            timeLimitMinutes: 90,
+            monitoredApps: ["TikTok", "Instagram", "YouTube"]
+        )
+    ])
 }

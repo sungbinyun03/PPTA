@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>Peer Pressure (the app)</string>
+	<key>NSContactsUsageDescription</key>
+	<string>We use your contacts to help you find and add friends.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>&quot;Choose a picture for your profile.&quot;</string>
 	<key>CFBundleURLTypes</key>

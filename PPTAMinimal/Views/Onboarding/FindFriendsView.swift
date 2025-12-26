@@ -13,6 +13,7 @@ struct FindFriendsView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
     @EnvironmentObject var viewModel: AuthViewModel
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
+    @StateObject private var friendsVM = FriendsViewModel()
     @State private var contacts: [CNContact] = []
     @State private var appUsers: [AppUserContact] = []
     @State private var selectedContacts: [CNContact] = []
@@ -116,7 +117,7 @@ struct FindFriendsView: View {
                 .foregroundColor(.secondary)
             
             PrimaryButton(title: "Let's Begin") {
-                saveSelectedContacts()
+                Task { await addSelectedAsFriends() }
                 coordinator.advance()
             }
             
@@ -294,39 +295,13 @@ struct FindFriendsView: View {
         }
     }
     
-    private func saveSelectedContacts() {
-        // Convert CNContacts to PeerCoach model
-        let regularPeerCoaches = selectedContacts.map { contact in
-            let phoneNumber = contact.phoneNumbers.first?.value.stringValue ?? ""
-            return PeerCoach(
-                givenName: contact.givenName,
-                familyName: contact.familyName,
-                phoneNumber: phoneNumber
-            )
-        }
-        
-        // Convert AppUserContacts to PeerCoach model with FCM token
-        let appUserPeerCoaches = selectedAppUsers.map { appUserContact in
-            return PeerCoach(
-                givenName: appUserContact.contact.givenName,
-                familyName: appUserContact.contact.familyName,
-                phoneNumber: appUserContact.user.phoneNumber ?? "",
-                fcmToken: appUserContact.user.fcmToken
-            )
-        }
-        
-        // Combine both types of peer coaches
-        let allPeerCoaches = regularPeerCoaches + appUserPeerCoaches
-        
-        // Save to UserSettings
-        UserSettingsManager.shared.loadSettings { currentSettings in
-            var updatedSettings = currentSettings
-            updatedSettings.peerCoaches.append(contentsOf: allPeerCoaches)
-            
-            DispatchQueue.main.async {
-                UserSettingsManager.shared.saveSettings(updatedSettings)
-            }
-        }
+    /// Onboarding "Find Friends" should register selected contacts as Friends (friend requests),
+    /// not as `peerCoaches`.
+    @MainActor
+    private func addSelectedAsFriends() async {
+        // Combine both lists and hand off to the same contacts → friends pipeline used by Friends tab.
+        let combined = selectedContacts + selectedAppUsers.map { $0.contact }
+        await friendsVM.addFriends(fromContacts: combined)
     }
     
     private func openSettings() {

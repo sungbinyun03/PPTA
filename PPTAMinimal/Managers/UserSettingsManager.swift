@@ -91,7 +91,25 @@ final class UserSettingsManager : ObservableObject{
         saveSettings(draft)
     }
 
-    
+    /// Reads and clears any pending trainee status / streak updates that were
+    /// stored by the DeviceActivity extension in the shared defaults, then
+    /// persists them to Firestore.
+    @MainActor
+    func applyPendingStatusIfNeeded() {
+        let pending = LocalSettingsStore.consumePendingStatus()
+        guard pending.status != nil || pending.resetStartDate != nil else { return }
+        
+        print("UserSettingsManager.applyPendingStatusIfNeeded: applying pending status or streak.")
+        update { settings in
+            if let status = pending.status {
+                settings.traineeStatus = status
+            }
+            if let reset = pending.resetStartDate {
+                settings.startDailyStreakDate = reset
+            }
+        }
+    }
+
 }
 
 

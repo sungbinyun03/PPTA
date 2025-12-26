@@ -24,6 +24,7 @@
 		AE20EB632D481E3400D27B4D /* PPTAReport.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = AE20EB572D481E3400D27B4D /* PPTAReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE4B17A02D347EF100B8DB25 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE4B179F2D347EF100B8DB25 /* DeviceActivity.framework */; };
 		AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE4B179D2D347EF100B8DB25 /* AppMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AEF0F0012E8A0F0000F0F001 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = AEF0F0002E8A0F0000F0F000 /* FirebaseFunctions */; };
 		AEFDBA3D2DDEBBE000833B40 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AEFDBA3C2DDEBBE000833B40 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -142,6 +143,7 @@
 				Managers/UnlockService.swift,
 				Managers/UserSettingsManager.swift,
 				Models/LocalSettingsStore.swift,
+				Models/TraineeStatus.swift,
 				Models/User.swift,
 				Models/UserSettings.swift,
 				Services/FirestoreService.swift,
@@ -217,6 +219,7 @@
 				8AE092682D3EE8DB00F1EA5A /* FirebaseAuth in Frameworks */,
 				8AE092762D3EFAAB00F1EA5A /* GoogleSignIn in Frameworks */,
 				8AE0926A2D3EE8DB00F1EA5A /* FirebaseFirestore in Frameworks */,
+				AEF0F0012E8A0F0000F0F001 /* FirebaseFunctions in Frameworks */,
 				8AA1E25D2D4AC92E004BE02A /* FirebaseCore in Frameworks */,
 				8AE0926C2D3EE8DB00F1EA5A /* FirebaseStorage in Frameworks */,
 				8A1698F02D50714400A159CE /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
@@ -337,6 +340,7 @@
 				8AE092672D3EE8DB00F1EA5A /* FirebaseAuth */,
 				8AE092692D3EE8DB00F1EA5A /* FirebaseFirestore */,
 				8AE0926B2D3EE8DB00F1EA5A /* FirebaseStorage */,
+				AEF0F0002E8A0F0000F0F000 /* FirebaseFunctions */,
 				8AE092752D3EFAAB00F1EA5A /* GoogleSignIn */,
 				8AE092772D3EFAAB00F1EA5A /* GoogleSignInSwift */,
 				8AA1E25C2D4AC92E004BE02A /* FirebaseCore */,
@@ -1087,6 +1091,11 @@
 		AE1F09B52D5412A60022BBC2 /* FirebaseMessaging */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FirebaseMessaging;
+		};
+		AEF0F0002E8A0F0000F0F000 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AE092662D3EE8DB00F1EA5A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

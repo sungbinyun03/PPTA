@@ -96,20 +96,31 @@ struct AppSelectView: View {
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
         
+        var settings = userSettingsManager.userSettings
+        
         // Capture whether selection changed (simple proxy comparing tokens)
-        let old = userSettingsManager.userSettings.applications
-        // Reset streak if app selection changed
+        let old = settings.applications
         let appsChanged =
             old.applicationTokens != selection.applicationTokens ||
             old.categoryTokens != selection.categoryTokens
-        if appsChanged || userSettingsManager.userSettings.startDailyStreakDate == nil {
-            print("Streak start date reset due to app selection change")
-            userSettingsManager.userSettings.startDailyStreakDate = Date()
+        
+        print("AppSelectView.saveToFirebase: will persist \(selection.applicationTokens.count) application tokens.")
+        for token in selection.applicationTokens {
+            print("Selected token:", token)
         }
         
-        // Save to Firestore
-        userSettingsManager.userSettings.applications = selection
-        userSettingsManager.saveSettings(userSettingsManager.userSettings)
+        // Reset streak if app selection changed or streak was never started.
+        if appsChanged || settings.startDailyStreakDate == nil {
+            print("Streak start date reset due to app selection change")
+            settings.startDailyStreakDate = Date()
+        }
+
+        // Save updated selection & stats to Firestore. We do NOT touch
+        // `appList` here anymore; that is now derived from the DeviceActivity
+        // report extension via localizedDisplayName and synchronized through
+        // the shared app group.
+        settings.applications = selection
+        userSettingsManager.saveSettings(settings)
     }
 }
 

@@ -39,6 +39,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             )
         
             store.shield.applications = UserSettingsManager.shared.userSettings.applications.applicationTokens
+            
+            // If the user is actively tracking, flag a breach so the main app
+            // can update Firestore (status + streak) next time it becomes active.
+            if settings.isTracking {
+                LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: Date())
+            }
 //            
 //            // Un-shield after 2 hours
 //            let unlockTime: TimeInterval = 2 * 60
@@ -81,6 +87,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             let currentUserName = UserDefaults.standard.string(forKey: "currentUserName") ?? ""
 
             let notificationBody = "\(currentUserName) is about to reach their time limit for \(appName)!"
+            
+            // Mark that the user is approaching their limit so coaches can see
+            // this reflected as `.attentionNeeded` after the app syncs.
+            let settings = LocalSettingsStore.load()
+            if settings.isTracking {
+                LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
+            }
             NotificationManager.shared.sendPushNotification(
                     title: "Time Almost Up!",
                     body: notificationBody

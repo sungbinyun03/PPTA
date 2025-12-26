@@ -93,7 +93,7 @@ struct PPTAMinimalApp: App {
     @AppStorage("onboardingComplete") private var onboardingComplete = false
     
     // For testing
-    private let resetOnboardingForTesting = true // Set to false when not needed
+    private let resetOnboardingForTesting = false // Set to false when not needed
     init() {
         if resetOnboardingForTesting {
             UserDefaults.standard.set(false, forKey: "onboardingComplete")
