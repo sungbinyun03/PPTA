@@ -22,7 +22,10 @@ final class CloudRunHTTPClient {
             case .invalidURL: return "Invalid server URL."
             case .nonHTTPResponse: return "Invalid server response."
             case .serverError(let status, let body):
-                return "Server error (\(status))\(body.map { \": \\($0)\" } ?? \"\")."
+                if let body, !body.isEmpty {
+                    return "Server error (\(status)): \(body)"
+                }
+                return "Server error (\(status))."
             case .decodeError: return "Malformed server response."
             }
         }
