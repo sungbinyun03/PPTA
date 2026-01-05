@@ -31,7 +31,7 @@ struct AppSelectView: View {
                         .foregroundColor(.secondary)
                 } else {
                     // Show each selected application token
-                    ForEach(Array(selection.applicationTokens.enumerated()), id: \.element) { index, token in
+                    ForEach(Array(selection.applicationTokens.enumerated()), id: \.offset) { index, token in
                         HStack {
                             Label(token) // The token's description (or "label") for now
                             Spacer()
@@ -41,7 +41,7 @@ struct AppSelectView: View {
                         }
                     }
                     
-                    ForEach(Array(selection.categoryTokens.enumerated()), id: \.element) { index, token in
+                    ForEach(Array(selection.categoryTokens.enumerated()), id: \.offset) { index, token in
                         HStack {
                             Label(token)
                             Spacer()

@@ -219,6 +219,12 @@ struct SettingsView: View {
                 }
                 settingsRow(icon: "lock.shield", text: "Security")
                 settingsRow(icon: "questionmark.circle", text: "Support")
+
+                Button(role: .destructive) {
+                    viewModel.signOut()
+                } label: {
+                    settingsRow(icon: "rectangle.portrait.and.arrow.right", text: "Log Out")
+                }
             } else {
                 FriendsView()
             }

@@ -26,7 +26,7 @@ struct MonitoredAppsDebugView: View {
                     .foregroundColor(.secondary)
             } else {
                 Section("Monitored Apps (from ApplicationToken)") {
-                    ForEach(applicationTokens, id: \.self) { token in
+                    ForEach(Array(applicationTokens.enumerated()), id: \.offset) { _, token in
                         // The system will resolve name + icon for this token.
                         Label(token)
                     }

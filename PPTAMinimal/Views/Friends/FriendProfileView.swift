@@ -5,6 +5,8 @@
 //  Created by Damien Koh on 9/12/25.
 //
 import SwiftUI
+import FamilyControls
+import ManagedSettings
 
 /// Represents the friendship status between the current user and another user
 /// TEMPORARY: Renamed from FriendshipStatus to avoid conflict with another enum in the codebase
@@ -31,6 +33,9 @@ struct FriendProfileView: View {
     
     /// List of app names being monitored
     let apps: [String]
+    
+    /// App tokens (preferred display). When present, we render via `Label(token)`.
+    let appTokens: [ApplicationToken]
     
     /// Optional profile picture URL (if nil, shows initials)
     let profilePicUrl: String?
@@ -182,9 +187,15 @@ struct FriendProfileView: View {
                             
                             // Show apps if friend, otherwise show message
                             if friendshipStatus == .isFriend {
-                                // Horizontal scrolling 3-row layout for apps
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    appsGrid
+                                if !appTokens.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        tokenGrid
+                                    }
+                                } else {
+                                    // Horizontal scrolling 3-row layout for apps (string fallback)
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        appsGrid
+                                    }
                                 }
                             } else {
                                 Text("Must be a friend to see Apps monitored")
@@ -455,7 +466,7 @@ struct FriendProfileView: View {
         return VStack(alignment: .leading, spacing: 8) {
             ForEach(0..<3, id: \.self) { rowIndex in
                 HStack(spacing: 12) {
-                    ForEach(rows[rowIndex], id: \.self) { appName in
+                    ForEach(Array(rows[rowIndex].enumerated()), id: \.offset) { _, appName in
                         Text(appName)
                             .font(.system(size: 14))
                             .foregroundColor(.primary)
@@ -470,6 +481,34 @@ struct FriendProfileView: View {
         }
         .frame(minWidth: UIScreen.main.bounds.width - 80) // Ensure horizontal scrolling works
     }
+
+    /// Renders app tokens using the system-resolved name + icon.
+    private var tokenGrid: some View {
+        let tokens = appTokens
+        // Split into 3 rows for a compact "grid" feel.
+        let row0 = tokens.enumerated().compactMap { $0.offset % 3 == 0 ? $0.element : nil }
+        let row1 = tokens.enumerated().compactMap { $0.offset % 3 == 1 ? $0.element : nil }
+        let row2 = tokens.enumerated().compactMap { $0.offset % 3 == 2 ? $0.element : nil }
+        let rows = [row0, row1, row2]
+
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(0..<3, id: \.self) { rowIndex in
+                HStack(spacing: 12) {
+                    ForEach(Array(rows[rowIndex].enumerated()), id: \.offset) { _, token in
+                        Label(token)
+                            .labelStyle(.titleAndIcon)
+                            .font(.system(size: 14))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .frame(minWidth: UIScreen.main.bounds.width - 80)
+    }
 }
 
 #Preview {
@@ -481,6 +520,7 @@ struct FriendProfileView: View {
         isTrainee: false,
         isCoach: false,
         apps: ["TikTok", "YouTube", "Instagram", "Snapchat", "Reddit", "X", "Twitch"],
+        appTokens: [],
         profilePicUrl: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),

@@ -11,6 +11,7 @@ import UIKit
 
 struct FriendsView: View {
     @StateObject private var vm = FriendsViewModel()
+    @ObservedObject private var notifications = NotificationManager.shared
     @State private var phoneToAdd: String = ""
     @State private var isContactsImportPresented = false
     @State private var showContactsPermissionAlert = false
@@ -123,6 +124,20 @@ struct FriendsView: View {
                 .task { await vm.refresh() }
                 .refreshable { await vm.refresh() }
             }
+        }
+        .overlay(alignment: .top) {
+            if let banner = notifications.inAppBanner {
+                InAppBannerView(title: banner.title, message: banner.body) {
+                    notifications.inAppBanner = nil
+                }
+                .padding(.top, 8)
+            }
+        }
+        .onAppear {
+            vm.startListening()
+        }
+        .onDisappear {
+            vm.stopListening()
         }
         .sheet(isPresented: $isContactsImportPresented) {
             FriendsContactsImportView()

@@ -102,9 +102,14 @@ struct PPTAMinimalApp: App {
     
     var body: some Scene {
         WindowGroup {
-            if onboardingComplete {
-               TabNavigator()
-                .environmentObject(viewModel)
+            if viewModel.userSession == nil {
+                NavigationView {
+                    LoginView()
+                        .environmentObject(viewModel)
+                }
+            } else if onboardingComplete {
+                TabNavigator()
+                    .environmentObject(viewModel)
             } else {
                 OnboardingContainerView()
                     .environmentObject(viewModel)

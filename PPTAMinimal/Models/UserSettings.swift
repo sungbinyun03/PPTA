@@ -98,22 +98,54 @@ final class UserSettings: Codable {
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Decode required fields
-        applications = try container.decode(FamilyActivitySelection.self, forKey: .applications)
-        thresholdHour = try container.decode(Int.self, forKey: .thresholdHour)
-        thresholdMinutes = try container.decode(Int.self, forKey: .thresholdMinutes)
-        selectedMode = try container.decode(String.self, forKey: .selectedMode)
-        onboardingCompleted = try container.decode(Bool.self, forKey: .onboardingCompleted)
-        peerCoaches = try container.decode([PeerCoach].self, forKey: .peerCoaches)
-        profileImageURL = try container.decodeIfPresent(URL.self, forKey: .profileImageURL)
-        
-        // Decode optional fields that might not exist in Firebase
-        coaches = try container.decodeIfPresent([PeerCoach].self, forKey: .coaches) ?? []
-        trainees = try container.decodeIfPresent([PeerCoach].self, forKey: .trainees) ?? []
-        startDailyStreakDate = try container.decodeIfPresent(Date.self, forKey: .startDailyStreakDate)
-        isTracking = try container.decodeIfPresent(Bool.self, forKey: .isTracking) ?? true
-        traineeStatus = try container.decodeIfPresent(TraineeStatus.self, forKey: .traineeStatus) ?? .allClear
-        appList = try container.decodeIfPresent([String].self, forKey: .appList) ?? []
+        // Be defensive: existing Firestore docs may be missing keys or have older schemas.
+        // Using `try?` avoids hard failures like:
+        // "The data couldn’t be read because it is missing."
+        applications = (try? container.decode(FamilyActivitySelection.self, forKey: .applications)) ?? .init()
+        thresholdHour = (try? container.decode(Int.self, forKey: .thresholdHour)) ?? 0
+        thresholdMinutes = (try? container.decode(Int.self, forKey: .thresholdMinutes)) ?? 0
+        selectedMode = (try? container.decode(String.self, forKey: .selectedMode)) ?? "Chill"
+        onboardingCompleted = (try? container.decode(Bool.self, forKey: .onboardingCompleted)) ?? false
+
+        peerCoaches = (try? container.decode([PeerCoach].self, forKey: .peerCoaches)) ?? []
+        coaches = (try? container.decode([PeerCoach].self, forKey: .coaches)) ?? []
+        trainees = (try? container.decode([PeerCoach].self, forKey: .trainees)) ?? []
+
+        coachIds = (try? container.decode([String].self, forKey: .coachIds)) ?? []
+        traineeIds = (try? container.decode([String].self, forKey: .traineeIds)) ?? []
+
+        // profileImageURL is stored as URL in newer docs; tolerate string in older docs.
+        if let url = try? container.decode(URL.self, forKey: .profileImageURL) {
+            profileImageURL = url
+        } else if let s = try? container.decode(String.self, forKey: .profileImageURL) {
+            profileImageURL = URL(string: s)
+        } else {
+            profileImageURL = nil
+        }
+
+        startDailyStreakDate = try? container.decode(Date.self, forKey: .startDailyStreakDate)
+        isTracking = (try? container.decode(Bool.self, forKey: .isTracking)) ?? true
+        traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
+        appList = (try? container.decode([String].self, forKey: .appList)) ?? []
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(applications, forKey: .applications)
+        try container.encode(thresholdHour, forKey: .thresholdHour)
+        try container.encode(thresholdMinutes, forKey: .thresholdMinutes)
+        try container.encode(selectedMode, forKey: .selectedMode)
+        try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
+        try container.encode(peerCoaches, forKey: .peerCoaches)
+        try container.encodeIfPresent(profileImageURL, forKey: .profileImageURL)
+        try container.encode(coaches, forKey: .coaches)
+        try container.encode(trainees, forKey: .trainees)
+        try container.encode(coachIds, forKey: .coachIds)
+        try container.encode(traineeIds, forKey: .traineeIds)
+        try container.encodeIfPresent(startDailyStreakDate, forKey: .startDailyStreakDate)
+        try container.encode(isTracking, forKey: .isTracking)
+        try container.encode(traineeStatus, forKey: .traineeStatus)
+        try container.encode(appList, forKey: .appList)
     }
     
     

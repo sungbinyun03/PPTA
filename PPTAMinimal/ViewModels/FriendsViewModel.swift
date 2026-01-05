@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import FirebaseAuth
 import Contacts
+import FirebaseFirestore
 
 final class FriendsViewModel: ObservableObject {
     @Published var friends: [User] = []
@@ -19,6 +20,11 @@ final class FriendsViewModel: ObservableObject {
     
     private let friendships = FriendshipRepository()
     private let users = UserRepository()
+    private let db = Firestore.firestore()
+
+    private var incomingListener: ListenerRegistration?
+    private var primedIncoming = false
+    private var seenIncomingFriendshipIds = Set<String>()
     
     var currentUserId: String? {
         Auth.auth().currentUser?.uid
@@ -67,6 +73,71 @@ final class FriendsViewModel: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
         }
+    }
+
+    /// Starts a realtime listener for incoming friend requests while the Friends tab is visible.
+    /// Call `stopListening()` on disappear.
+    func startListening() {
+        guard incomingListener == nil else { return }
+        guard let uid = currentUserId else { return }
+
+        primedIncoming = false
+        seenIncomingFriendshipIds = []
+
+        incomingListener = db.collection("friendships")
+            .whereField("requesteeId", isEqualTo: uid)
+            .whereField("status", isEqualTo: FriendshipStatus.pending.rawValue)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                if let error {
+                    print("FriendsViewModel.startListening: snapshot error:", error)
+                    return
+                }
+                guard let snapshot else { return }
+
+                // Build current set of pending friendship ids + objects.
+                let friendships: [Friendship] = snapshot.documents.compactMap { doc in
+                    try? doc.data(as: Friendship.self)
+                }
+                let currentIds = Set(friendships.compactMap { $0.id })
+
+                // Prime on first snapshot so we don't show banners for existing backlog.
+                if !self.primedIncoming {
+                    self.primedIncoming = true
+                    self.seenIncomingFriendshipIds = currentIds
+                    Task { @MainActor in await self.refresh() }
+                    return
+                }
+
+                let newIds = currentIds.subtracting(self.seenIncomingFriendshipIds)
+                self.seenIncomingFriendshipIds = currentIds
+
+                if !newIds.isEmpty {
+                    // Fire and forget: show a banner per new request (cap to a few).
+                    let newFriendships = friendships.filter { fr in
+                        newIds.contains(fr.id)
+                    }
+                    for fr in newFriendships.prefix(3) {
+                        Task {
+                            let user = try? await self.users.fetchUser(by: fr.requesterId)
+                            let name = user?.name ?? "Someone"
+                            NotificationManager.shared.showInAppMessage(
+                                title: "New friend request",
+                                body: "\(name) sent you a friend request."
+                            )
+                        }
+                    }
+                }
+
+                Task { @MainActor in await self.refresh() }
+            }
+    }
+
+    func stopListening() {
+        incomingListener?.remove()
+        incomingListener = nil
+        primedIncoming = false
+        seenIncomingFriendshipIds = []
     }
     
     @MainActor

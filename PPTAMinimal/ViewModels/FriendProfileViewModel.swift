@@ -7,6 +7,8 @@
 
 import Foundation
 import FirebaseAuth
+import FamilyControls
+import ManagedSettings
 
 @MainActor
 final class FriendProfileViewModel: ObservableObject {
@@ -24,6 +26,7 @@ final class FriendProfileViewModel: ObservableObject {
     @Published var name: String = ""
     @Published var profilePicUrl: String? = nil
     @Published var apps: [String] = []
+    @Published var appTokens: [ApplicationToken] = []
 
     // Relationship relative to current user
     @Published var isCoach: Bool = false     // other is my coach
@@ -59,6 +62,7 @@ final class FriendProfileViewModel: ObservableObject {
 
             name = otherUser?.name ?? "Unknown"
             apps = otherSettings?.appList ?? []
+            appTokens = Array(otherSettings?.applications.applicationTokens ?? [])
             profilePicUrl = otherSettings?.profileImageURL?.absoluteString
 
             // Friends-only policy (client-side gating; server enforces too)

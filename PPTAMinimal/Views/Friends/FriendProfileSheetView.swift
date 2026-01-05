@@ -29,6 +29,7 @@ struct FriendProfileSheetView: View {
                     isTrainee: vm.isTrainee,
                     isCoach: vm.isCoach,
                     apps: vm.apps,
+                    appTokens: vm.appTokens,
                     profilePicUrl: vm.profilePicUrl,
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
