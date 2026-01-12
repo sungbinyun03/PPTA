@@ -8,23 +8,34 @@
 import SwiftUI
 
 struct TraineeCircleView: View {
-    @StateObject private var viewModel: TraineeCoachViewModel
-    private var index: Int
     private let status: TraineeStatus
     private let name: String
+    private let profilePicUrl: String?
     
-    init(viewModel: TraineeCoachViewModel, index: Int, status: TraineeStatus = .allClear, name: String) {
-        self._viewModel = StateObject(wrappedValue: viewModel)
-        self.index = index
+    init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil) {
         self.status = status
         self.name = name
+        self.profilePicUrl = profilePicUrl
     }
     
     var body: some View {
         VStack(alignment: .center, spacing: 20) {
+            Group {
+                if let profilePicUrl, let url = URL(string: profilePicUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Image("google-icon").resizable().scaledToFill()
+                        }
+                    }
+                } else {
             Image("google-icon")
                 .resizable()
                 .scaledToFill()
+                }
+            }
                 .frame(width: 75, height: 75)
                 .clipShape(Circle())
                 .overlay {
@@ -41,5 +52,5 @@ struct TraineeCircleView: View {
 }
 
 #Preview {
-    TraineeCircleView(viewModel: TraineeCoachViewModel(), index: 0, status: TraineeStatus.attentionNeeded, name: "Sungbin")
+    TraineeCircleView(status: TraineeStatus.attentionNeeded, name: "Sungbin")
 }

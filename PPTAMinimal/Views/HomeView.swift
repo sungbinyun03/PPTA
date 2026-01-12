@@ -62,7 +62,10 @@ struct HomeView: View {
                         // DeviceActivity extension recorded while the app
                         // was not running.
                         Task { @MainActor in
+                            print("HomeView.onAppear: applying pending extension updates (status + appList)...")
                             await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+                            await UserSettingsManager.shared.applyPendingAppListIfNeeded()
+                            print("HomeView.onAppear: done applying pending extension updates.")
                         }
                     }
                     

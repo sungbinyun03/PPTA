@@ -34,6 +34,7 @@ struct TraineeStatsRowView: View {
                                     streakDays: trainee.streakDays,
                                     timeLimitMinutes: trainee.timeLimitMinutes,
                                     monitoredApps: trainee.monitoredApps,
+                                    appTokens: trainee.appTokens,
                                     profilePicUrl: trainee.profileImageURL?.absoluteString
                                 )
                             }
@@ -58,14 +59,15 @@ struct TraineeStatsRowView: View {
     TraineeStatsRowView(trainees: [
         .init(
             id: "preview-user",
-            name: "Peter Parker",
+        name: "Peter Parker",
             profileImageURL: nil,
             isCoach: false,
             isTrainee: true,
             traineeStatus: .attentionNeeded,
-            streakDays: 6,
+        streakDays: 6,
             timeLimitMinutes: 90,
-            monitoredApps: ["TikTok", "Instagram", "YouTube"]
+        monitoredApps: ["TikTok", "Instagram", "YouTube"],
+            appTokens: []
         )
     ])
 }

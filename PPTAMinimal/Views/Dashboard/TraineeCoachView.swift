@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TraineeCoachView: View {
-    @StateObject private var viewModel = TraineeCoachViewModel()
+    @StateObject private var viewModel = StatusCenterViewModel()
     var body: some View {
         VStack(alignment:.leading, spacing: 0) {
             Text("Trainees")
@@ -16,12 +16,11 @@ struct TraineeCoachView: View {
                 .padding(.horizontal, 35)
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
-                    ForEach(0 ..< viewModel.trainees.count) { index in
+                    ForEach(viewModel.trainees) { trainee in
                         TraineeCircleView(
-                            viewModel: viewModel,
-                            index: index,
-                            status: statusForIndex(index),
-                            name: "\(viewModel.trainees[index].givenName)"
+                            status: trainee.traineeStatus ?? .noStatus,
+                            name: trainee.name,
+                            profilePicUrl: trainee.profileImageURL?.absoluteString
                         )
                     }
                 }
@@ -34,12 +33,11 @@ struct TraineeCoachView: View {
                 .padding(.horizontal, 35)
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
-                    ForEach(0 ..< viewModel.coaches.count) { index in
-                        TraineeCircleView(                              // TODO: Once the fetch logic and PeerCoach properties are adjusted, create a new 
-                            viewModel: viewModel,
-                            index: index,
-                            status: TraineeStatus.noStatus,
-                            name: "\(viewModel.trainees[index].givenName)"
+                    ForEach(viewModel.coaches) { coach in
+                        TraineeCircleView(
+                            status: .noStatus,
+                            name: coach.name,
+                            profilePicUrl: coach.profileImageURL?.absoluteString
                         )
                     }
                 }
@@ -48,16 +46,7 @@ struct TraineeCoachView: View {
             }
             .scrollIndicators(.hidden)
         }
-    }
-}
-
-// TODO: Helper function until PeerCoach struct is updated with status field
-private func statusForIndex(_ i: Int) -> TraineeStatus {
-    switch i % 4 {
-    case 0: return .allClear
-    case 1: return .attentionNeeded
-    case 2: return .cutOff
-    default: return .noStatus
+        .task { await viewModel.refresh() }
   }
 }
 

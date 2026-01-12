@@ -119,6 +119,13 @@ struct AppSelectView: View {
         // `appList` here anymore; that is now derived from the DeviceActivity
         // report extension via localizedDisplayName and synchronized through
         // the shared app group.
+        //
+        // However, if the selection changed, clear any stale `appList` values
+        // (older docs may contain "ApplicationToken(...)" strings). The report
+        // pipeline will repopulate `appList` with real display names later.
+        if appsChanged {
+            settings.appList = []
+        }
         settings.applications = selection
         userSettingsManager.saveSettings(settings)
     }

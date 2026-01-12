@@ -26,9 +26,20 @@ struct CoachCellView: View {
 
     var body: some View {
         HStack {
-            Image(profilePicUrl ?? "google-icon") // TODO: Make this a button so that it goes to the user's profile
-                .resizable()
-                .scaledToFill()
+            Group {
+                if let profilePicUrl, let url = URL(string: profilePicUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Image("google-icon").resizable().scaledToFill()
+                        }
+                    }
+                } else {
+                    Image("google-icon").resizable().scaledToFill()
+                }
+            }
                 .frame(width: 65, height: 65)
                 .clipShape(Circle())
             VStack(spacing: 12) {

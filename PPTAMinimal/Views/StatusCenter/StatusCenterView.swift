@@ -19,7 +19,7 @@ struct StatusCenterView: View {
                     ProfileView(headerPart1: "", headerPart2: "Status Center", subHeader: "Your place for tracking accountability")
                     TraineeStatsRowView(trainees: vm.trainees) { trainee in
                         selectedUserId = trainee.id
-                        showFriendProfile = true
+                            showFriendProfile = true
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -32,17 +32,17 @@ struct StatusCenterView: View {
                         // Trainee cells list
                         VStack(spacing: 12) {
                             ForEach(vm.trainees) { user in
-                                Button(action: {
+                                    Button(action: {
                                     selectedUserId = user.id
-                                    showFriendProfile = true
-                                }) {
-                                    TraineeCellView(
-                                        name: user.name,
+                                        showFriendProfile = true
+                                    }) {
+                                        TraineeCellView(
+                                            name: user.name,
                                         status: user.traineeStatus ?? .noStatus,
                                         profilePicUrl: user.profileImageURL?.absoluteString
-                                    )
-                                }
-                                .buttonStyle(.plain)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, 12)
@@ -55,17 +55,17 @@ struct StatusCenterView: View {
                         .padding(.horizontal)
                         VStack(spacing: 12) {
                             ForEach(vm.coaches) { user in
-                                Button(action: {
+                                    Button(action: {
                                     selectedUserId = user.id
-                                    showFriendProfile = true
-                                }) {
-                                    CoachCellView(
-                                        name: user.name,
+                                        showFriendProfile = true
+                                    }) {
+                                        CoachCellView(
+                                            name: user.name,
                                         isCutOff: vm.isCurrentUserCutOff,
                                         profilePicUrl: user.profileImageURL?.absoluteString
-                                    )
-                                }
-                                .buttonStyle(.plain)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, 12)

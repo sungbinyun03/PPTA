@@ -6,6 +6,7 @@
 //
 import DeviceActivity
 import SwiftUI
+import Foundation
 
 extension DeviceActivityReport.Context {
     // If your app initializes a DeviceActivityReport with this context, then the system will use
@@ -60,6 +61,11 @@ struct TotalActivityReport: DeviceActivityReportScene {
 
             }
         }
+
+        // Persist the resolved display names (strings) to the shared app group so the main app
+        // can sync them to Firestore as `userSettings.appList` for cross-device viewing.
+        let resolvedNames = Array(appNames).sorted()
+        ReportAppGroupStore.savePendingAppList(resolvedNames)
         
         return ActivityReport(totalDuration: totalActivityDuration, apps: list)
     }

@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FamilyControls
 
 @MainActor
 final class StatusCenterViewModel: ObservableObject {
@@ -60,7 +61,8 @@ final class StatusCenterViewModel: ObservableObject {
                     traineeStatus: nil,
                     streakDays: p.streakDays,
                     timeLimitMinutes: p.timeLimitMinutes,
-                    monitoredApps: p.monitoredApps
+                    monitoredApps: p.monitoredApps,
+                    appTokens: p.appTokens
                 )
             }
 
@@ -74,7 +76,8 @@ final class StatusCenterViewModel: ObservableObject {
                     traineeStatus: p.traineeStatus,
                     streakDays: p.streakDays,
                     timeLimitMinutes: p.timeLimitMinutes,
-                    monitoredApps: p.monitoredApps
+                    monitoredApps: p.monitoredApps,
+                    appTokens: p.appTokens
                 )
             }
         } catch {
@@ -113,7 +116,8 @@ final class StatusCenterViewModel: ObservableObject {
                         traineeStatus: settings?.traineeStatus,
                         streakDays: streakDays,
                         timeLimitMinutes: timeLimitMinutes,
-                        monitoredApps: settings?.appList ?? []
+                        monitoredApps: settings?.appList ?? [],
+                        appTokens: Array(settings?.applications.applicationTokens ?? [])
                     )
                 }
             }

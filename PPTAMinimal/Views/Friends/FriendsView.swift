@@ -11,7 +11,7 @@ import UIKit
 
 struct FriendsView: View {
     @StateObject private var vm = FriendsViewModel()
-    @ObservedObject private var notifications = NotificationManager.shared
+    @EnvironmentObject private var roleInbox: RoleRequestsInboxViewModel
     @State private var phoneToAdd: String = ""
     @State private var isContactsImportPresented = false
     @State private var showContactsPermissionAlert = false
@@ -48,6 +48,36 @@ struct FriendsView: View {
                     }
                     
                     List {
+                        if !roleInbox.incoming.isEmpty {
+                            Section("Role Requests") {
+                                ForEach(roleInbox.incoming) { pair in
+                                    Button {
+                                        selectedUserId = pair.user.id
+                                        showFriendProfile = true
+                                    } label: {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(pair.user.name)
+                                                Text(roleRequestSubtitle(role: pair.request.role))
+                                                    .font(.footnote)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Spacer()
+                                            Button("Accept") {
+                                                Task { await roleInbox.accept(pair.id) }
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                            Button("Decline") {
+                                                Task { await roleInbox.decline(pair.id) }
+                                            }
+                                            .buttonStyle(.bordered)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+
                         if !vm.incomingRequests.isEmpty {
                             Section("Requests") {
                                 ForEach(vm.incomingRequests, id: \.friendship.id) { pair in
@@ -125,14 +155,6 @@ struct FriendsView: View {
                 .refreshable { await vm.refresh() }
             }
         }
-        .overlay(alignment: .top) {
-            if let banner = notifications.inAppBanner {
-                InAppBannerView(title: banner.title, message: banner.body) {
-                    notifications.inAppBanner = nil
-                }
-                .padding(.top, 8)
-            }
-        }
         .onAppear {
             vm.startListening()
         }
@@ -159,6 +181,13 @@ struct FriendsView: View {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
+
+    private func roleRequestSubtitle(role: RoleRequestRole) -> String {
+        switch role {
+        case .coach: return "Wants to be your coach"
+        case .trainee: return "Wants to be your trainee"
+        }
+    }
 }
 
 // Allows for preview by disabling or replacing all the iPhone-only functionality
@@ -173,5 +202,6 @@ struct FriendsView_Previews: PreviewProvider {
         
         return FriendsView()
             .environmentObject(auth)
+            .environmentObject(RoleRequestsInboxViewModel())
     }
 }

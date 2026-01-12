@@ -187,15 +187,23 @@ struct FriendProfileView: View {
                             
                             // Show apps if friend, otherwise show message
                             if friendshipStatus == .isFriend {
-                                if !appTokens.isEmpty {
+                                // Prefer string `appList` for cross-device reliability. Tokens are a nice-to-have.
+                                if !apps.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        appsGrid
+                                    }
+                                } else if !appTokens.isEmpty {
+                                    Text("Some apps may not render on this device (iOS can’t resolve labels for certain tokens).")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         tokenGrid
                                     }
                                 } else {
-                                    // Horizontal scrolling 3-row layout for apps (string fallback)
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        appsGrid
-                                    }
+                                    Text("No apps available")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                        .padding(.vertical, 8)
                                 }
                             } else {
                                 Text("Must be a friend to see Apps monitored")
@@ -452,7 +460,7 @@ struct FriendProfileView: View {
     /// Apps flow left to right: first row gets first apps, second row gets next apps, etc.
     private var appsGrid: some View {
         // If no apps, show placeholder
-        let allApps = apps.isEmpty ? ["No apps selected"] : apps
+        let allApps = apps.isEmpty ? ["No apps available"] : apps
         
         // Split apps into 3 rows: apps flow left to right across rows
         // Row 0: indices 0, 3, 6, 9... (every 3rd starting at 0)
@@ -485,6 +493,7 @@ struct FriendProfileView: View {
     /// Renders app tokens using the system-resolved name + icon.
     private var tokenGrid: some View {
         let tokens = appTokens
+        let showFallbackText = apps.isEmpty
         // Split into 3 rows for a compact "grid" feel.
         let row0 = tokens.enumerated().compactMap { $0.offset % 3 == 0 ? $0.element : nil }
         let row1 = tokens.enumerated().compactMap { $0.offset % 3 == 1 ? $0.element : nil }
@@ -495,19 +504,35 @@ struct FriendProfileView: View {
             ForEach(0..<3, id: \.self) { rowIndex in
                 HStack(spacing: 12) {
                     ForEach(Array(rows[rowIndex].enumerated()), id: \.offset) { _, token in
-                        Label(token)
-                            .labelStyle(.titleAndIcon)
-                            .font(.system(size: 14))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(4)
+                        tokenPill(token: token, showFallbackText: showFallbackText)
                     }
                     Spacer()
                 }
             }
         }
         .frame(minWidth: UIScreen.main.bounds.width - 80)
+    }
+
+    private func tokenPill(token: ApplicationToken, showFallbackText: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(token)
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 14))
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            if showFallbackText {
+                Text(verbatim: String(describing: token))
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(4)
     }
 }
 

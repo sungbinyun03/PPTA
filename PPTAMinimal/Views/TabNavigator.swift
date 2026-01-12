@@ -9,6 +9,8 @@ import SwiftUI
 
 struct TabNavigator: View {
     @State private var selected = 0
+    @StateObject private var roleInbox = RoleRequestsInboxViewModel()
+    @ObservedObject private var notifications = NotificationManager.shared
     
     private let previewMode: Bool
     
@@ -53,6 +55,22 @@ struct TabNavigator: View {
                     Text("Friends")
                 }
                 .tag(2)
+        }
+        .environmentObject(roleInbox)
+        .overlay(alignment: .top) {
+            if let banner = notifications.inAppBanner {
+                InAppBannerView(title: banner.title, message: banner.body) {
+                    notifications.inAppBanner = nil
+                }
+                .padding(.top, 8)
+            }
+        }
+        .task {
+            await roleInbox.refreshOnce()
+            roleInbox.startListening()
+        }
+        .onDisappear {
+            roleInbox.stopListening()
         }
     }
 }

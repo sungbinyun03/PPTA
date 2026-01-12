@@ -108,8 +108,8 @@ struct PPTAMinimalApp: App {
                         .environmentObject(viewModel)
                 }
             } else if onboardingComplete {
-                TabNavigator()
-                    .environmentObject(viewModel)
+               TabNavigator()
+                .environmentObject(viewModel)
             } else {
                 OnboardingContainerView()
                     .environmentObject(viewModel)
