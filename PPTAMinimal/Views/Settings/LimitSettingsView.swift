@@ -6,7 +6,6 @@ struct LimitSettingsView: View {
     // Local states mirroring userSettings
     @State private var hours: Int = 0
     @State private var minutes: Int = 0
-    @State private var seconds: Int = 0
 
     // Single string to store the selected mode
     @State private var selectedMode: String = "Chill" // Default
@@ -34,7 +33,7 @@ struct LimitSettingsView: View {
                         .font(.custom("SatoshiVariable-Bold_Light", size: 20))
                         .padding(.top, 10)
                     
-                    // HStack with Hours, Minutes, Seconds pickers
+                    // HStack with Hours + Minutes pickers
                     HStack(spacing: 12) {
                         // Hours
                         VStack {
@@ -63,21 +62,6 @@ struct LimitSettingsView: View {
                             .clipped()
                             .pickerStyle(.wheel)
                             Text("Minutes")
-                                .font(.footnote)
-                        }
-
-                        // Seconds
-                        VStack {
-                            Picker("Seconds", selection: $seconds) {
-                                ForEach(0...59, id: \.self) { sec in
-                                    Text(String(format: "%02d", sec))
-                                        .tag(sec)
-                                }
-                            }
-                            .frame(width: 60, height: 120)
-                            .clipped()
-                            .pickerStyle(.wheel)
-                            Text("Seconds")
                                 .font(.footnote)
                         }
                     }

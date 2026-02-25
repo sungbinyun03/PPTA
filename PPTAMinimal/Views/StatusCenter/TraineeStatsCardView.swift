@@ -6,29 +6,22 @@
 //
 
 import SwiftUI
-import ManagedSettings
 
 struct TraineeStatsCardView: View {
     private var name: String // TODO: Adjust the fields for when the UserSettings or User is adjusted
     private var streakDays: Int
     private var timeLimitMinutes: Int
-    private var monitoredApps: [String]
-    private var appTokens: [ApplicationToken]
     private var profilePicUrl: String? = nil
     
     init(
         name: String,
         streakDays: Int,
         timeLimitMinutes: Int,
-        monitoredApps: [String],
-        appTokens: [ApplicationToken],
         profilePicUrl: String? = nil
     ) {
         self.name = name
         self.streakDays = streakDays
         self.timeLimitMinutes = timeLimitMinutes
-        self.monitoredApps = monitoredApps
-        self.appTokens = appTokens
         self.profilePicUrl = profilePicUrl
     }
     
@@ -78,43 +71,6 @@ struct TraineeStatsCardView: View {
                     }
                     .padding(.leading, 8)
                     .padding(.vertical, 8)
-                    
-                    // Right Column: Monitored Apps
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !appTokens.isEmpty {
-                            ForEach(Array(appTokens.prefix(3).enumerated()), id: \.offset) { _, token in
-                                Label(token)
-                                    .labelStyle(.titleAndIcon)
-                                    .font(.system(size: 13))
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .frame(width: 95, alignment: .leading)
-                                    .clipped()
-                                    .allowsTightening(true)
-                                    .minimumScaleFactor(0.85)
-                            }
-                        } else {
-                        ForEach(Array(monitoredApps.prefix(3).enumerated()), id: \.offset) { _, app in
-                            Text(app)
-                                    .font(.system(size: 13, weight: .regular))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                    .frame(width: 95, alignment: .leading)
-                                    .clipped()
-                                    .allowsTightening(true)
-                                    .minimumScaleFactor(0.85)
-                            }
-                        }
-                        if (appTokens.isEmpty ? monitoredApps.count : appTokens.count) > 6 {
-                            // vertical ellipsis indicator
-                            Text("⋮")
-                                .font(.system(size: 14, weight: .semibold))
-                                .accessibilityLabel("More apps")
-                        }
-                    }
-                    .frame(alignment: .topLeading)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 8)
                 }
             }
     }
@@ -125,8 +81,6 @@ struct TraineeStatsCardView: View {
         name: "Peter Parker",
         streakDays: 3,
         timeLimitMinutes: 35,
-        monitoredApps: ["Instagram", "Facebook", "TikTok"],
-        appTokens: [],
         profilePicUrl: "peter_parker"
     )
 }

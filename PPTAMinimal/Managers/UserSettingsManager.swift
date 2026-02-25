@@ -28,12 +28,9 @@ final class UserSettingsManager : ObservableObject{
             return
         }
         
-        print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID). appListCount=\(settings.appList.count)")
-        if !settings.appList.isEmpty {
-            let sample = settings.appList.prefix(5).joined(separator: ", ")
-            print("UserSettingsManager.saveSettings: appList sample: [\(sample)]")
-        }
-        
+        print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
+        LocalSettingsStore.saveCurrentUserId(userID)
+                
         firestoreService.saveUserSettings(userId: userID, settings: settings) { error in
             if let error = error {
                 print("Failed to save user settings to Firestore: \(error.localizedDescription)")
@@ -67,6 +64,12 @@ final class UserSettingsManager : ObservableObject{
         firestoreService.fetchUserSettings(userId: userID) { settings, error in
             if let settings = settings {
                 print(userID, settings)
+                
+                // Keep the app group snapshot in sync so extensions (monitor/report) always have
+                // the latest selection/mode/tracking flags even if the user didn't press Save.
+                LocalSettingsStore.saveCurrentUserId(userID)
+                LocalSettingsStore.save(settings)
+                
                 completion(settings)
             } else if let error = error {
                 print("Failed to load user settings from Firestore: \(error.localizedDescription)")
@@ -113,27 +116,6 @@ final class UserSettingsManager : ObservableObject{
             if let reset = pending.resetStartDate {
                 settings.startDailyStreakDate = reset
             }
-        }
-    }
-
-    /// Reads and clears any pending appList update that was produced by the DeviceActivity
-    /// report extension (resolved app display names), then persists it to Firestore.
-    @MainActor
-    func applyPendingAppListIfNeeded() {
-        print("UserSettingsManager.applyPendingAppListIfNeeded: checking for pending appList...")
-        guard let apps = LocalSettingsStore.consumePendingAppList() else {
-            print("UserSettingsManager.applyPendingAppListIfNeeded: none found.")
-            return
-        }
-        guard !apps.isEmpty else {
-            print("UserSettingsManager.applyPendingAppListIfNeeded: found empty list; skipping.")
-            return
-        }
-
-        print("UserSettingsManager.applyPendingAppListIfNeeded: applying \(apps.count) apps.")
-        print("UserSettingsManager.applyPendingAppListIfNeeded: apps sample: [\(apps.prefix(5).joined(separator: ", "))]")
-        update { settings in
-            settings.appList = apps
         }
     }
 

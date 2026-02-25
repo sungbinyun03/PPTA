@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct FriendProfileSheetView: View {
     let otherUserId: String
@@ -28,9 +29,12 @@ struct FriendProfileSheetView: View {
                     friendshipStatus: vm.friendshipStatus,
                     isTrainee: vm.isTrainee,
                     isCoach: vm.isCoach,
-                    apps: vm.apps,
-                    appTokens: vm.appTokens,
                     profilePicUrl: vm.profilePicUrl,
+                    traineeStatus: vm.traineeStatus,
+                    streakDays: vm.streakDays,
+                    timeLimitMinutes: vm.timeLimitMinutes,
+                    selectedMode: vm.selectedMode,
+                    unlockURL: makeUnlockURLIfNeeded(),
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
                     onCoachPrimary: { Task { await vm.performCoachPrimary() } },
@@ -48,6 +52,15 @@ struct FriendProfileSheetView: View {
             }
         }
         .task { await vm.refresh() }
+    }
+    
+    private func makeUnlockURLIfNeeded() -> URL? {
+        guard vm.friendshipStatus == .isFriend else { return nil }
+        // vm.isTrainee means: the other user is my trainee (I coach them).
+        guard vm.isTrainee else { return nil }
+        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .attentionNeeded else { return nil }
+        guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
+        return UnlockService.makeUnlockURL(childUID: otherUserId, coachUID: coachUID)
     }
 }
 

@@ -31,7 +31,8 @@ struct TotalActivityReport: DeviceActivityReportScene {
         print("TotalActivityReport.makeConfiguration: invoked with DeviceActivityResults")
         var totalActivityDuration: Double = 0
         var list: [AppDeviceActivity] = []
-        var appNames = Set<String>()
+        // NOTE: We intentionally do NOT try to sync resolved app names cross-device.
+        // Prior attempts to do so (appList for coaches) were unreliable/impossible in practice.
         
         for await eachData in data {
             for await activitySegment in eachData.activitySegments {
@@ -51,21 +52,11 @@ struct TotalActivityReport: DeviceActivityReportScene {
                             token: token
                         )
                         list.append(appActivity)
-                        
-                        let trimmedName = appName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmedName.isEmpty && trimmedName != "nil" {
-                            appNames.insert(trimmedName)
-                        }
                     }
                 }
 
             }
         }
-
-        // Persist the resolved display names (strings) to the shared app group so the main app
-        // can sync them to Firestore as `userSettings.appList` for cross-device viewing.
-        let resolvedNames = Array(appNames).sorted()
-        ReportAppGroupStore.savePendingAppList(resolvedNames)
         
         return ActivityReport(totalDuration: totalActivityDuration, apps: list)
     }

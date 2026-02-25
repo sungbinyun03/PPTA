@@ -97,7 +97,7 @@ struct SettingsView: View {
                     .font(.custom("BambiBold", size: 22))
                     .fontWeight(.bold)
                 
-                Button(action: {}) {
+                NavigationLink(destination: EditProfileView()) {
                     HStack(spacing: 4) {
                         Text("Edit your profile")
                             .font(.custom("SatoshiVariable-Bold_Light", size: 14))
@@ -110,6 +110,7 @@ struct SettingsView: View {
                     )
                     .clipShape(Capsule())
                 }
+                .buttonStyle(.plain)
             }
         }
         .offset(x: -20)
@@ -210,9 +211,6 @@ struct SettingsView: View {
             if selectedTab == "Settings" {
                 NavigationLink(destination: AppSelectView()) {
                     settingsRow(icon: "app.badge", text: "Monitored Apps")
-                }
-                NavigationLink(destination: MonitoredAppsDebugView()) {
-                    settingsRow(icon: "list.bullet.rectangle", text: "Monitored Apps (Debug)")
                 }
                 NavigationLink(destination: LimitSettingsView()) {
                     settingsRow(icon: "clock", text: "Limit Settings")

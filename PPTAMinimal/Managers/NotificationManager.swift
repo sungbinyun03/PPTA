@@ -58,35 +58,4 @@ final class NotificationManager: ObservableObject {
             }
         }
     }
-    
-    //CLOUD
-    func sendPushNotification(title: String, body: String) {
-        let peerCoaches = UserSettingsManager.shared.userSettings.peerCoaches
-        let tokens = peerCoaches.compactMap { $0.fcmToken }
-        let phoneNumbers = peerCoaches.filter { $0.fcmToken == nil }.map { $0.phoneNumber }
-
-        let requestBody: [String: Any] = [
-            "tokens": tokens,
-            "phoneNumbers": phoneNumbers,
-            "title": title,
-            "body": body
-        ]
-        
-        print("@@@@@ FIRING WITH:: \(requestBody)")
-
-        guard let url = URL(string: "https://us-central1-ppta-sms.cloudfunctions.net/notify-peers") else { return }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("Error sending push notification: \(error)")
-                return
-            }
-            print("Push notification sent successfully!")
-        }.resume()
-    }
 }

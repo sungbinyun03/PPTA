@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import ManagedSettings
 
 struct StatusCenterPerson: Identifiable, Equatable {
     let id: String           // uid
@@ -21,8 +20,6 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let traineeStatus: TraineeStatus?
     let streakDays: Int
     let timeLimitMinutes: Int
-    let monitoredApps: [String]
-    let appTokens: [ApplicationToken]
 }
 
 

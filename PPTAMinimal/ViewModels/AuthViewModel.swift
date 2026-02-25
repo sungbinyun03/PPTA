@@ -167,12 +167,6 @@ class AuthViewModel: ObservableObject {
         }
         return ""
     }
-    
-    func storeCurrentUserName() {
-        if let currentUser = currentUser {
-            UserDefaults.standard.set(currentUser.name, forKey: "currentUserName")
-        }
-    }
 
     
     func fetchUser() async {
@@ -182,7 +176,6 @@ class AuthViewModel: ObservableObject {
         }
         do {
             self.currentUser = try await userRepository.fetchUser(by: uid)
-            self.storeCurrentUserName()
             // If there's a stored FCM token from before login
             if let storedToken = UserDefaults.standard.string(forKey: "fcmToken") {
                 await updateFCMToken(storedToken)

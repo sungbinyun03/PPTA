@@ -10,8 +10,6 @@ import FamilyControls
 import DeviceActivity
 
 struct ReportView: View {
-    let isMonitoring: Bool
-
     private func requestScreenTimePermission() {
         let center = AuthorizationCenter.shared
         if center.authorizationStatus != .approved {
@@ -52,22 +50,25 @@ struct ReportView: View {
         }
         .onAppear {
             requestScreenTimePermission()
-            
-            if isMonitoring {
-                Task {
-                    UserSettingsManager.shared.loadSettings { settings in
-                        selection = settings.applications
-                        filter = DeviceActivityFilter(
-                            segment: .daily(
-                                during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-                            ),
-                            users: .all,
-                            devices: .init([.iPhone]),
-                            applications: selection.applicationTokens,
-                            categories: selection.categoryTokens
-                        )
-                    }
+
+            // Prefer showing a report filtered to the user's selected apps/categories (when present).
+            // If nothing is selected yet, we fall back to the unfiltered daily report.
+            UserSettingsManager.shared.loadSettings { settings in
+                selection = settings.applications
+
+                guard !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty else {
+                    return
                 }
+
+                filter = DeviceActivityFilter(
+                    segment: .daily(
+                        during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+                    ),
+                    users: .all,
+                    devices: .init([.iPhone]),
+                    applications: selection.applicationTokens,
+                    categories: selection.categoryTokens
+                )
             }
         }
     }

@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import FirebaseAuth
+import UIKit
 
 struct StatusCenterView: View {
     @StateObject private var vm = StatusCenterViewModel()
@@ -31,18 +33,26 @@ struct StatusCenterView: View {
                         .padding(.horizontal)
                         // Trainee cells list
                         VStack(spacing: 12) {
-                            ForEach(vm.trainees) { user in
-                                    Button(action: {
-                                    selectedUserId = user.id
-                                        showFriendProfile = true
-                                    }) {
-                                        TraineeCellView(
-                                            name: user.name,
+                            if vm.trainees.isEmpty {
+                                Text("No trainees yet. Add friends and request trainee roles to see them here.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                            } else {
+                                ForEach(vm.trainees) { user in
+                                    TraineeCellView(
+                                        name: user.name,
                                         status: user.traineeStatus ?? .noStatus,
-                                        profilePicUrl: user.profileImageURL?.absoluteString
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                                        profilePicUrl: user.profileImageURL?.absoluteString,
+                                        onRelease: {
+                                            guard let coachUID = Auth.auth().currentUser?.uid else { return }
+                                            guard let link = UnlockService.makeUnlockURL(childUID: user.id, coachUID: coachUID) else { return }
+                                            UIApplication.shared.open(link)
+                                        }
+                                    )
+                                }
                             }
                         }
                         .padding(.horizontal, 12)
@@ -54,33 +64,32 @@ struct StatusCenterView: View {
                         }
                         .padding(.horizontal)
                         VStack(spacing: 12) {
-                            ForEach(vm.coaches) { user in
-                                    Button(action: {
-                                    selectedUserId = user.id
-                                        showFriendProfile = true
-                                    }) {
-                                        CoachCellView(
-                                            name: user.name,
-                                        isCutOff: vm.isCurrentUserCutOff,
-                                        profilePicUrl: user.profileImageURL?.absoluteString
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                            if vm.coaches.isEmpty {
+                                Text("No coaches yet. Add friends and request a coach role to see them here.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                            } else {
+                                ForEach(vm.coaches) { user in
+                                        Button(action: {
+                                        selectedUserId = user.id
+                                            showFriendProfile = true
+                                        }) {
+                                            CoachCellView(
+                                                name: user.name,
+                                            profilePicUrl: user.profileImageURL?.absoluteString
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                }
                             }
                         }
                         .padding(.horizontal, 12)
                     }
                     .padding(.vertical)
                 }
-            }
-            // Reserve the top safe area so content does not overlap the status bar
-            .safeAreaInset(edge: .top, spacing: 0) {
-                GeometryReader { geo in
-                    Color.white
-                        .frame(width: geo.size.width, height: geo.safeAreaInsets.top)
-                        .ignoresSafeArea() // keeps the paint tidy within the inset
-                }
-                .frame(height: 0) // prevents GeometryReader from taking extra space
             }
             .scrollIndicators(.hidden)
             .task { await vm.refresh() }

@@ -23,22 +23,34 @@ struct TraineeStatsRowView: View {
         // Outer padding so the rounded container doesn't touch screen edges
         VStack {
             VStack(alignment: .leading, spacing: 12) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(trainees) { trainee in
-                            Button(action: {
-                                onTraineeTapped?(trainee)
-                            }) {
-                                TraineeStatsCardView(
-                                    name: trainee.name,
-                                    streakDays: trainee.streakDays,
-                                    timeLimitMinutes: trainee.timeLimitMinutes,
-                                    monitoredApps: trainee.monitoredApps,
-                                    appTokens: trainee.appTokens,
-                                    profilePicUrl: trainee.profileImageURL?.absoluteString
-                                )
+                if trainees.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("No trainees yet")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("Add a friend and request a trainee role to start tracking accountability here.")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(trainees) { trainee in
+                                Button(action: {
+                                    onTraineeTapped?(trainee)
+                                }) {
+                                    TraineeStatsCardView(
+                                        name: trainee.name,
+                                        streakDays: trainee.streakDays,
+                                        timeLimitMinutes: trainee.timeLimitMinutes,
+                                        profilePicUrl: trainee.profileImageURL?.absoluteString
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -65,9 +77,7 @@ struct TraineeStatsRowView: View {
             isTrainee: true,
             traineeStatus: .attentionNeeded,
         streakDays: 6,
-            timeLimitMinutes: 90,
-        monitoredApps: ["TikTok", "Instagram", "YouTube"],
-            appTokens: []
+            timeLimitMinutes: 90
         )
     ])
 }

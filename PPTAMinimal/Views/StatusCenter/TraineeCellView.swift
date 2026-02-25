@@ -12,20 +12,17 @@ struct TraineeCellView: View {
     private var status: TraineeStatus
     private var profilePicUrl: String?
 
-    var onCutOff: (() -> Void)? = nil // TODO: Wire up for the appropriate action
     var onRelease: (() -> Void)? = nil
 
     init(
         name: String,
         status: TraineeStatus,
         profilePicUrl: String? = nil,
-        onCutOff: (() -> Void)? = nil,
         onRelease: (() -> Void)? = nil
     ) {
         self.name = name
         self.status = status
         self.profilePicUrl = profilePicUrl
-        self.onCutOff = onCutOff
         self.onRelease = onRelease
     }
 
@@ -64,17 +61,6 @@ struct TraineeCellView: View {
                 
                 // Bottom row: buttons
                 HStack(spacing: 10) {
-                    Button(action: { if canCutOff { onCutOff?() } }) {
-                        Text("Cut Off")
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .foregroundColor(cutOffTextColor)
-                            .background(cutOffBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .disabled(!canCutOff)
-                    
                     Button(action: { if canRelease { onRelease?() } }) {
                         Text("Release")
                             .font(.system(size: 14, weight: .semibold))
@@ -103,11 +89,7 @@ struct TraineeCellView: View {
     }
 
     // MARK: - Buttons state and appearance
-    private var canCutOff: Bool { status == .attentionNeeded }
     private var canRelease: Bool { status == .cutOff }
-
-    private var cutOffBackground: Color { canCutOff ? Color("primaryButtonColor") : Color(.systemGray5) }
-    private var cutOffTextColor: Color { canCutOff ? .white : Color(.gray) }
 
     private var releaseBackground: Color { canRelease ? Color("primaryButtonColor") : Color(.systemGray5) }
     private var releaseTextColor: Color { canRelease ? .white : Color(.gray) }

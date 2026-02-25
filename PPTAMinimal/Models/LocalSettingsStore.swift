@@ -13,10 +13,12 @@ struct LocalSettingsStore {
         UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
     private static let key = "UserSettings"
     
+    // UID of the signed-in user (needed by the monitor extension for backend calls).
+    private static let currentUserIdKey = "CurrentUserId"
+    
     // Keys for cross-process status & streak updates from the extension.
     private static let pendingStatusKey = "PendingTraineeStatus"
     private static let pendingStreakKey = "PendingStreakStartDate"
-    private static let pendingAppListKey = "PendingAppList"
 
     static func save(_ settings: UserSettings) {
         do {
@@ -26,6 +28,14 @@ struct LocalSettingsStore {
         } catch {
             print("!! Local save failed:", error)
         }
+    }
+    
+    static func saveCurrentUserId(_ uid: String) {
+        suite?.set(uid, forKey: currentUserIdKey)
+    }
+    
+    static func loadCurrentUserId() -> String? {
+        suite?.string(forKey: currentUserIdKey)
     }
 
     static func load() -> UserSettings {
@@ -77,24 +87,5 @@ struct LocalSettingsStore {
         }
         
         return (status, date)
-    }
-
-    /// Called from the DeviceActivity report extension to persist the latest resolved app names
-    /// (strings) into the shared app group. The main app will later consume and sync to Firestore.
-    static func savePendingAppList(_ apps: [String]) {
-        guard let suite else { return }
-        suite.set(apps, forKey: pendingAppListKey)
-        print("LocalSettingsStore.savePendingAppList: recorded \(apps.count) apps.")
-    }
-
-    /// Returns and clears any pending appList update stored by the report extension.
-    static func consumePendingAppList() -> [String]? {
-        guard let suite else { return nil }
-        let apps = suite.stringArray(forKey: pendingAppListKey)
-        suite.removeObject(forKey: pendingAppListKey)
-        if let apps {
-            print("LocalSettingsStore.consumePendingAppList: consumed \(apps.count) apps.")
-        }
-        return apps
     }
 }

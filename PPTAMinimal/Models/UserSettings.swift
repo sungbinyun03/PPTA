@@ -46,10 +46,6 @@ final class UserSettings: Codable {
     /// Status visible to this user's coaches / trainees.
     var traineeStatus: TraineeStatus
     
-    /// Human‑readable list of monitored apps (e.g. names or bundle IDs),
-    /// primarily for display in coach / status center UIs.
-    var appList: [String]
-    
     private enum CodingKeys: String, CodingKey {
         case applications, thresholdHour, thresholdMinutes,
              selectedMode, onboardingCompleted,
@@ -57,7 +53,7 @@ final class UserSettings: Codable {
              coaches, trainees,
              coachIds, traineeIds,
              startDailyStreakDate,
-             isTracking, traineeStatus, appList
+             isTracking, traineeStatus
     }
     
     
@@ -75,8 +71,7 @@ final class UserSettings: Codable {
         traineeIds: [String] = [],
         startDailyStreakDate: Date? = nil,
         isTracking: Bool = true,
-        traineeStatus: TraineeStatus = .allClear,
-        appList: [String] = []
+        traineeStatus: TraineeStatus = .allClear
     ) {
         self.id = id
         self.applications = applications
@@ -91,7 +86,6 @@ final class UserSettings: Codable {
         self.startDailyStreakDate = startDailyStreakDate
         self.isTracking = isTracking
         self.traineeStatus = traineeStatus
-        self.appList = appList
     }
     
     // MARK: - Custom Decoding
@@ -126,7 +120,6 @@ final class UserSettings: Codable {
         startDailyStreakDate = try? container.decode(Date.self, forKey: .startDailyStreakDate)
         isTracking = (try? container.decode(Bool.self, forKey: .isTracking)) ?? true
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
-        appList = (try? container.decode([String].self, forKey: .appList)) ?? []
     }
     
     func encode(to encoder: Encoder) throws {
@@ -145,7 +138,6 @@ final class UserSettings: Codable {
         try container.encodeIfPresent(startDailyStreakDate, forKey: .startDailyStreakDate)
         try container.encode(isTracking, forKey: .isTracking)
         try container.encode(traineeStatus, forKey: .traineeStatus)
-        try container.encode(appList, forKey: .appList)
     }
     
     

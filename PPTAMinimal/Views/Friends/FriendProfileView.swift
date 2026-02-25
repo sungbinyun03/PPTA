@@ -5,8 +5,6 @@
 //  Created by Damien Koh on 9/12/25.
 //
 import SwiftUI
-import FamilyControls
-import ManagedSettings
 
 /// Represents the friendship status between the current user and another user
 /// TEMPORARY: Renamed from FriendshipStatus to avoid conflict with another enum in the codebase
@@ -31,14 +29,17 @@ struct FriendProfileView: View {
     /// Whether this person is a coach
     let isCoach: Bool
     
-    /// List of app names being monitored
-    let apps: [String]
-    
-    /// App tokens (preferred display). When present, we render via `Label(token)`.
-    let appTokens: [ApplicationToken]
-    
     /// Optional profile picture URL (if nil, shows initials)
     let profilePicUrl: String?
+    
+    // MARK: - Trainee stats (from their UserSettings)
+    let traineeStatus: TraineeStatus
+    let streakDays: Int
+    let timeLimitMinutes: Int
+    let selectedMode: String
+    
+    /// If non-nil, shows a prominent unlock CTA for coaches.
+    let unlockURL: URL?
 
     // MARK: - Role request / relationship actions (driven by backend)
     let coachAction: FriendProfileViewModel.ActionConfig
@@ -50,6 +51,7 @@ struct FriendProfileView: View {
     
     /// Environment value to dismiss the modal
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     
     // MARK: - Computed Properties
     /// Random emoji for "Potential Friend" role (selected based on name hash for consistency)
@@ -179,44 +181,66 @@ struct FriendProfileView: View {
                         }
                         .padding(.top, 8)
                         
-                        // Apps Being Monitored section
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Apps Being Monitored")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.primary)
-                            
-                            // Show apps if friend, otherwise show message
-                            if friendshipStatus == .isFriend {
-                                // Prefer string `appList` for cross-device reliability. Tokens are a nice-to-have.
-                                if !apps.isEmpty {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        appsGrid
-                                    }
-                                } else if !appTokens.isEmpty {
-                                    Text("Some apps may not render on this device (iOS can’t resolve labels for certain tokens).")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        tokenGrid
-                                    }
-                                } else {
-                                    Text("No apps available")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                        .padding(.vertical, 8)
+                        // Coach CTA: Release / Unlock
+                        if let unlockURL {
+                            Button {
+                                openURL(unlockURL)
+                            } label: {
+                                HStack {
+                                    Text(traineeStatus == .attentionNeeded ? "Preemptively Release" : "Release")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.square")
                                 }
-                            } else {
-                                Text("Must be a friend to see Apps monitored")
-                                    .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color("primaryButtonColor"))
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                        
+                        // Status / stats summary
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("Status")
+                                    .font(.system(size: 14, weight: .medium))
+                                Spacer()
+                                statusPill
+                            }
+                            
+                            Divider().opacity(0.4)
+                            
+                            HStack {
+                                Text("Daily limit")
                                     .foregroundColor(.secondary)
-                                    .padding(.vertical, 8)
+                                Spacer()
+                                Text("\(timeLimitMinutes) min")
+                                    .fontWeight(.semibold)
+                            }
+                            
+                            HStack {
+                                Text("Mode")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(selectedMode)
+                                    .fontWeight(.semibold)
+                            }
+                            
+                            HStack {
+                                Text("Streak")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(streakDays) days")
+                                    .fontWeight(.semibold)
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.blue, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.black.opacity(0.15), lineWidth: 1)
                         )
                         .padding(.horizontal, 20)
                         
@@ -313,139 +337,6 @@ struct FriendProfileView: View {
                                 }
                                 .disabled(friendshipStatus != .isFriend || !traineeAction.secondaryEnabled)
                             }
-                            
-                            // Friend request/status buttons based on friendship status
-                            switch friendshipStatus {
-                            case .notFriend:
-                                // Request as Friend button
-                                Button(action: {
-                                    Task {
-                                        // TODO: Implement send friend request logic
-                                        dismiss()
-                                    }
-                                }) {
-                                    HStack {
-                                        Text("Request as Friend")
-                                            .font(.system(size: 16, weight: .medium))
-                                        Spacer()
-                                    }
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.white)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.black, lineWidth: 1)
-                                            )
-                                    )
-                                }
-                                
-                            case .requestSent:
-                                // Cancel Request button
-                                Button(action: {
-                                    Task {
-                                        // TODO: Implement cancel friend request logic
-                                        dismiss()
-                                    }
-                                }) {
-                                    HStack {
-                                        Text("Cancel Request")
-                                            .font(.system(size: 16, weight: .medium))
-                                        Spacer()
-                                    }
-                                    .foregroundColor(.red)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.white)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.black, lineWidth: 1)
-                                            )
-                                    )
-                                }
-                                
-                            case .requestReceived:
-                                // Accept and Decline buttons
-                                HStack(spacing: 12) {
-                                    Button(action: {
-                                        Task {
-                                            // TODO: Implement accept friend request logic
-                                            dismiss()
-                                        }
-                                    }) {
-                                        HStack {
-                                            Text("Accept")
-                                                .font(.system(size: 16, weight: .medium))
-                                            Spacer()
-                                        }
-                                        .foregroundColor(.primary)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 12)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.black, lineWidth: 1)
-                                                )
-                                        )
-                                    }
-                                    
-                                    Button(action: {
-                                        Task {
-                                            // TODO: Implement decline friend request logic
-                                            dismiss()
-                                        }
-                                    }) {
-                                        HStack {
-                                            Text("Decline")
-                                                .font(.system(size: 16, weight: .medium))
-                                            Spacer()
-                                        }
-                                        .foregroundColor(.red)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 12)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.white)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.black, lineWidth: 1)
-                                                )
-                                        )
-                                    }
-                                }
-                                
-                            case .isFriend:
-                                // Remove as friend button
-                                Button(action: {
-                                    Task {
-                                        // TODO: Implement remove friend logic
-                                        dismiss()
-                                    }
-                                }) {
-                                    HStack {
-                                        Text("Remove as friend")
-                                            .font(.system(size: 16, weight: .medium))
-                                        Spacer()
-                                    }
-                                    .foregroundColor(.red)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.white)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.black, lineWidth: 1)
-                                            )
-                                    )
-                                }
-                            }
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
@@ -455,84 +346,23 @@ struct FriendProfileView: View {
         }
     }
     
-    // MARK: - Apps Grid View
-    /// Creates a 3-row horizontal scrolling grid of app names
-    /// Apps flow left to right: first row gets first apps, second row gets next apps, etc.
-    private var appsGrid: some View {
-        // If no apps, show placeholder
-        let allApps = apps.isEmpty ? ["No apps available"] : apps
+    private var statusPill: some View {
+        let (text, color): (String, Color) = {
+            switch traineeStatus {
+            case .allClear: return ("All clear", .green)
+            case .attentionNeeded: return ("Attention needed", .red)
+            case .cutOff: return ("Cut off", Color(white: 0.25))
+            case .noStatus: return ("No status", .gray)
+            }
+        }()
         
-        // Split apps into 3 rows: apps flow left to right across rows
-        // Row 0: indices 0, 3, 6, 9... (every 3rd starting at 0)
-        // Row 1: indices 1, 4, 7, 10... (every 3rd starting at 1)
-        // Row 2: indices 2, 5, 8, 11... (every 3rd starting at 2)
-        let row0 = allApps.enumerated().compactMap { $0.offset % 3 == 0 ? $0.element : nil }
-        let row1 = allApps.enumerated().compactMap { $0.offset % 3 == 1 ? $0.element : nil }
-        let row2 = allApps.enumerated().compactMap { $0.offset % 3 == 2 ? $0.element : nil }
-        let rows = [row0, row1, row2]
-        
-        return VStack(alignment: .leading, spacing: 8) {
-            ForEach(0..<3, id: \.self) { rowIndex in
-                HStack(spacing: 12) {
-                    ForEach(Array(rows[rowIndex].enumerated()), id: \.offset) { _, appName in
-                        Text(appName)
-                            .font(.system(size: 14))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                    Spacer()
-                }
-            }
-        }
-        .frame(minWidth: UIScreen.main.bounds.width - 80) // Ensure horizontal scrolling works
-    }
-
-    /// Renders app tokens using the system-resolved name + icon.
-    private var tokenGrid: some View {
-        let tokens = appTokens
-        let showFallbackText = apps.isEmpty
-        // Split into 3 rows for a compact "grid" feel.
-        let row0 = tokens.enumerated().compactMap { $0.offset % 3 == 0 ? $0.element : nil }
-        let row1 = tokens.enumerated().compactMap { $0.offset % 3 == 1 ? $0.element : nil }
-        let row2 = tokens.enumerated().compactMap { $0.offset % 3 == 2 ? $0.element : nil }
-        let rows = [row0, row1, row2]
-
-        return VStack(alignment: .leading, spacing: 8) {
-            ForEach(0..<3, id: \.self) { rowIndex in
-                HStack(spacing: 12) {
-                    ForEach(Array(rows[rowIndex].enumerated()), id: \.offset) { _, token in
-                        tokenPill(token: token, showFallbackText: showFallbackText)
-                    }
-                    Spacer()
-                }
-            }
-        }
-        .frame(minWidth: UIScreen.main.bounds.width - 80)
-    }
-
-    private func tokenPill(token: ApplicationToken, showFallbackText: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(token)
-                .labelStyle(.titleAndIcon)
-                .font(.system(size: 14))
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            if showFallbackText {
-                Text(verbatim: String(describing: token))
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(4)
+        return Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
     }
 }
 
@@ -544,9 +374,12 @@ struct FriendProfileView: View {
         friendshipStatus: .isFriend,
         isTrainee: false,
         isCoach: false,
-        apps: ["TikTok", "YouTube", "Instagram", "Snapchat", "Reddit", "X", "Twitch"],
-        appTokens: [],
         profilePicUrl: nil,
+        traineeStatus: .attentionNeeded,
+        streakDays: 6,
+        timeLimitMinutes: 90,
+        selectedMode: "Coach",
+        unlockURL: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),
         onCoachPrimary: {},

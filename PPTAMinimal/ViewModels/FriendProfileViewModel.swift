@@ -7,8 +7,6 @@
 
 import Foundation
 import FirebaseAuth
-import FamilyControls
-import ManagedSettings
 
 @MainActor
 final class FriendProfileViewModel: ObservableObject {
@@ -25,8 +23,12 @@ final class FriendProfileViewModel: ObservableObject {
 
     @Published var name: String = ""
     @Published var profilePicUrl: String? = nil
-    @Published var apps: [String] = []
-    @Published var appTokens: [ApplicationToken] = []
+    
+    // Other user's tracking state (from their UserSettings)
+    @Published var traineeStatus: TraineeStatus = .noStatus
+    @Published var streakDays: Int = 0
+    @Published var timeLimitMinutes: Int = 0
+    @Published var selectedMode: String = "Chill"
 
     // Relationship relative to current user
     @Published var isCoach: Bool = false     // other is my coach
@@ -61,9 +63,20 @@ final class FriendProfileViewModel: ObservableObject {
             let otherSettings = try await settingsRepo.fetchSettings(for: otherUserId)
 
             name = otherUser?.name ?? "Unknown"
-            apps = otherSettings?.appList ?? []
-            appTokens = Array(otherSettings?.applications.applicationTokens ?? [])
             profilePicUrl = otherSettings?.profileImageURL?.absoluteString
+            
+            // Snapshot the other user's stats for display.
+            if let otherSettings {
+                selectedMode = otherSettings.selectedMode
+                timeLimitMinutes = otherSettings.thresholdHour * 60 + otherSettings.thresholdMinutes
+                streakDays = StreakCalculator.daysSince(start: otherSettings.startDailyStreakDate, calendar: .current)
+                traineeStatus = otherSettings.isTracking ? otherSettings.traineeStatus : .noStatus
+            } else {
+                selectedMode = "Chill"
+                timeLimitMinutes = 0
+                streakDays = 0
+                traineeStatus = .noStatus
+            }
 
             // Friends-only policy (client-side gating; server enforces too)
             let friends = try await friendships.areFriends(uid, otherUserId)

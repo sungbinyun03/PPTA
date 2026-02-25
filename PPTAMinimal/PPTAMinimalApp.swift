@@ -70,6 +70,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
             return
         }
+        
+        if
+            let type = notification["type"] as? String, type == "traineeStatus",
+            let status = notification["status"] as? String
+        {
+            // Best-effort: show a coach-visible notification immediately.
+            NotificationManager.shared.sendNotification(
+                title: "Trainee status update",
+                body: status
+            )
+            completionHandler(.newData)
+            return
+        }
 
         completionHandler(.noData)
     }
@@ -91,14 +104,6 @@ struct PPTAMinimalApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel()
     @AppStorage("onboardingComplete") private var onboardingComplete = false
-    
-    // For testing
-    private let resetOnboardingForTesting = false // Set to false when not needed
-    init() {
-        if resetOnboardingForTesting {
-            UserDefaults.standard.set(false, forKey: "onboardingComplete")
-        }
-    }
     
     var body: some Scene {
         WindowGroup {

@@ -32,7 +32,3 @@ struct User: Identifiable, Codable, Equatable {
             self.fcmToken = fcmToken
         }
 }
-
-extension User {
-    static var MOCK_USER = User(id: NSUUID().uuidString, name: "Jovy Zhou", email: "test@gmail.com")
-}

@@ -31,24 +31,20 @@ struct AppSelectView: View {
                         .foregroundColor(.secondary)
                 } else {
                     // Show each selected application token
-                    ForEach(Array(selection.applicationTokens.enumerated()), id: \.offset) { index, token in
-                        HStack {
-                            Label(token) // The token's description (or "label") for now
-                            Spacer()
-                        }
-                        if index < selection.applicationTokens.count - 1 {
-                            Divider()
-                        }
-                    }
-                    
-                    ForEach(Array(selection.categoryTokens.enumerated()), id: \.offset) { index, token in
+                    ForEach(Array(selection.applicationTokens), id: \.self) { token in
                         HStack {
                             Label(token)
                             Spacer()
                         }
-                        if index < selection.categoryTokens.count - 1 {
-                            Divider()
+                        Divider()
+                    }
+                    
+                    ForEach(Array(selection.categoryTokens), id: \.self) { token in
+                        HStack {
+                            Label(token)
+                            Spacer()
                         }
+                        Divider()
                     }
                 }
             }
@@ -115,17 +111,7 @@ struct AppSelectView: View {
             settings.startDailyStreakDate = Date()
         }
 
-        // Save updated selection & stats to Firestore. We do NOT touch
-        // `appList` here anymore; that is now derived from the DeviceActivity
-        // report extension via localizedDisplayName and synchronized through
-        // the shared app group.
-        //
-        // However, if the selection changed, clear any stale `appList` values
-        // (older docs may contain "ApplicationToken(...)" strings). The report
-        // pipeline will repopulate `appList` with real display names later.
-        if appsChanged {
-            settings.appList = []
-        }
+        // Save updated selection & stats to Firestore.
         settings.applications = selection
         userSettingsManager.saveSettings(settings)
     }

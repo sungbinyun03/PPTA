@@ -7,7 +7,6 @@
 
 import Foundation
 import FirebaseAuth
-import FamilyControls
 
 @MainActor
 final class StatusCenterViewModel: ObservableObject {
@@ -60,9 +59,7 @@ final class StatusCenterViewModel: ObservableObject {
                     isTrainee: mySettings.traineeIds.contains(p.id),
                     traineeStatus: nil,
                     streakDays: p.streakDays,
-                    timeLimitMinutes: p.timeLimitMinutes,
-                    monitoredApps: p.monitoredApps,
-                    appTokens: p.appTokens
+                    timeLimitMinutes: p.timeLimitMinutes
                 )
             }
 
@@ -75,9 +72,7 @@ final class StatusCenterViewModel: ObservableObject {
                     isTrainee: true,
                     traineeStatus: p.traineeStatus,
                     streakDays: p.streakDays,
-                    timeLimitMinutes: p.timeLimitMinutes,
-                    monitoredApps: p.monitoredApps,
-                    appTokens: p.appTokens
+                    timeLimitMinutes: p.timeLimitMinutes
                 )
             }
         } catch {
@@ -106,6 +101,13 @@ final class StatusCenterViewModel: ObservableObject {
                         calendar: .current
                     )
                     let timeLimitMinutes = (settings?.thresholdHour ?? 0) * 60 + (settings?.thresholdMinutes ?? 0)
+                    
+                    let effectiveStatus: TraineeStatus?
+                    if let settings, settings.isTracking == false {
+                        effectiveStatus = .noStatus
+                    } else {
+                        effectiveStatus = settings?.traineeStatus
+                    }
 
                     return StatusCenterPerson(
                         id: id,
@@ -113,11 +115,9 @@ final class StatusCenterViewModel: ObservableObject {
                         profileImageURL: profileURL,
                         isCoach: mySettings.coachIds.contains(id),
                         isTrainee: mySettings.traineeIds.contains(id),
-                        traineeStatus: settings?.traineeStatus,
+                        traineeStatus: effectiveStatus,
                         streakDays: streakDays,
-                        timeLimitMinutes: timeLimitMinutes,
-                        monitoredApps: settings?.appList ?? [],
-                        appTokens: Array(settings?.applications.applicationTokens ?? [])
+                        timeLimitMinutes: timeLimitMinutes
                     )
                 }
             }
