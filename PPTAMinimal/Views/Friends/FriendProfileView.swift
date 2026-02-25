@@ -104,7 +104,7 @@ struct FriendProfileView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.white
+            Color(.systemBackground)
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -115,7 +115,7 @@ struct FriendProfileView: View {
                     }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)
                             .frame(width: 30, height: 30)
                     }
                     Spacer()
@@ -138,21 +138,21 @@ struct FriendProfileView: View {
                                     case .failure(_), .empty:
                                         // Fallback to initials if image fails to load
                                         Circle()
-                                            .fill(Color(red: 0.6, green: 0.65, blue: 0.55))
+                                            .fill(Color(.tertiarySystemFill))
                                             .frame(width: 80, height: 80)
                                             .overlay(
                                                 Text(initials)
                                                     .font(.system(size: 32, weight: .semibold))
-                                                    .foregroundColor(.white)
+                                                    .foregroundColor(.primary)
                                             )
                                     @unknown default:
                                         Circle()
-                                            .fill(Color(red: 0.6, green: 0.65, blue: 0.55))
+                                            .fill(Color(.tertiarySystemFill))
                                             .frame(width: 80, height: 80)
                                             .overlay(
                                                 Text(initials)
                                                     .font(.system(size: 32, weight: .semibold))
-                                                    .foregroundColor(.white)
+                                                    .foregroundColor(.primary)
                                             )
                                     }
                                 }
@@ -161,12 +161,12 @@ struct FriendProfileView: View {
                             } else {
                                 // Show initials if no profile picture URL
                                 Circle()
-                                    .fill(Color(red: 0.6, green: 0.65, blue: 0.55)) // Muted olive green
+                                    .fill(Color(.tertiarySystemFill))
                                     .frame(width: 80, height: 80)
                                     .overlay(
                                         Text(initials)
                                             .font(.system(size: 32, weight: .semibold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(.primary)
                                     )
                             }
                             
@@ -240,7 +240,7 @@ struct FriendProfileView: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.black.opacity(0.15), lineWidth: 1)
+                                .stroke(Color(.separator), lineWidth: 1)
                         )
                         .padding(.horizontal, 20)
                         
@@ -261,10 +261,10 @@ struct FriendProfileView: View {
                                 .padding(.vertical, 12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .fill(friendshipStatus == .isFriend ? Color.white : Color.gray.opacity(0.1))
+                                        .fill(friendshipStatus == .isFriend ? Color(.secondarySystemBackground) : Color(.tertiarySystemBackground))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.black, lineWidth: 1)
+                                                .stroke(Color(.separator), lineWidth: 1)
                                         )
                                 )
                             }
@@ -282,10 +282,10 @@ struct FriendProfileView: View {
                                     .padding(.vertical, 12)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.gray.opacity(0.08))
+                                            .fill(Color(.secondarySystemBackground))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                                    .stroke(Color(.separator), lineWidth: 1)
                                             )
                                     )
                                 }
@@ -307,10 +307,10 @@ struct FriendProfileView: View {
                                 .padding(.vertical, 12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .fill(friendshipStatus == .isFriend ? Color.white : Color.gray.opacity(0.1))
+                                        .fill(friendshipStatus == .isFriend ? Color(.secondarySystemBackground) : Color(.tertiarySystemBackground))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.black, lineWidth: 1)
+                                                .stroke(Color(.separator), lineWidth: 1)
                                         )
                                 )
                             }
@@ -328,10 +328,10 @@ struct FriendProfileView: View {
                                     .padding(.vertical, 12)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.gray.opacity(0.08))
+                                            .fill(Color(.secondarySystemBackground))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.black.opacity(0.5), lineWidth: 1)
+                                                    .stroke(Color(.separator), lineWidth: 1)
                                             )
                                     )
                                 }
