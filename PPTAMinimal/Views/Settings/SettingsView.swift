@@ -26,9 +26,11 @@ struct SettingsView: View {
         NavigationView {
             VStack(spacing: 10) {
                 profileSection
-                inviteBanner
-                tabSelector
+                Divider()
+                // TODO: Uncomment the inviteBanner once we have the functionality implemented
+                // inviteBanner 
                 settingsContent
+                Spacer()
             }
             .padding()
             // iOS 17+ onChange (two‑parameter variant)
@@ -209,19 +211,19 @@ struct SettingsView: View {
     private var settingsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             if selectedTab == "Settings" {
-                NavigationLink(destination: AppSelectView()) {
-                    settingsRow(icon: "app.badge", text: "Monitored Apps")
+                NavigationLink(destination: AppLimitsView()) {
+                    settingsRow(icon: Image("app_limits_icon").resizable().scaledToFit().offset(x: 0), text: "App Limits", iconScale: 2)
                 }
-                NavigationLink(destination: LimitSettingsView()) {
-                    settingsRow(icon: "clock", text: "Limit Settings")
+                NavigationLink(destination: PressureLevelView()) {
+                    settingsRow(icon: Image("pressure_level_icon").resizable().scaledToFit().offset(x: 0), text: "Pressure Level", iconScale: 2)
                 }
-                settingsRow(icon: "lock.shield", text: "Security")
-                settingsRow(icon: "questionmark.circle", text: "Support")
+                settingsRow(icon: Image(systemName: "lock.shield"), text: "Security", iconScale: 1.2)
+                settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support", iconScale: 1.2)
 
                 Button(role: .destructive) {
                     viewModel.signOut()
                 } label: {
-                    settingsRow(icon: "rectangle.portrait.and.arrow.right", text: "Log Out")
+                    settingsRow(icon: Image(systemName: "rectangle.portrait.and.arrow.right").offset(x:0.5), text: "Log Out", iconScale: 1.1)
                 }
             } else {
                 FriendsView()
@@ -229,18 +231,27 @@ struct SettingsView: View {
         }
     }
     
-    private func settingsRow(icon: String, text: String) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .frame(width: 30)
+    /// Fixed icon slot — same for all rows so layout and row height stay uniform.
+    private static let settingsRowIconSlotWidth: CGFloat = 44
+    private static let settingsRowIconSlotHeight: CGFloat = 32
+
+    /// iconScale: draw the icon larger/smaller inside the same slot (1.0 = default; e.g. 1.4 = 40% larger). Layout unchanged.
+    private func settingsRow<Icon: View>(icon: Icon, text: String, iconScale: CGFloat = 1.0) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Column 1: fixed-size slot; iconScale only changes how big the image draws (clipped to slot)
+            icon
+                .scaleEffect(iconScale)
+                .frame(width: Self.settingsRowIconSlotWidth, height: Self.settingsRowIconSlotHeight)
+                .clipped()
+            // Column 2: label
             Text(text)
                 .foregroundColor(.primary)
+            // Column 3: chevron (Spacer pushes it to trailing)
             Spacer()
             Image(systemName: "chevron.right")
                 .foregroundColor(.gray)
         }
         .padding()
-        // .background(RoundedRectangle(cornerRadius: 10).stroke(Color.gray, lineWidth: 1))
     }
 }
 

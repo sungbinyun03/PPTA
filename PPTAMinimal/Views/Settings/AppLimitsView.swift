@@ -1,5 +1,5 @@
 //
-//  AppSelectView.swift
+//  AppLimitsView.swift
 //  PPTAMinimal
 //
 //  Created by Sungbin Yun on 4/5/25.
@@ -8,7 +8,7 @@
 import SwiftUI
 import FamilyControls
 
-struct AppSelectView: View {
+struct AppLimitsView: View {
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     
     @State private var isPickerPresented = false
@@ -100,7 +100,7 @@ struct AppSelectView: View {
             old.applicationTokens != selection.applicationTokens ||
             old.categoryTokens != selection.categoryTokens
         
-        print("AppSelectView.saveToFirebase: will persist \(selection.applicationTokens.count) application tokens.")
+        print("AppLimitsView.saveToFirebase: will persist \(selection.applicationTokens.count) application tokens.")
         for token in selection.applicationTokens {
             print("Selected token:", token)
         }
@@ -116,6 +116,3 @@ struct AppSelectView: View {
         userSettingsManager.saveSettings(settings)
     }
 }
-
-
-

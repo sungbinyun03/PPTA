@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct LimitSettingsView: View {
+struct PressureLevelView: View {
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
 
     // Local states mirroring userSettings
@@ -14,7 +14,7 @@ struct LimitSettingsView: View {
             VStack(spacing: 20) {
                 
                 // Main Title
-                Text("Limit Settings")
+                Text("Pressure Level")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
@@ -85,12 +85,12 @@ struct LimitSettingsView: View {
                     modeRow(
                         label: "Coach mode",
                         modeKey: "Coach",
-                        description: "Your Peer’s role is to help you stay accountable. They’ll check in and offer guidance when you exceed your screen time!"
+                        description: "Your Peer's role is to help you stay accountable. They'll check in and offer guidance when you exceed your screen time!"
                     )
                     modeRow(
                         label: "Chill mode",
                         modeKey: "Chill",
-                        description: "Not ready for Peer pressure? No problem! We’ll notify you when you’re nearing your time limit so you can stay on track."
+                        description: "Not ready for Peer pressure? No problem! We'll notify you when you're nearing your time limit so you can stay on track."
                     )
                 }
                 .padding(.horizontal, 4)
