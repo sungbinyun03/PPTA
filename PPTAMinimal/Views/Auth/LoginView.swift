@@ -5,9 +5,10 @@ import _AuthenticationServices_SwiftUI
 import FirebaseAuth
 
 struct LoginView: View {
-    @State private var email = ""
+    @State private var emailOrPhone = ""
     @State private var password = ""
     @State private var showingAppleSignIn = false
+    @State private var errorMessage = ""
     @EnvironmentObject var viewModel: AuthViewModel
     
     private let primaryColor = Color("primaryColor")
@@ -31,11 +32,15 @@ struct LoginView: View {
             
             // Form fields
             VStack(alignment: .leading, spacing: 20) {
-                // Email field
-                InputView(text: $email, title: "Email address", placeholder: "name@example.com")
+                InputView(text: $emailOrPhone, title: "Email or phone number", placeholder: "name@example.com or (555) 123-4567")
                 
                 // Password field
                 InputView(text: $password, title: "Password", placeholder: "********", isSecureField: true)
+                if !errorMessage.isEmpty {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
                 
                 // Forgot password
                 HStack {
@@ -113,7 +118,7 @@ struct LoginView: View {
                     
                     NavigationLink {
                         RegistrationView()
-                            .navigationBarBackButtonHidden(true)
+                            .environmentObject(viewModel)
                     } label: {
                         Text("Sign up")
                             .fontWeight(.medium)
@@ -131,7 +136,11 @@ struct LoginView: View {
             // Sign In button
             Button(action: {
                 Task {
-                    await viewModel.signIn(withEmail: email, password: password)
+                    do {
+                        try await viewModel.signIn(phoneOrEmail: emailOrPhone, password: password)
+                    } catch {
+                        errorMessage = AuthViewModel.userFacingMessage(for: error)
+                    }
                 }
             }) {
                 Text("Sign In")
@@ -145,16 +154,19 @@ struct LoginView: View {
             }
             .disabled(!formIsValid)
         }
+        .onChange(of: emailOrPhone) { errorMessage = "" }
+        .onChange(of: password) { errorMessage = "" }
         .background(backgroundColor)
         .padding(.horizontal)
         .padding(.bottom, 20)
     }
     
     var formIsValid: Bool {
-        return !email.isEmpty
-            && email.contains("@")
-            && !password.isEmpty
-            && password.count > 5
+        let trimmed = emailOrPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isEmail = trimmed.contains("@")
+        let digits = emailOrPhone.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        let isPhone = digits.count >= 10
+        return (isEmail || isPhone) && !password.isEmpty && password.count > 5
     }
 }
 

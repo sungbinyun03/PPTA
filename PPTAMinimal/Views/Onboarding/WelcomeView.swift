@@ -27,7 +27,7 @@ struct WelcomeView: View {
             
             ZStack {
                 Circle()
-                    .stroke(Color.black, lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
                     .frame(width: 260, height: 260)
                 
                 Image("onboarding-illustration-one")

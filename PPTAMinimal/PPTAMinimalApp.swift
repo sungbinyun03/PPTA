@@ -103,7 +103,20 @@ struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel()
-    @AppStorage("onboardingComplete") private var onboardingComplete = false
+    
+    /// Onboarding completion is stored per user (by uid) so a new account on the same device sees onboarding.
+    private var onboardingComplete: Bool {
+        guard let uid = viewModel.userSession?.uid else { return false }
+        let key = "onboardingComplete_\(uid)"
+        if UserDefaults.standard.bool(forKey: key) { return true }
+        // One-time migration: move old device-wide key to this user, then remove it so other accounts get onboarding.
+        if UserDefaults.standard.bool(forKey: "onboardingComplete") {
+            UserDefaults.standard.set(true, forKey: key)
+            UserDefaults.standard.removeObject(forKey: "onboardingComplete")
+            return true
+        }
+        return false
+    }
     
     var body: some Scene {
         WindowGroup {

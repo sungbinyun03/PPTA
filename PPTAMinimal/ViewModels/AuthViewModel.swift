@@ -51,12 +51,50 @@ class AuthViewModel: ObservableObject {
             await fetchUser()
         } catch { print("DEBUG: signIn error: \(error.localizedDescription)") }
     }
+
+    /// Sign in with email or phone number (resolves phone to email via Firestore) and password.
+    func signIn(phoneOrEmail: String, password: String) async throws {
+        let email: String
+        if phoneOrEmail.contains("@") {
+            email = phoneOrEmail
+        } else {
+            let normalized = UserRepository.normalizePhoneNumber(phoneOrEmail)
+            guard normalized.count >= 10 else {
+                throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Please enter a valid email or phone number."])
+            }
+            do {
+                guard let user = try await userRepository.findUserByPhone(normalized) else {
+                    throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "No account found for this phone number."])
+                }
+                email = user.email
+            } catch {
+                throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "We couldn't look up your account. Check your connection and try again."])
+            }
+        }
+        let firebaseUser = try await authService.signIn(withEmail: email, password: password)
+        self.userSession = firebaseUser
+        await fetchUser()
+    }
     
-    func createUser(withEmail email: String, password: String, name: String) async throws {
+    /// Returns true if the phone number is already registered to another account (optionally exclude one uid, e.g. current user when updating).
+    func isPhoneNumberTaken(_ phoneNumber: String, excludingUid: String? = nil) async throws -> Bool {
+        let normalized = UserRepository.normalizePhoneNumber(phoneNumber)
+        guard normalized.count >= 10 else { return false }
+        guard let existing = try await userRepository.findUserByPhone(normalized) else { return false }
+        if let exclude = excludingUid, existing.id == exclude { return false }
+        return true
+    }
+
+    func createUser(withEmail email: String, password: String, name: String, phoneNumber: String) async throws {
+        let normalized = UserRepository.normalizePhoneNumber(phoneNumber)
+        guard normalized.count >= 10 else { throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Please enter a valid phone number"]) }
+        if try await isPhoneNumberTaken(normalized) {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "This phone number is already registered to another account."])
+        }
         let firebaseUser = try await authService.createUser(withEmail: email, password: password)
         self.userSession = firebaseUser
         
-        let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: nil, fcmToken: nil)
+        let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: normalized, fcmToken: nil)
         try await userRepository.saveUser(newUser)
         
         let defaultSettings = UserSettings(
@@ -189,7 +227,9 @@ class AuthViewModel: ObservableObject {
     
     func updateUserPhoneNumber(phoneNumber: String) async {
         guard let uid = authService.currentUser?.uid else { return }
-        try? await userRepository.updateUserField(uid: uid, field: "phoneNumber", value: phoneNumber)
+        let normalized = UserRepository.normalizePhoneNumber(phoneNumber)
+        guard normalized.count >= 10 else { return }
+        try? await userRepository.updateUserField(uid: uid, field: "phoneNumber", value: normalized)
         await fetchUser()
     }
     
@@ -204,6 +244,47 @@ class AuthViewModel: ObservableObject {
     func signOut() {
         do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
         catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
+    }
+
+    /// Returns a short, user-friendly error message (no codes or technical jargon).
+    static func userFacingMessage(for error: Error) -> String {
+        let ns = error as NSError
+        if ns.domain == "Auth", let msg = ns.userInfo[NSLocalizedDescriptionKey] as? String, !msg.isEmpty {
+            return msg
+        }
+        // Only interpret as Firebase Auth errors when from Auth domain (avoid passing Firestore/other errors into AuthErrorCode)
+        if ns.domain == "FIRAuthErrorDomain" {
+            let authCode = AuthErrorCode(_bridgedNSError: ns)
+            switch authCode {
+            case .wrongPassword:
+                return "Incorrect password. Please try again."
+            case .userNotFound:
+                return "No account found with this email or phone."
+            case .emailAlreadyInUse:
+                return "This email is already in use by another account."
+            case .invalidEmail:
+                return "Please enter a valid email address."
+            case .weakPassword:
+                return "Password should be at least 6 characters."
+            case .tooManyRequests:
+                return "Too many attempts. Please try again later."
+            case .networkError:
+                return "Check your connection and try again."
+            case .invalidVerificationCode:
+                return "Invalid verification code. Please try again."
+            case .invalidVerificationID:
+                return "Verification expired. Please request a new code."
+            case .credentialAlreadyInUse:
+                return "This phone number is already linked to another account."
+            default:
+                break
+            }
+        }
+        // Network/connectivity
+        if ns.domain == NSURLErrorDomain || ns.domain == "FIRFirestoreErrorDomain" {
+            return "Check your connection and try again."
+        }
+        return "Something went wrong. Please try again."
     }
     
     func updateUserDisplayName(displayName: String) async {

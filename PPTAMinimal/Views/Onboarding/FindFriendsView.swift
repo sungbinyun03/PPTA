@@ -24,7 +24,7 @@ struct FindFriendsView: View {
     
     private let firestoreService = FirestoreService()
     private let primaryColor = Color("primaryColor")
-    private let cardBackground = Color(red: 0.9, green: 0.9, blue: 0.9)
+    private let cardBackground = Color(.secondarySystemGroupedBackground)
     
     var body: some View {
         VStack(spacing: 24) {
@@ -43,8 +43,8 @@ struct FindFriendsView: View {
             // Contacts List Container
             ZStack {
                 RoundedRectangle(cornerRadius: 15)
-                    .stroke(.black, lineWidth: 1)
-                    .background(Color.white.cornerRadius(15))
+                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
+                    .background(Color(.secondarySystemGroupedBackground).cornerRadius(15))
                     .frame(width: 330, height: 430)
                 
                 if isLoading {
@@ -325,7 +325,7 @@ struct AppUserCardView: View {
     let isSelected: Bool
     let onAdd: () -> Void
     
-    private let cardBackground = Color("backgroundGray")
+    private let cardBackground = Color(.tertiarySystemGroupedBackground)
     private let primaryColor = Color("primaryColor")
     
     var body: some View {
@@ -333,7 +333,7 @@ struct AppUserCardView: View {
             // Contact Avatar
             ZStack {
                 Circle()
-                    .fill(Color.white)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .frame(width: 40, height: 40)
                 
                 if let imageData = appUserContact.contact.thumbnailImageData, let uiImage = UIImage(data: imageData) {
@@ -353,7 +353,7 @@ struct AppUserCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(appUserContact.contact.givenName) \(appUserContact.contact.familyName)")
                     .font(.body)
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)
                 
                 Text("Already using the app")
                     .font(.caption)
@@ -394,7 +394,7 @@ struct ContactCardView: View {
     let isSelected: Bool
     let onAdd: () -> Void
     
-    private let cardBackground = Color("backgroundGray")
+    private let cardBackground = Color(.tertiarySystemGroupedBackground)
     private let primaryColor = Color("primaryColor")
     
     var body: some View {
@@ -402,7 +402,7 @@ struct ContactCardView: View {
             // Contact Avatar
             ZStack {
                 Circle()
-                    .fill(Color.white)
+                    .fill(Color(.secondarySystemGroupedBackground))
                     .frame(width: 40, height: 40)
                 
                 if let imageData = contact.thumbnailImageData, let uiImage = UIImage(data: imageData) {
@@ -421,7 +421,7 @@ struct ContactCardView: View {
             // Contact Name
             Text("\(contact.givenName) \(contact.familyName)")
                 .font(.body)
-                .foregroundColor(.black)
+                .foregroundColor(.primary)
                 .padding(.leading, 8)
             
             Spacer()

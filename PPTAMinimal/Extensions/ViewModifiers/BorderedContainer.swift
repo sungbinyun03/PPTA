@@ -10,9 +10,9 @@ import SwiftUI
 struct BorderedContainer: ViewModifier {
     var width: CGFloat = 370
     var cornerRadius: CGFloat = 15
-    var strokeColor: Color = .black
+    var strokeColor: Color = Color.primary.opacity(0.3)
     var strokeLineWidth: CGFloat = 1
-    var backgroundColor: Color = .white
+    var backgroundColor: Color = Color(.secondarySystemGroupedBackground)
     
     func body(content: Content) -> some View {
         content
@@ -29,9 +29,9 @@ struct BorderedContainer: ViewModifier {
 extension View {
     func borderedContainer(width: CGFloat = 370,
                            cornerRadius: CGFloat = 15,
-                           strokeColor: Color = .black,
+                           strokeColor: Color = Color.primary.opacity(0.3),
                            strokeLineWidth: CGFloat = 1,
-                           backgroundColor: Color = .white) -> some View {
+                           backgroundColor: Color = Color(.secondarySystemGroupedBackground)) -> some View {
         self.modifier(BorderedContainer(width: width,
                                         cornerRadius: cornerRadius,
                                         strokeColor: strokeColor,

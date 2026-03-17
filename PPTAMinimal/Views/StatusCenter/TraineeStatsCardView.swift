@@ -27,7 +27,7 @@ struct TraineeStatsCardView: View {
     
     var body: some View {
         RoundedRectangle(cornerRadius: 15, style: .continuous)
-            .fill(Color(.white))                 // square background color
+            .fill(Color(.secondarySystemGroupedBackground))
             .frame(width: 220, height: 170)
             .overlay(                                   // outline stroke
                 RoundedRectangle(cornerRadius: 15, style: .continuous)
@@ -59,13 +59,16 @@ struct TraineeStatsCardView: View {
                             )
                         Text(name)
                             .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: 200/2 - 10, alignment: .leading)
                         Text("\(streakDays) day streak")
                             .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.primary)
                         Text("\(timeLimitMinutes) min limit")
                             .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.primary)
                         
                         HStack { Spacer() }
                     }
@@ -83,4 +86,14 @@ struct TraineeStatsCardView: View {
         timeLimitMinutes: 35,
         profilePicUrl: "peter_parker"
     )
+}
+
+#Preview("Dark") {
+    TraineeStatsCardView(
+        name: "Peter Parker",
+        streakDays: 3,
+        timeLimitMinutes: 35,
+        profilePicUrl: "peter_parker"
+    )
+    .preferredColorScheme(.dark)
 }

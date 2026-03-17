@@ -239,6 +239,17 @@ struct PhoneVerificationView: View {
             return
         }
         
+        // One phone = one account: block if already registered to another user
+        do {
+            if try await authViewModel.isPhoneNumberTaken(phoneNumber, excludingUid: authViewModel.userSession?.uid) {
+                errorMessage = "This phone number is already registered to another account."
+                return
+            }
+        } catch {
+            errorMessage = AuthViewModel.userFacingMessage(for: error)
+            return
+        }
+        
         let numberWithCountry = cleaned.hasPrefix("1") ? "+\(cleaned)" : "+1\(cleaned)"
         
         // Show loading state here if needed
@@ -246,13 +257,12 @@ struct PhoneVerificationView: View {
         PhoneAuthProvider.provider().verifyPhoneNumber(numberWithCountry, uiDelegate: nil) { (verificationID, error) in
             if let error = error {
                 print("Error details: \(error.localizedDescription)")
-                self.errorMessage = error.localizedDescription
+                DispatchQueue.main.async { self.errorMessage = AuthViewModel.userFacingMessage(for: error) }
                 return
             }
             
             guard let verificationID = verificationID else {
-                print("Failed to get verification ID")
-                self.errorMessage = "Failed to send verification code"
+                DispatchQueue.main.async { self.errorMessage = "Unable to send code. Please try again." }
                 return
             }
             
@@ -290,7 +300,7 @@ struct PhoneVerificationView: View {
                 await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
                 dismiss()
             } catch {
-                self.errorMessage = error.localizedDescription
+                self.errorMessage = AuthViewModel.userFacingMessage(for: error)
             }
         }
     }

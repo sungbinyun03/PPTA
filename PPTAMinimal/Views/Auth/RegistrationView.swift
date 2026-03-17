@@ -7,10 +7,9 @@ struct RegistrationView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var phoneNumber = ""
     @State private var agreedToTerms = false
     
-    // New state properties for error handling
-    @State private var showError = false
     @State private var errorMessage = ""
     
     @Environment(\.dismiss) var dismiss
@@ -46,6 +45,14 @@ struct RegistrationView: View {
                     
                     // Password field
                     InputView(text: $password, title: "Password", placeholder: "********", isSecureField: true)
+                    
+                    // Phone number (unique per account)
+                    InputView(text: $phoneNumber, title: "Phone number", placeholder: "(555) 123-4567")
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                     
                     // Terms and conditions
                     HStack(alignment: .top, spacing: 12) {
@@ -140,13 +147,12 @@ struct RegistrationView: View {
                 // Next button
                 Button(action: {
                     Task {
-                            do {
-                                try await viewModel.createUser(withEmail: email, password: password, name: name)
-                            } catch {
-                                errorMessage = error.localizedDescription
-                                showError = true
-                            }
+                        do {
+                            try await viewModel.createUser(withEmail: email, password: password, name: name, phoneNumber: phoneNumber)
+                        } catch {
+                            errorMessage = AuthViewModel.userFacingMessage(for: error)
                         }
+                    }
                 }) {
                     Text("Next")
                         .font(.headline)
@@ -154,10 +160,10 @@ struct RegistrationView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(formIsValid ? primaryColor : Color.gray)
+                        .background(nextButtonEnabled ? primaryColor : Color.gray)
                         .cornerRadius(10)
                 }
-                .disabled(!formIsValid)
+                .disabled(!nextButtonEnabled)
             }
             .padding(.horizontal)
             .background(backgroundColor)
@@ -166,19 +172,22 @@ struct RegistrationView: View {
         .onTapGesture {  // Tapping outside will dismiss the keyboard
             hideKeyboard()
         }
-        .alert("Error", isPresented: $showError, actions: {
-            Button("OK", role: .cancel) { }
-        }, message: {
-            Text(errorMessage)
-        })
+        .onChange(of: phoneNumber) { errorMessage = "" }
+    }
+    
+    private var nextButtonEnabled: Bool {
+        formIsValid && errorMessage.isEmpty
     }
     
     var formIsValid: Bool {
+        let normalized = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        let phoneOk = normalized.count >= 10
         return !email.isEmpty
             && email.contains("@")
             && !password.isEmpty
             && password.count > 5
             && !name.isEmpty
+            && phoneOk
             && agreedToTerms
     }
 }

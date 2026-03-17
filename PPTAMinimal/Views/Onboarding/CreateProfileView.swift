@@ -25,13 +25,13 @@ struct CreateProfileView: View {
             
             // Profile image placeholder
             Circle()
-                .stroke(Color.gray, lineWidth: 1)
+                .stroke(Color.primary.opacity(0.3), lineWidth: 1)
                 .frame(width: 140, height: 140)
                 .overlay(
                     Image(systemName: "person.fill")
                         .resizable()
                         .scaledToFit()
-                        .foregroundColor(Color.gray.opacity(0.5))
+                        .foregroundStyle(Color.secondary)
                         .padding(20)
                 )
             

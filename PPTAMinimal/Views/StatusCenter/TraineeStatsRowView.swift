@@ -81,3 +81,19 @@ struct TraineeStatsRowView: View {
         )
     ])
 }
+
+#Preview("Dark") {
+    TraineeStatsRowView(trainees: [
+        .init(
+            id: "preview-user",
+            name: "Peter Parker",
+            profileImageURL: nil,
+            isCoach: false,
+            isTrainee: true,
+            traineeStatus: .attentionNeeded,
+            streakDays: 6,
+            timeLimitMinutes: 90
+        )
+    ])
+    .preferredColorScheme(.dark)
+}
