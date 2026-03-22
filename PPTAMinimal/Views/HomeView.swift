@@ -124,13 +124,13 @@ struct HomeView: View {
         let monitoringKey = "isMonitoringActive"
         let alreadyActive = UserDefaults.standard.bool(forKey: monitoringKey)
         
-        // If the user paused tracking, ensure monitoring is not running.
+        // If the user is not tracking (e.g. pressure level Off), ensure monitoring is not running.
         if settings.isTracking == false {
             if alreadyActive {
                 DeviceActivityManager.shared.stopMonitoring()
                 UserDefaults.standard.set(false, forKey: monitoringKey)
             }
-            print("Tracking paused; monitoring is disabled.")
+            print("Tracking disabled; monitoring is not running.")
             return
         }
         

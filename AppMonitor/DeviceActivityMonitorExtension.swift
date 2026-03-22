@@ -51,15 +51,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             
             // Minimal: one threshold event => treat it as "daily limit reached".
             // Mode behavior:
-            // - Chill: no shielding (just status updates)
-            // - Coach/Hard: shield selected apps
-            switch settings.selectedMode {
-            case "Chill":
+            // - Off: no shielding (just status updates)
+            // - Standard / Hardcore: shield selected apps
+            switch settings.pressureLevel {
+            case "Off":
                 break
-            case "Coach", "Hard":
+            case "Standard":
+                // TODO: When threshold is hit in Standard mode, send a notification to coaches (e.g. push or backend hook) so they know the trainee hit their limit—coordinate with existing `sendStatusUpdate` / FCM if needed.
+                store.shield.applications = settings.applications.applicationTokens
+            case "Hardcore":
                 store.shield.applications = settings.applications.applicationTokens
             default:
-                // Fail safe to Coach-like behavior.
+                // Fail safe to Standard-like behavior.
                 store.shield.applications = settings.applications.applicationTokens
             }
             

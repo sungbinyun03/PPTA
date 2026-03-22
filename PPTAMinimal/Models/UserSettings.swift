@@ -25,7 +25,8 @@ final class UserSettings: Codable {
     var applications: FamilyActivitySelection //selected apps
     var thresholdHour: Int
     var thresholdMinutes: Int
-    var selectedMode: String = "Chill"
+    /// Pressure level: `Off`, `Standard`, or `Hardcore`. Persisted under Firestore key `selectedMode` for backward compatibility.
+    var pressureLevel: String = "Off"
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach] = [] // The same as friends
     var coaches: [PeerCoach] = []
@@ -41,6 +42,7 @@ final class UserSettings: Codable {
     
     /// Whether this user is currently participating in tracking.
     /// When false, they should appear with `.noStatus` to their coaches.
+    /// Kept in sync with `pressureLevel`: `false` when level is `"Off"`, otherwise `true` (on decode and in `UserSettingsManager.saveSettings`).
     var isTracking: Bool
     
     /// Status visible to this user's coaches / trainees.
@@ -48,12 +50,25 @@ final class UserSettings: Codable {
     
     private enum CodingKeys: String, CodingKey {
         case applications, thresholdHour, thresholdMinutes,
-             selectedMode, onboardingCompleted,
+             pressureLevel = "selectedMode",
+             onboardingCompleted,
              peerCoaches, profileImageURL,
              coaches, trainees,
              coachIds, traineeIds,
              startDailyStreakDate,
              isTracking, traineeStatus
+    }
+
+    /// Normalizes legacy Firestore values (`Chill`, `Coach`, `Hard`) to canonical `Standard` / `Hardcore` / `Off`.
+    static func canonicalPressureLevel(from raw: String) -> String {
+        switch raw {
+        case "Off": return "Off"
+        case "Standard": return "Standard"
+        case "Hardcore": return "Hardcore"
+        case "Chill", "Coach": return "Standard"
+        case "Hard": return "Hardcore"
+        default: return "Off"
+        }
     }
     
     
@@ -63,6 +78,7 @@ final class UserSettings: Codable {
         applications: FamilyActivitySelection = .init(),
         thresholdHour: Int = 0,
         thresholdMinutes: Int = 0,
+        pressureLevel: String = "Off",
         onboardingCompleted: Bool = false,
         peerCoaches: [PeerCoach] = [],
         coaches: [PeerCoach] = [],
@@ -70,13 +86,13 @@ final class UserSettings: Codable {
         coachIds: [String] = [],
         traineeIds: [String] = [],
         startDailyStreakDate: Date? = nil,
-        isTracking: Bool = true,
         traineeStatus: TraineeStatus = .allClear
     ) {
         self.id = id
         self.applications = applications
         self.thresholdHour = thresholdHour
         self.thresholdMinutes = thresholdMinutes
+        self.pressureLevel = Self.canonicalPressureLevel(from: pressureLevel)
         self.onboardingCompleted = onboardingCompleted
         self.peerCoaches = peerCoaches
         self.coaches = coaches
@@ -84,7 +100,7 @@ final class UserSettings: Codable {
         self.coachIds = coachIds
         self.traineeIds = traineeIds
         self.startDailyStreakDate = startDailyStreakDate
-        self.isTracking = isTracking
+        self.isTracking = (self.pressureLevel != "Off")
         self.traineeStatus = traineeStatus
     }
     
@@ -98,7 +114,8 @@ final class UserSettings: Codable {
         applications = (try? container.decode(FamilyActivitySelection.self, forKey: .applications)) ?? .init()
         thresholdHour = (try? container.decode(Int.self, forKey: .thresholdHour)) ?? 0
         thresholdMinutes = (try? container.decode(Int.self, forKey: .thresholdMinutes)) ?? 0
-        selectedMode = (try? container.decode(String.self, forKey: .selectedMode)) ?? "Chill"
+        let rawLevel = (try? container.decode(String.self, forKey: .pressureLevel)) ?? "Off"
+        pressureLevel = Self.canonicalPressureLevel(from: rawLevel)
         onboardingCompleted = (try? container.decode(Bool.self, forKey: .onboardingCompleted)) ?? false
 
         peerCoaches = (try? container.decode([PeerCoach].self, forKey: .peerCoaches)) ?? []
@@ -118,7 +135,8 @@ final class UserSettings: Codable {
         }
 
         startDailyStreakDate = try? container.decode(Date.self, forKey: .startDailyStreakDate)
-        isTracking = (try? container.decode(Bool.self, forKey: .isTracking)) ?? true
+        // Source of truth: Off = no tracking; any other level participates.
+        isTracking = (pressureLevel != "Off")
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
     }
     
@@ -127,7 +145,7 @@ final class UserSettings: Codable {
         try container.encode(applications, forKey: .applications)
         try container.encode(thresholdHour, forKey: .thresholdHour)
         try container.encode(thresholdMinutes, forKey: .thresholdMinutes)
-        try container.encode(selectedMode, forKey: .selectedMode)
+        try container.encode(pressureLevel, forKey: .pressureLevel)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
         try container.encode(peerCoaches, forKey: .peerCoaches)
         try container.encodeIfPresent(profileImageURL, forKey: .profileImageURL)

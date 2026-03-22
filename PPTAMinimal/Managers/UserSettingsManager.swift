@@ -27,6 +27,9 @@ final class UserSettingsManager : ObservableObject{
             print("ERROR: No user is logged in. Cannot save settings.")
             return
         }
+
+        // Keep in sync with pressure level: "Off" means not participating in tracking.
+        settings.isTracking = (settings.pressureLevel != "Off")
         
         print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
         LocalSettingsStore.saveCurrentUserId(userID)

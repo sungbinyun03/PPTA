@@ -28,7 +28,7 @@ final class FriendProfileViewModel: ObservableObject {
     @Published var traineeStatus: TraineeStatus = .noStatus
     @Published var streakDays: Int = 0
     @Published var timeLimitMinutes: Int = 0
-    @Published var selectedMode: String = "Chill"
+    @Published var pressureLevel: String = "Off"
 
     // Relationship relative to current user
     @Published var isCoach: Bool = false     // other is my coach
@@ -67,12 +67,12 @@ final class FriendProfileViewModel: ObservableObject {
             
             // Snapshot the other user's stats for display.
             if let otherSettings {
-                selectedMode = otherSettings.selectedMode
+                pressureLevel = otherSettings.pressureLevel
                 timeLimitMinutes = otherSettings.thresholdHour * 60 + otherSettings.thresholdMinutes
                 streakDays = StreakCalculator.daysSince(start: otherSettings.startDailyStreakDate, calendar: .current)
                 traineeStatus = otherSettings.isTracking ? otherSettings.traineeStatus : .noStatus
             } else {
-                selectedMode = "Chill"
+                pressureLevel = "Off"
                 timeLimitMinutes = 0
                 streakDays = 0
                 traineeStatus = .noStatus

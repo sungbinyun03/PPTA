@@ -72,7 +72,7 @@ class DeviceActivityManager {
     @MainActor
     func handleRemoteUnlock(from coach: String) {
         let settings = LocalSettingsStore.load()
-        if settings.selectedMode == "Hard" {
+        if settings.pressureLevel == "Hardcore" {
             NotificationManager.shared.sendNotification(
                 title: "Unlock denied",
                 body: "Hardcore mode is enabled."

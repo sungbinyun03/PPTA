@@ -33,7 +33,7 @@ struct FriendProfileSheetView: View {
                     traineeStatus: vm.traineeStatus,
                     streakDays: vm.streakDays,
                     timeLimitMinutes: vm.timeLimitMinutes,
-                    selectedMode: vm.selectedMode,
+                    pressureLevel: vm.pressureLevel,
                     unlockURL: makeUnlockURLIfNeeded(),
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
