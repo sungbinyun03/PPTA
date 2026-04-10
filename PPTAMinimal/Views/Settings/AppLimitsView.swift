@@ -161,7 +161,7 @@ struct AppLimitsView: View {
             thresholdMinutes: draftThresholdMinutes,
             applications: selection
         )
-        if !wouldBeViable, current.pressureLevel != "Off" {
+        if !wouldBeViable, current.pressureLevel != PressureLevel.off {
             showPressureOffRequiredAlert = true
             return false
         }

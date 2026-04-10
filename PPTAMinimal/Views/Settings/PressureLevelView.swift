@@ -4,7 +4,7 @@ struct PressureLevelView: View {
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
 
     /// Mirrors `UserSettings.pressureLevel`: Off, Standard, or Hardcore.
-    @State private var draftPressureLevel: String = "Off"
+    @State private var draftPressureLevel: PressureLevel = PressureLevel.off
     @State private var showConfirmedAlert = false
     @State private var showViableLimitsRequiredAlert = false
 
@@ -27,7 +27,7 @@ struct PressureLevelView: View {
 
             VStack(spacing: 12) {
                 pressureCard(
-                    id: "Off",
+                    level: PressureLevel.off,
                     title: "Off",
                     description: "No monitoring or pressure.\nTake a break :)",
                     backgroundColor: Color(red: 0.88, green: 0.88, blue: 0.88),
@@ -35,7 +35,7 @@ struct PressureLevelView: View {
                     showStar: false
                 )
                 pressureCard(
-                    id: "Standard",
+                    level: PressureLevel.standard,
                     title: "Standard",
                     description: "Coaches can lock out\nTrainees when they exceed.",
                     backgroundColor: Color("primaryButtonColor"),
@@ -43,7 +43,7 @@ struct PressureLevelView: View {
                     showStar: true
                 )
                 pressureCard(
-                    id: "Hardcore",
+                    level: PressureLevel.hardcore,
                     title: "Hardcore",
                     description: "Trainees get locked\ninstantly when they exceed.",
                     backgroundColor: Color.orange,
@@ -86,7 +86,7 @@ struct PressureLevelView: View {
 
     @ViewBuilder
     private func pressureCard(
-        id: String,
+        level: PressureLevel,
         title: String,
         description: String,
         backgroundColor: Color,
@@ -94,15 +94,15 @@ struct PressureLevelView: View {
         showStar: Bool
     ) -> some View {
         Button {
-            draftPressureLevel = id
+            draftPressureLevel = level
         } label: {
             HStack(alignment: .top, spacing: 12) {
                 Circle()
                     .stroke(Color.primary.opacity(textColor == .white ? 0.5 : 0.3), lineWidth: 2)
                     .background(
                         Circle()
-                            .fill(draftPressureLevel == id ? (textColor == .white ? Color.white : Color.primary) : Color.clear)
-                            .scaleEffect(draftPressureLevel == id ? 0.5 : 0)
+                            .fill(draftPressureLevel == level ? (textColor == .white ? Color.white : Color.primary) : Color.clear)
+                            .scaleEffect(draftPressureLevel == level ? 0.5 : 0)
                     )
                     .frame(width: 24, height: 24)
                     .padding(.top, 2)
@@ -138,8 +138,7 @@ struct PressureLevelView: View {
     }
 
     private func saveToFirebase() {
-        let canonical = UserSettings.canonicalPressureLevel(from: draftPressureLevel)
-        if canonical != "Off", !userSettingsManager.userSettings.hasViableAppLimits {
+        if draftPressureLevel != PressureLevel.off, !userSettingsManager.userSettings.hasViableAppLimits {
             showViableLimitsRequiredAlert = true
             return
         }
@@ -147,7 +146,7 @@ struct PressureLevelView: View {
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
 
-        userSettingsManager.userSettings.pressureLevel = canonical
+        userSettingsManager.userSettings.pressureLevel = draftPressureLevel
         userSettingsManager.saveSettings(userSettingsManager.userSettings)
         showConfirmedAlert = true
     }

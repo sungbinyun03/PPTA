@@ -28,8 +28,8 @@ final class UserSettingsManager : ObservableObject{
             return
         }
 
-        // Keep in sync with pressure level: "Off" means not participating in tracking.
-        settings.isTracking = (settings.pressureLevel != "Off")
+        // Keep in sync with pressure level: Off means not participating in tracking.
+        settings.isTracking = settings.pressureLevel.isTracking
         
         print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
         LocalSettingsStore.saveCurrentUserId(userID)

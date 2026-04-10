@@ -36,7 +36,7 @@ struct FriendProfileView: View {
     let traineeStatus: TraineeStatus
     let streakDays: Int
     let timeLimitMinutes: Int
-    let pressureLevel: String
+    let pressureLevel: PressureLevel
     
     /// If non-nil, shows a prominent unlock CTA for coaches.
     let unlockURL: URL?
@@ -224,7 +224,7 @@ struct FriendProfileView: View {
                                 Text("Pressure level")
                                     .foregroundColor(.secondary)
                                 Spacer()
-                                Text(pressureLevel)
+                                Text(pressureLevel.rawValue)
                                     .fontWeight(.semibold)
                             }
                             
@@ -378,7 +378,7 @@ struct FriendProfileView: View {
         traineeStatus: .attentionNeeded,
         streakDays: 6,
         timeLimitMinutes: 90,
-        pressureLevel: "Standard",
+        pressureLevel: PressureLevel.standard,
         unlockURL: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),

@@ -10,6 +10,30 @@ import FamilyControls
 import ManagedSettings
 import FirebaseFirestore
 
+/// Trainee pressure mode. Persisted as `selectedMode` in Firestore (`Off`, `Standard`, `Hardcore`).
+enum PressureLevel: String, Codable, CaseIterable, Equatable, Sendable {
+    case off = "Off"
+    case standard = "Standard"
+    case hardcore = "Hardcore"
+
+    /// `true` when the user is in Standard or Hardcore (participates in tracking).
+    var isTracking: Bool {
+        self != PressureLevel.off
+    }
+
+    /// Maps stored / legacy Firestore strings to one canonical case.
+    init(decodingFirestore raw: String) {
+        switch raw {
+        case "Off": self = PressureLevel.off
+        case "Standard": self = PressureLevel.standard
+        case "Hardcore": self = PressureLevel.hardcore
+        case "Chill", "Coach": self = PressureLevel.standard
+        case "Hard": self = PressureLevel.hardcore
+        default: self = PressureLevel.off
+        }
+    }
+}
+
 // This struct is the same as Friend
 struct PeerCoach: Codable, Identifiable {
     let id = UUID()
@@ -25,8 +49,8 @@ final class UserSettings: Codable {
     var applications: FamilyActivitySelection //selected apps
     var thresholdHour: Int
     var thresholdMinutes: Int
-    /// Pressure level: `Off`, `Standard`, or `Hardcore`. Persisted under Firestore key `selectedMode` for backward compatibility.
-    var pressureLevel: String = "Off"
+    /// Persisted under Firestore key `selectedMode` for backward compatibility.
+    var pressureLevel: PressureLevel = PressureLevel.off
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach] = [] // The same as friends
     var coaches: [PeerCoach] = []
@@ -42,7 +66,7 @@ final class UserSettings: Codable {
     
     /// Whether this user is currently participating in tracking.
     /// When false, they should appear with `.noStatus` to their coaches.
-    /// Kept in sync with `pressureLevel`: `false` when level is `"Off"`, otherwise `true` (on decode and in `UserSettingsManager.saveSettings`).
+    /// Kept in sync with `pressureLevel`: `false` when `PressureLevel.off`, otherwise `true` (on decode and in `UserSettingsManager.saveSettings`).
     var isTracking: Bool
     
     /// Status visible to this user's coaches / trainees.
@@ -79,18 +103,6 @@ final class UserSettings: Codable {
             applications: applications
         )
     }
-
-    /// Normalizes legacy Firestore values (`Chill`, `Coach`, `Hard`) to canonical `Standard` / `Hardcore` / `Off`.
-    static func canonicalPressureLevel(from raw: String) -> String {
-        switch raw {
-        case "Off": return "Off"
-        case "Standard": return "Standard"
-        case "Hardcore": return "Hardcore"
-        case "Chill", "Coach": return "Standard"
-        case "Hard": return "Hardcore"
-        default: return "Off"
-        }
-    }
     
     
     // MARK: Init
@@ -100,7 +112,7 @@ final class UserSettings: Codable {
         applications: FamilyActivitySelection = .init(),
         thresholdHour: Int = 0,
         thresholdMinutes: Int = 0,
-        pressureLevel: String = "Off",
+        pressureLevel: PressureLevel = PressureLevel.off,
         onboardingCompleted: Bool = false,
         peerCoaches: [PeerCoach] = [],
         coaches: [PeerCoach] = [],
@@ -114,7 +126,7 @@ final class UserSettings: Codable {
         self.applications = applications
         self.thresholdHour = thresholdHour
         self.thresholdMinutes = thresholdMinutes
-        self.pressureLevel = Self.canonicalPressureLevel(from: pressureLevel)
+        self.pressureLevel = pressureLevel
         self.onboardingCompleted = onboardingCompleted
         self.peerCoaches = peerCoaches
         self.coaches = coaches
@@ -122,7 +134,7 @@ final class UserSettings: Codable {
         self.coachIds = coachIds
         self.traineeIds = traineeIds
         self.startDailyStreakDate = startDailyStreakDate
-        self.isTracking = (self.pressureLevel != "Off")
+        self.isTracking = self.pressureLevel.isTracking
         self.traineeStatus = traineeStatus
     }
     
@@ -137,7 +149,7 @@ final class UserSettings: Codable {
         thresholdHour = (try? container.decode(Int.self, forKey: .thresholdHour)) ?? 0
         thresholdMinutes = (try? container.decode(Int.self, forKey: .thresholdMinutes)) ?? 0
         let rawLevel = (try? container.decode(String.self, forKey: .pressureLevel)) ?? "Off"
-        pressureLevel = Self.canonicalPressureLevel(from: rawLevel)
+        pressureLevel = PressureLevel(decodingFirestore: rawLevel)
         onboardingCompleted = (try? container.decode(Bool.self, forKey: .onboardingCompleted)) ?? false
 
         peerCoaches = (try? container.decode([PeerCoach].self, forKey: .peerCoaches)) ?? []
@@ -158,7 +170,7 @@ final class UserSettings: Codable {
 
         startDailyStreakDate = try? container.decode(Date.self, forKey: .startDailyStreakDate)
         // Source of truth: Off = no tracking; any other level participates.
-        isTracking = (pressureLevel != "Off")
+        isTracking = pressureLevel.isTracking
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
     }
     

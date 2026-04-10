@@ -2,7 +2,7 @@
 //  PressureOffHomeCardView.swift
 //  PPTAMinimal
 //
-//  Olive callout when `pressureLevel == "Off"` — nudges Settings and choosing how serious
+//  Olive callout when `pressureLevel == PressureLevel.off` — nudges Settings and choosing how serious
 //  accountability is (Standard vs Hardcore). Matches `NoAppLimitsHomeCardView` styling.
 //
 

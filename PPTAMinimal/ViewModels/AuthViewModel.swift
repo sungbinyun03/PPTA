@@ -101,7 +101,7 @@ class AuthViewModel: ObservableObject {
         let defaultSettings = UserSettings(
             thresholdHour: 0,
             thresholdMinutes: 0,
-            pressureLevel: "Off",
+            pressureLevel: PressureLevel.off,
             onboardingCompleted: false,
             peerCoaches: []
         )

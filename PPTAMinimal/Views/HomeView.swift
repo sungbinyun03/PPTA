@@ -28,7 +28,7 @@ struct HomeView: View {
                     if !userSettingsManager.userSettings.hasViableAppLimits {
                         NoAppLimitsHomeCardView()
                     }
-                    if userSettingsManager.userSettings.pressureLevel == "Off" {
+                    if userSettingsManager.userSettings.pressureLevel == PressureLevel.off {
                         PressureOffHomeCardView()
                     }
                     DashboardView()
