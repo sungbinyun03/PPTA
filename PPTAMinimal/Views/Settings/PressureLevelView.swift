@@ -6,6 +6,7 @@ struct PressureLevelView: View {
     /// Mirrors `UserSettings.pressureLevel`: Off, Standard, or Hardcore.
     @State private var draftPressureLevel: String = "Off"
     @State private var showConfirmedAlert = false
+    @State private var showViableLimitsRequiredAlert = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -37,7 +38,7 @@ struct PressureLevelView: View {
                     id: "Standard",
                     title: "Standard",
                     description: "Coaches can lock out\nTrainees when they exceed.",
-                    backgroundColor: Color("primaryColor"),
+                    backgroundColor: Color("primaryButtonColor"),
                     textColor: .white,
                     showStar: true
                 )
@@ -72,6 +73,11 @@ struct PressureLevelView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Your coaches have been informed of your new pressure level!")
+        }
+        .alert("Set up App Limits first", isPresented: $showViableLimitsRequiredAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Set a daily time limit and at least one app or category in App Limits, tap Save Settings, then try again.")
         }
         .onAppear {
             loadFromUserSettings()
@@ -132,10 +138,16 @@ struct PressureLevelView: View {
     }
 
     private func saveToFirebase() {
+        let canonical = UserSettings.canonicalPressureLevel(from: draftPressureLevel)
+        if canonical != "Off", !userSettingsManager.userSettings.hasViableAppLimits {
+            showViableLimitsRequiredAlert = true
+            return
+        }
+
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
 
-        userSettingsManager.userSettings.pressureLevel = UserSettings.canonicalPressureLevel(from: draftPressureLevel)
+        userSettingsManager.userSettings.pressureLevel = canonical
         userSettingsManager.saveSettings(userSettingsManager.userSettings)
         showConfirmedAlert = true
     }

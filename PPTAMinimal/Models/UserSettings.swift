@@ -59,6 +59,27 @@ final class UserSettings: Codable {
              isTracking, traineeStatus
     }
 
+    /// Single definition of “viable” limits (used by Home, save validation, etc.).
+    /// Daily limit > 0 **and** at least one app or category in Screen Time.
+    static func appLimitsAreViable(
+        thresholdHour: Int,
+        thresholdMinutes: Int,
+        applications: FamilyActivitySelection
+    ) -> Bool {
+        let totalMinutes = thresholdHour * 60 + thresholdMinutes
+        guard totalMinutes > 0 else { return false }
+        return !applications.applicationTokens.isEmpty || !applications.categoryTokens.isEmpty
+    }
+
+    /// Daily limit > 0 and at least one app or category in the Screen Time (`FamilyActivitySelection`) picker.
+    var hasViableAppLimits: Bool {
+        Self.appLimitsAreViable(
+            thresholdHour: thresholdHour,
+            thresholdMinutes: thresholdMinutes,
+            applications: applications
+        )
+    }
+
     /// Normalizes legacy Firestore values (`Chill`, `Coach`, `Hard`) to canonical `Standard` / `Hardcore` / `Off`.
     static func canonicalPressureLevel(from raw: String) -> String {
         switch raw {
@@ -73,6 +94,7 @@ final class UserSettings: Codable {
     
     
     // MARK: Init
+    /// Default **new-user** state: `pressureLevel` Off, daily limit 0h 0m, empty app selection, not onboarded.
     init(
         id: String? = nil,
         applications: FamilyActivitySelection = .init(),

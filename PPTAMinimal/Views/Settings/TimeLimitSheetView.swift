@@ -2,15 +2,21 @@
 //  TimeLimitSheetView.swift
 //  PPTAMinimal
 //
-//  Sheet containing the daily time limit picker (hours/minutes dial).
+//  Sheet to pick hours/minutes for the daily limit. Updates **draft** bindings only
+//  when the user taps the checkmark — same pattern as `FamilyActivityPicker` +
+//  App Limits “Save Settings”. Does not persist to Firestore by itself.
 //
 
 import SwiftUI
 
 struct TimeLimitSheetView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var userSettingsManager = UserSettingsManager.shared
 
+    /// Parent-owned draft; committed only when the user taps the checkmark (then dismissed).
+    @Binding var draftHours: Int
+    @Binding var draftMinutes: Int
+
+    /// Local wheels so Cancel leaves the parent draft unchanged.
     @State private var hours: Int = 0
     @State private var minutes: Int = 0
 
@@ -23,7 +29,6 @@ struct TimeLimitSheetView: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
 
-                // Same dial as PressureLevelView: Hours + Minutes wheel pickers
                 VStack(spacing: 16) {
                     Text("Daily Limit")
                         .font(.custom("SatoshiVariable-Bold_Light", size: 20))
@@ -88,7 +93,9 @@ struct TimeLimitSheetView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
-                        saveAndDismiss()
+                        draftHours = hours
+                        draftMinutes = minutes
+                        dismiss()
                     } label: {
                         Image(systemName: "checkmark")
                             .font(.body.weight(.medium))
@@ -101,34 +108,13 @@ struct TimeLimitSheetView: View {
                 }
             }
             .onAppear {
-                loadFromUserSettings()
+                hours = draftHours
+                minutes = draftMinutes
             }
         }
     }
+}
 
-    /// Reads duration from the in-memory cache only (no Firebase fetch here).
-    /// The cache is filled when HomeView loads (Firebase) or after a previous save.
-    private func loadFromUserSettings() {
-        let settings = userSettingsManager.userSettings
-        hours = settings.thresholdHour
-        minutes = settings.thresholdMinutes
-    }
-
-    private func saveAndDismiss() {
-        UserDefaults.standard.set(false, forKey: "isMonitoringActive")
-        DeviceActivityManager.shared.stopMonitoring()
-
-        let old = userSettingsManager.userSettings
-        let oldTotal = old.thresholdHour * 3600 + old.thresholdMinutes * 60
-        let newTotal = hours * 3600 + minutes * 60
-
-        if newTotal > oldTotal || userSettingsManager.userSettings.startDailyStreakDate == nil {
-            userSettingsManager.userSettings.startDailyStreakDate = Date()
-        }
-
-        userSettingsManager.userSettings.thresholdHour = hours
-        userSettingsManager.userSettings.thresholdMinutes = minutes
-        userSettingsManager.saveSettings(userSettingsManager.userSettings)
-        dismiss()
-    }
+#Preview {
+    TimeLimitSheetView(draftHours: .constant(1), draftMinutes: .constant(30))
 }

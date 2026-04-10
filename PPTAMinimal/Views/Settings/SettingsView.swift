@@ -212,10 +212,26 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             if selectedTab == "Settings" {
                 NavigationLink(destination: AppLimitsView()) {
-                    settingsRow(icon: Image("app_limits_icon").resizable().scaledToFit().offset(x: 0), text: "App Limits", iconScale: 2)
+                    settingsRow(
+                        icon: Image(systemName: "clock.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(Color.blue)
+                            .scaleEffect(0.35),
+                        text: "App Limits",
+                        iconScale: 2
+                    )
                 }
                 NavigationLink(destination: PressureLevelView()) {
-                    settingsRow(icon: Image("pressure_level_icon").resizable().scaledToFit().offset(x: 0), text: "Pressure Level", iconScale: 2)
+                    settingsRow(
+                        icon: Image(systemName: "gauge.with.dots.needle.33percent")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(Color.green)
+                            .scaleEffect(0.35),
+                        text: "Pressure Level",
+                        iconScale: 2
+                    )
                 }
                 settingsRow(icon: Image(systemName: "lock.shield"), text: "Security", iconScale: 1.2)
                 settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support", iconScale: 1.2)

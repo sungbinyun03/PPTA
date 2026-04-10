@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import FamilyControls
 import DeviceActivity
 
@@ -24,6 +25,12 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
+                    if !userSettingsManager.userSettings.hasViableAppLimits {
+                        NoAppLimitsHomeCardView()
+                    }
+                    if userSettingsManager.userSettings.pressureLevel == "Off" {
+                        PressureOffHomeCardView()
+                    }
                     DashboardView()
                     StreakBannerView()
                     reportSection
@@ -32,6 +39,11 @@ struct HomeView: View {
                 .padding(.top, 0)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+        /// Keeps Screen Time monitoring aligned with `userSettings` whenever it changes (Firestore load, Pressure / App Limits save, etc.). `onAppear` alone is not enough when Home stays under the stack after pushing Settings.
+        .onReceive(userSettingsManager.$userSettings) { settings in
+            guard !previewMode else { return }
+            startAlwaysOnMonitoring(with: settings)
         }
         .onAppear {
             if previewMode {
@@ -50,9 +62,6 @@ struct HomeView: View {
                             print("HomeView.onAppear: done applying pending extension updates.")
                         }
                     }
-                    
-                    // 2. Always start monitoring once settings are loaded
-                    startAlwaysOnMonitoring(with: loadedSettings)
                 }
             }
         }

@@ -14,7 +14,11 @@ struct AppLimitsView: View {
     @State private var isPickerPresented = false
     @State private var showTimeLimitSheet = false
     @State private var showSavedAlert = false
+    @State private var showPressureOffRequiredAlert = false
     @State private var selection = FamilyActivitySelection()
+    /// Draft daily limit (saved only when user taps “Save Settings”), like `selection`.
+    @State private var draftThresholdHour: Int = 0
+    @State private var draftThresholdMinutes: Int = 0
     
     var body: some View {
         VStack(spacing: 20) {
@@ -29,9 +33,9 @@ struct AppLimitsView: View {
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
 
-            // Current saved time limit (read-only), styled like PressureLevelView’s Daily Limit card
+            // Draft time limit (committed with “Save Settings”), styled like the Daily Limit card
             VStack(spacing: 8) {
-                Text("Current time limit")
+                Text("Time limit")
                     .font(.custom("SatoshiVariable-Bold_Light", size: 20))
                 Text(timeLimitDisplayText)
                     .font(.title2)
@@ -105,13 +109,14 @@ struct AppLimitsView: View {
                     .cornerRadius(10)
             }
             .sheet(isPresented: $showTimeLimitSheet) {
-                TimeLimitSheetView()
+                TimeLimitSheetView(draftHours: $draftThresholdHour, draftMinutes: $draftThresholdMinutes)
             }
 
             // Button to save the selection in Firestore
             Button(action: {
-                saveToFirebase()
-                showSavedAlert = true
+                if saveToFirebase() {
+                    showSavedAlert = true
+                }
             }) {
                 Text("Save Settings")
                     .font(.headline)
@@ -130,48 +135,75 @@ struct AppLimitsView: View {
         } message: {
             Text("Make sure to screenshot and share them with your coaches so they know what your goals are!")
         }
+        .alert("Turn Pressure to Off first", isPresented: $showPressureOffRequiredAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Turn Pressure level to Off and save first, then you can clear your time limit or remove all apps.")
+        }
         .onAppear {
             loadFromUserSettings()
         }
     }
     
     private func loadFromUserSettings() {
-        self.selection = userSettingsManager.userSettings.applications
+        let s = userSettingsManager.userSettings
+        self.selection = s.applications
+        draftThresholdHour = s.thresholdHour
+        draftThresholdMinutes = s.thresholdMinutes
     }
     
-    private func saveToFirebase() {
-        // Update local userSettings
+    /// - Returns: `true` if settings were saved; `false` if validation blocked the save.
+    @discardableResult
+    private func saveToFirebase() -> Bool {
+        let current = userSettingsManager.userSettings
+        let wouldBeViable = UserSettings.appLimitsAreViable(
+            thresholdHour: draftThresholdHour,
+            thresholdMinutes: draftThresholdMinutes,
+            applications: selection
+        )
+        if !wouldBeViable, current.pressureLevel != "Off" {
+            showPressureOffRequiredAlert = true
+            return false
+        }
+
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
-        
+
         var settings = userSettingsManager.userSettings
-        
-        // Capture whether selection changed (simple proxy comparing tokens)
-        let old = settings.applications
+
+        let oldApps = settings.applications
         let appsChanged =
-            old.applicationTokens != selection.applicationTokens ||
-            old.categoryTokens != selection.categoryTokens
-        
+            oldApps.applicationTokens != selection.applicationTokens ||
+            oldApps.categoryTokens != selection.categoryTokens
+
+        let oldTotalSec = settings.thresholdHour * 3600 + settings.thresholdMinutes * 60
+        let newTotalSec = draftThresholdHour * 3600 + draftThresholdMinutes * 60
+        let limitIncreased = newTotalSec > oldTotalSec
+
         print("AppLimitsView.saveToFirebase: will persist \(selection.applicationTokens.count) application tokens.")
         for token in selection.applicationTokens {
             print("Selected token:", token)
         }
-        
-        // Reset streak if app selection changed or streak was never started.
+
         if appsChanged || settings.startDailyStreakDate == nil {
             print("Streak start date reset due to app selection change")
             settings.startDailyStreakDate = Date()
+        } else if limitIncreased {
+            // Previously applied when confirming TimeLimit sheet; now tied to Save Settings.
+            settings.startDailyStreakDate = Date()
         }
 
-        // Save updated selection & stats to Firestore.
         settings.applications = selection
+        settings.thresholdHour = draftThresholdHour
+        settings.thresholdMinutes = draftThresholdMinutes
         userSettingsManager.saveSettings(settings)
+        return true
     }
 
-    /// Read-only label for the current saved daily limit (e.g. "2h 30m").
+    /// Label for the **draft** daily limit (matches unsaved app selection until Save).
     private var timeLimitDisplayText: String {
-        let h = userSettingsManager.userSettings.thresholdHour
-        let m = userSettingsManager.userSettings.thresholdMinutes
+        let h = draftThresholdHour
+        let m = draftThresholdMinutes
         if h == 0 && m == 0 {
             return "Not set"
         }

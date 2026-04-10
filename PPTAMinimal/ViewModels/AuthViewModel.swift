@@ -97,9 +97,11 @@ class AuthViewModel: ObservableObject {
         let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: normalized, fcmToken: nil)
         try await userRepository.saveUser(newUser)
         
+        // New users: Off pressure, 0h 0m limit, no apps (see UserSettings init defaults).
         let defaultSettings = UserSettings(
-            thresholdHour: 1,
+            thresholdHour: 0,
             thresholdMinutes: 0,
+            pressureLevel: "Off",
             onboardingCompleted: false,
             peerCoaches: []
         )
