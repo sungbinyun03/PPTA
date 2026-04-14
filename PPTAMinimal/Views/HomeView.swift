@@ -134,7 +134,12 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $isReportViewPresented) {
-            ReportView()
+            NavigationStack {
+                ReportView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+                    .presentationDragIndicator(.visible)
+            }
         }
     }
     
