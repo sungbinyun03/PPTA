@@ -43,18 +43,12 @@ struct TabNavigator: View {
                     Text("Home")
                 }
                 .tag(0)
-            StatusCenterView()
-                .tabItem {
-                    Image(systemName: "chart.bar.xaxis.ascending")
-                    Text("Status")
-                }
-                .tag(1)
             FriendsView()
                 .tabItem {
                     Image(systemName: "figure.2")
                     Text("Friends")
                 }
-                .tag(2)
+                .tag(1)
         }
         .environmentObject(roleInbox)
         .overlay(alignment: .top) {
