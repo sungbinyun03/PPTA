@@ -31,6 +31,15 @@ struct HomeView: View {
                     if userSettingsManager.userSettings.pressureLevel == PressureLevel.off {
                         PressureOffHomeCardView()
                     }
+                    if userSettingsManager.userSettings.traineeIds.isEmpty
+                        && userSettingsManager.userSettings.trainees.isEmpty {
+                        NoTraineesHomeCardView()
+                    }
+                    if userSettingsManager.userSettings.coachIds.isEmpty
+                        && userSettingsManager.userSettings.coaches.isEmpty
+                    {
+                        NoCoachesHomeCardView()
+                    }
                     DashboardView()
                     StreakBannerView()
                     reportSection
