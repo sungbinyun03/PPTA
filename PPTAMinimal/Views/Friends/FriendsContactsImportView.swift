@@ -26,6 +26,7 @@ struct FriendsContactsImportView: View {
     @State private var errorMessage: String? = nil
 
     private let firestoreService = FirestoreService()
+    private let primaryColor = Color("primaryColor")
 
     var body: some View {
         NavigationStack {
@@ -33,63 +34,67 @@ struct FriendsContactsImportView: View {
                 if isLoading {
                     VStack(spacing: 12) {
                         ProgressView()
+                            .tint(primaryColor)
                         Text("Scanning your contacts…")
+                            .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        if let errorMessage {
-                            Section {
+                    ScrollView {
+                        VStack(spacing: 24) {
+
+                            if let errorMessage {
                                 Text(errorMessage)
                                     .foregroundColor(.red)
                                     .font(.footnote)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 20)
                             }
-                        }
 
-                        if !onApp.isEmpty {
-                            Section("On Peer Pressure") {
-                                ForEach(onApp) { item in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(item.displayName)
-                                            Text(item.user.email)
-                                                .font(.footnote)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                        trailingAction(for: item)
+                            // MARK: On App
+                            if !onApp.isEmpty {
+                                sectionBlock(title: "On Peer Pressure") {
+                                    ForEach(onApp) { item in
+                                        contactRow(
+                                            name: item.displayName,
+                                            detail: item.contact.primaryPhone,
+                                            trailing: { trailingAction(for: item) }
+                                        )
                                     }
                                 }
                             }
-                        }
 
-                        Section("Invite to Peer Pressure") {
-                            if invite.isEmpty {
-                                Text("No other contacts found with phone numbers.")
-                                    .foregroundColor(.secondary)
-                            } else {
-                                ForEach(invite) { c in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(c.displayName)
-                                            if let phone = c.primaryPhone {
-                                                Text(phone)
-                                                    .font(.footnote)
+                            // MARK: Invite
+                            sectionBlock(title: "Invite to Peer Pressure") {
+                                if invite.isEmpty {
+                                    Text("No other contacts found with phone numbers.")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.vertical, 20)
+                                } else {
+                                    ForEach(invite) { c in
+                                        contactRow(
+                                            name: c.displayName,
+                                            detail: c.primaryPhone,
+                                            trailing: {
+                                                Button("Invite") { presentInvite(for: c) }
+                                                    .font(.system(size: 13, weight: .medium))
                                                     .foregroundColor(.secondary)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 7)
+                                                    .background(Color(.systemGray5))
+                                                    .clipShape(Capsule())
                                             }
-                                        }
-                                        Spacer()
-                                        Button("Invite") {
-                                            presentInvite(for: c)
-                                        }
-                                        .buttonStyle(.bordered)
+                                        )
                                     }
                                 }
                             }
                         }
+                        .padding(.top, 16)
+                        .padding(.bottom, 32)
                     }
-                    .listStyle(.insetGrouped)
                 }
             }
             .navigationTitle("Add from Contacts")
@@ -97,6 +102,7 @@ struct FriendsContactsImportView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
+                        .foregroundColor(primaryColor)
                 }
             }
             .onAppear {
@@ -111,11 +117,9 @@ struct FriendsContactsImportView: View {
             }
             .alert("Messages Unavailable", isPresented: $showCannotSendMessageAlert) {
                 Button("OK", role: .cancel) { }
-                Button("Share Instead") {
-                    showShareSheet = true
-                }
+                Button("Share Instead") { showShareSheet = true }
             } message: {
-                Text("This device can’t send text messages. You can still share an invite another way.")
+                Text("This device can't send text messages. You can still share an invite another way.")
             }
             .sheet(isPresented: $showShareSheet) {
                 ShareSheet(items: shareItems)
@@ -126,56 +130,125 @@ struct FriendsContactsImportView: View {
         }
     }
 
-    // MARK: - Friendship state helpers (drive Add/Sent/Accept/Friends buttons)
+    // MARK: - Section builder
 
+    @ViewBuilder
+    private func sectionBlock<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(primaryColor.opacity(0.6))
+                .padding(.horizontal, 20)
+
+            VStack(spacing: 8) {
+                content()
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    // MARK: - Contact row
+
+    @ViewBuilder
+    private func contactRow<Trailing: View>(
+        name: String,
+        detail: String?,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: 12) {
+            initialsCircle(name: name, size: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            trailing()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(primaryColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    // MARK: - Trailing action (friendship state-driven)
+
+    @ViewBuilder
     private func trailingAction(for item: RegisteredContact) -> some View {
         let uid = item.user.id
 
         if let incoming = friendsVM.incomingRequests.first(where: { $0.user.id == uid }) {
-            return AnyView(
-                Button("Accept") {
-                    Task {
-                        await friendsVM.accept(incoming.friendship.id)
-                        await refreshFriendshipState()
-                    }
+            Button("Accept") {
+                Task {
+                    await friendsVM.accept(incoming.friendship.id)
+                    await refreshFriendshipState()
                 }
-                .buttonStyle(.borderedProminent)
-            )
-        }
-
-        if friendsVM.friends.contains(where: { $0.id == uid }) {
-            return AnyView(
-                Text("Friends")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemGray5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            )
-        }
-
-        if friendsVM.outgoingRequests.contains(where: { $0.user.id == uid }) {
-            return AnyView(
-                Text("Sent")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemGray5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            )
-        }
-
-        return AnyView(
+            }
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(primaryColor)
+            .clipShape(Capsule())
+        } else if friendsVM.friends.contains(where: { $0.id == uid }) {
+            Text("Friends")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color(.systemGray5))
+                .clipShape(Capsule())
+        } else if friendsVM.outgoingRequests.contains(where: { $0.user.id == uid }) {
+            Text("Sent")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color(.systemGray5))
+                .clipShape(Capsule())
+        } else {
             Button("Add") {
                 Task {
                     await friendsVM.addFriend(userId: uid)
                     await refreshFriendshipState()
                 }
             }
-            .buttonStyle(.borderedProminent)
-        )
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(primaryColor)
+            .clipShape(Capsule())
+        }
+    }
+
+    // MARK: - Helpers
+
+    @ViewBuilder
+    private func initialsCircle(name: String, size: CGFloat) -> some View {
+        Circle()
+            .fill(primaryColor.opacity(0.12))
+            .frame(width: size, height: size)
+            .overlay(
+                Text(initials(from: name))
+                    .font(.system(size: size * 0.35, weight: .semibold))
+                    .foregroundColor(primaryColor)
+            )
+    }
+
+    private func initials(from name: String) -> String {
+        let parts = name.split(separator: " ")
+        let first = parts.first?.first.map(String.init) ?? ""
+        let last = parts.dropFirst().first?.first.map(String.init) ?? ""
+        return (first + last).uppercased()
     }
 
     @MainActor
@@ -249,7 +322,6 @@ struct FriendsContactsImportView: View {
                     }
                 }
 
-                // Pre-lookup against Firebase to identify registered users in this contact list.
                 firestoreService.fetchUsersByAnyPhoneNumbers(phoneNumbers: phoneNumbers) { users in
                     let currentUserId = friendsVM.currentUserId
 
@@ -298,28 +370,18 @@ struct FriendsContactsImportView: View {
     // MARK: - Invite
 
     private func presentInvite(for contact: ContactRow) {
-        let text = "Join me on Peer Pressure — let’s keep each other accountable."
+        let text = "Join me on Peer Pressure — let's keep each other accountable."
         shareItems = [text]
 
         guard let phone = contact.primaryPhone else {
-            print("FriendsContactsImportView.presentInvite: no phone for contact \(contact.displayName); falling back to ShareSheet")
             showShareSheet = true
             return
         }
 
         let sanitized = sanitizePhoneForMessaging(phone)
-        print("FriendsContactsImportView.presentInvite:")
-        print("  contact=\(contact.displayName)")
-        print("  rawPhone=\(phone)")
-        print("  sanitizedPhone=\(sanitized)")
-        print("  canSendText=\(MFMessageComposeViewController.canSendText())")
 
-        // Prefer an SMS composer with pre-filled recipient and body.
         if MFMessageComposeViewController.canSendText() {
-            let draft = MessageDraft(recipients: [sanitized], body: text)
-            print("  setting messageDraft.recipients=\(draft.recipients)")
-            print("  setting messageDraft.body=\(draft.body)")
-            messageDraft = draft
+            messageDraft = MessageDraft(recipients: [sanitized], body: text)
         } else {
             showCannotSendMessageAlert = true
         }
@@ -331,12 +393,9 @@ struct FriendsContactsImportView: View {
     }
 
     private func sanitizePhoneForMessaging(_ phone: String) -> String {
-        // MFMessageCompose is fairly permissive, but removing punctuation makes To: more reliable.
         let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
     }
-
-    // MARK: - Phone normalization (must match FirestoreService logic)
 
     private func normalizePhoneNumber(_ phoneNumber: String) -> String {
         var normalized = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
@@ -379,5 +438,3 @@ struct RegisteredContact: Identifiable {
 
     var displayName: String { contact.displayName }
 }
-
-

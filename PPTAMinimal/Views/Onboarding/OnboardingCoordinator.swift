@@ -9,7 +9,6 @@ import SwiftUI
 
 enum OnboardingStep {
     case welcome
-    case signInOrSignUp
     case createProfile
     case enableTracking
     case enableNotifications
@@ -20,12 +19,10 @@ enum OnboardingStep {
 class OnboardingCoordinator: ObservableObject {
     @Published var currentStep: OnboardingStep = .welcome
     @Published var onboardingComplete: Bool = false
-    
+
     func advance() {
         switch currentStep {
         case .welcome:
-            currentStep = .signInOrSignUp
-        case .signInOrSignUp:
             currentStep = .createProfile
         case .createProfile:
             currentStep = .enableTracking
@@ -40,15 +37,13 @@ class OnboardingCoordinator: ObservableObject {
             break
         }
     }
-    
+
     func goBack() {
         switch currentStep {
         case .welcome:
-            break // Already at first step
-        case .signInOrSignUp:
-            currentStep = .welcome
+            break
         case .createProfile:
-            currentStep = .signInOrSignUp
+            currentStep = .welcome
         case .enableTracking:
             currentStep = .createProfile
         case .enableNotifications:
@@ -59,13 +54,13 @@ class OnboardingCoordinator: ObservableObject {
             break
         }
     }
-    
+
     private func completeOnboarding() {
         onboardingComplete = true
         // Note: Per-user key is set by OnboardingContainerView (has access to uid).
         UserDefaults.standard.set(true, forKey: "onboardingComplete")
     }
-    
+
     func skipToMainApp() {
         completeOnboarding()
     }

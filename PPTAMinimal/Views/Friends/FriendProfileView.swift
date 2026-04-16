@@ -17,358 +17,267 @@ enum FriendProfileStatus {
 
 struct FriendProfileView: View {
     // MARK: - Properties
-    /// The friend's name
     let name: String
-    
-    /// The friendship status between current user and this person
     let friendshipStatus: FriendProfileStatus
-    
-    /// Whether this person is a trainee
     let isTrainee: Bool
-    
-    /// Whether this person is a coach
     let isCoach: Bool
-    
-    /// Optional profile picture URL (if nil, shows initials)
     let profilePicUrl: String?
-    
-    // MARK: - Trainee stats (from their UserSettings)
+
+    // MARK: - Trainee stats
     let traineeStatus: TraineeStatus
     let streakDays: Int
     let timeLimitMinutes: Int
     let pressureLevel: PressureLevel
-    
-    /// If non-nil, shows a prominent unlock CTA for coaches.
+
     let unlockURL: URL?
 
-    // MARK: - Role request / relationship actions (driven by backend)
+    // MARK: - Role request / relationship actions
     let coachAction: FriendProfileViewModel.ActionConfig
     let traineeAction: FriendProfileViewModel.ActionConfig
     let onCoachPrimary: () -> Void
     let onCoachSecondary: () -> Void
     let onTraineePrimary: () -> Void
     let onTraineeSecondary: () -> Void
-    
-    /// Environment value to dismiss the modal
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    
-    // MARK: - Computed Properties
-    /// Random emoji for "Potential Friend" role (selected based on name hash for consistency)
+
+    private let primaryColor = Color("primaryColor")
+
+    // MARK: - Computed
+
     private var potentialFriendEmoji: String {
         let emojis = ["🧐", "😎", "🥸", "🤓"]
-        // Use name hash to deterministically select an emoji (consistent for same person)
         let index = abs(name.hashValue) % emojis.count
         return emojis[index]
     }
-    
-    /// Determines the role string to display based on the relationship flags
-    /// Handles combinations: "Coach and Trainee", "Coach", "Trainee", "Friend", or friendship status messages
+
     private var role: String {
-        // First check friendship status for special messages
         switch friendshipStatus {
-        case .requestSent:
-            return "Friend Request sent!"
-        case .requestReceived:
-            return "Friend Request Received!"
-        case .notFriend:
-            return "Potential Friend? \(potentialFriendEmoji)"
+        case .requestSent:     return "Friend request sent"
+        case .requestReceived: return "Friend request received"
+        case .notFriend:       return "Potential friend \(potentialFriendEmoji)"
         case .isFriend:
-            // If they are friends, show coach/trainee status
-            if isCoach && isTrainee {
-                return "Coach and Trainee"
-            } else if isCoach {
-                return "Coach"
-            } else if isTrainee {
-                return "Trainee"
-            } else {
-                return "Friend"
-            }
+            if isCoach && isTrainee { return "Coach & Trainee" }
+            else if isCoach         { return "Coach" }
+            else if isTrainee       { return "Trainee" }
+            else                    { return "Friend" }
         }
     }
-    
-    /// Calculates initials from the name
+
     private var initials: String {
         let formatter = PersonNameComponentsFormatter()
         if let components = formatter.personNameComponents(from: name) {
             formatter.style = .abbreviated
             return formatter.string(from: components)
         }
-        // Fallback: take first letter of first and last name
         let parts = name.split(separator: " ")
         let first = parts.first?.first.map(String.init) ?? ""
         let last = parts.dropFirst().first?.first.map(String.init) ?? ""
         return (first + last).uppercased()
     }
-    
+
     // MARK: - Body
+
     var body: some View {
         ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-            
+            Color(.systemBackground).ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Top section with close button
+                // Close button row
                 HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
+                    Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.secondary)
                             .frame(width: 30, height: 30)
+                            .background(primaryColor.opacity(0.1))
+                            .clipShape(Circle())
                     }
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
-                
+
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Profile picture, name, and role section
-                        VStack(spacing: 12) {
-                            // Profile picture (image if available, otherwise initials)
-                            if let profilePicUrl = profilePicUrl, let url = URL(string: profilePicUrl) {
+
+                        // MARK: Avatar + name + role
+                        VStack(spacing: 10) {
+                            if let profilePicUrl, let url = URL(string: profilePicUrl) {
                                 AsyncImage(url: url) { phase in
                                     switch phase {
                                     case .success(let image):
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    case .failure(_), .empty:
-                                        // Fallback to initials if image fails to load
-                                        Circle()
-                                            .fill(Color(.tertiarySystemFill))
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                Text(initials)
-                                                    .font(.system(size: 32, weight: .semibold))
-                                                    .foregroundColor(.primary)
-                                            )
-                                    @unknown default:
-                                        Circle()
-                                            .fill(Color(.tertiarySystemFill))
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                Text(initials)
-                                                    .font(.system(size: 32, weight: .semibold))
-                                                    .foregroundColor(.primary)
-                                            )
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    default:
+                                        avatarFallback
                                     }
                                 }
                                 .frame(width: 80, height: 80)
                                 .clipShape(Circle())
                             } else {
-                                // Show initials if no profile picture URL
-                                Circle()
-                                    .fill(Color(.tertiarySystemFill))
-                                    .frame(width: 80, height: 80)
-                                    .overlay(
-                                        Text(initials)
-                                            .font(.system(size: 32, weight: .semibold))
-                                            .foregroundColor(.primary)
-                                    )
+                                avatarFallback
                             }
-                            
-                            // Name and role
+
                             Text(name)
-                                .font(.system(size: 24, weight: .bold))
+                                .font(.system(size: 22, weight: .semibold))
                                 .foregroundColor(.primary)
-                            
+
                             Text(role)
-                                .font(.system(size: 16))
+                                .font(.system(size: 14))
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.top, 8)
-                        
-                        // Coach CTA: Release / Unlock
+                        .padding(.top, 4)
+
+                        // MARK: Unlock CTA (coach action when trainee is locked/attention)
                         if let unlockURL {
-                            Button {
-                                openURL(unlockURL)
-                            } label: {
+                            Button { openURL(unlockURL) } label: {
                                 HStack {
                                     Text(traineeStatus == .attentionNeeded ? "Preemptively Release" : "Release")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(.system(size: 15, weight: .semibold))
                                     Spacer()
-                                    Image(systemName: "arrow.up.right.square")
+                                    Image(systemName: "lock.open")
                                 }
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(Color("primaryButtonColor"))
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .padding(.vertical, 13)
+                                .background(primaryColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
                             .padding(.horizontal, 20)
                         }
-                        
-                        // Status / stats summary
-                        VStack(alignment: .leading, spacing: 10) {
+
+                        // MARK: Stats card
+                        VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Status")
                                     .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.primary)
                                 Spacer()
                                 statusPill
                             }
-                            
-                            Divider().opacity(0.4)
-                            
-                            HStack {
-                                Text("Daily limit")
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text("\(timeLimitMinutes) min")
-                                    .fontWeight(.semibold)
-                            }
-                            
-                            HStack {
-                                Text("Pressure level")
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text(pressureLevel.rawValue)
-                                    .fontWeight(.semibold)
-                            }
-                            
-                            HStack {
-                                Text("Streak")
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text("\(streakDays) days")
-                                    .fontWeight(.semibold)
-                            }
+
+                            Divider().opacity(0.3)
+
+                            statRow(label: "Daily limit", value: "\(timeLimitMinutes) min")
+                            statRow(label: "Pressure", value: pressureLevel.rawValue)
+                            statRow(label: "Streak", value: "\(streakDays) days")
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(.separator), lineWidth: 1)
-                        )
+                        .padding(.vertical, 14)
+                        .background(primaryColor.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .padding(.horizontal, 20)
-                        
-                        // Action buttons section
-                        VStack(spacing: 12) {
-                            // Request/Remove as Coach button
-                            // Enabled only if they are a friend, otherwise disabled
-                            Button(action: onCoachPrimary) {
-                                HStack {
-                                    Text(coachAction.title)
-                                        .font(.system(size: 16, weight: .medium))
-                                    Spacer()
-                                }
-                                .foregroundColor(friendshipStatus == .isFriend
-                                                 ? (coachAction.isDestructive ? .red : (coachAction.enabled ? .primary : .secondary))
-                                                 : .secondary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(friendshipStatus == .isFriend ? Color(.secondarySystemBackground) : Color(.tertiarySystemBackground))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color(.separator), lineWidth: 1)
-                                        )
-                                )
-                            }
-                            .disabled(friendshipStatus != .isFriend || !coachAction.enabled)
+
+                        // MARK: Action buttons
+                        VStack(spacing: 10) {
+                            actionButton(
+                                title: coachAction.title,
+                                isDestructive: coachAction.isDestructive,
+                                enabled: friendshipStatus == .isFriend && coachAction.enabled,
+                                action: onCoachPrimary
+                            )
 
                             if let secondary = coachAction.secondaryTitle {
-                                Button(action: onCoachSecondary) {
-                                    HStack {
-                                        Text(secondary)
-                                            .font(.system(size: 16, weight: .medium))
-                                        Spacer()
-                                    }
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(.secondarySystemBackground))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color(.separator), lineWidth: 1)
-                                            )
-                                    )
-                                }
-                                .disabled(friendshipStatus != .isFriend || !coachAction.secondaryEnabled)
-                            }
-                            
-                            // Request/Remove as Trainee button
-                            // Enabled only if they are a friend, otherwise disabled
-                            Button(action: onTraineePrimary) {
-                                HStack {
-                                    Text(traineeAction.title)
-                                        .font(.system(size: 16, weight: .medium))
-                                    Spacer()
-                                }
-                                .foregroundColor(friendshipStatus == .isFriend
-                                                 ? (traineeAction.isDestructive ? .red : (traineeAction.enabled ? .primary : .secondary))
-                                                 : .secondary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(friendshipStatus == .isFriend ? Color(.secondarySystemBackground) : Color(.tertiarySystemBackground))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color(.separator), lineWidth: 1)
-                                        )
+                                actionButton(
+                                    title: secondary,
+                                    isDestructive: false,
+                                    enabled: friendshipStatus == .isFriend && coachAction.secondaryEnabled,
+                                    action: onCoachSecondary
                                 )
                             }
-                            .disabled(friendshipStatus != .isFriend || !traineeAction.enabled)
+
+                            actionButton(
+                                title: traineeAction.title,
+                                isDestructive: traineeAction.isDestructive,
+                                enabled: friendshipStatus == .isFriend && traineeAction.enabled,
+                                action: onTraineePrimary
+                            )
 
                             if let secondary = traineeAction.secondaryTitle {
-                                Button(action: onTraineeSecondary) {
-                                    HStack {
-                                        Text(secondary)
-                                            .font(.system(size: 16, weight: .medium))
-                                        Spacer()
-                                    }
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(.secondarySystemBackground))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color(.separator), lineWidth: 1)
-                                            )
-                                    )
-                                }
-                                .disabled(friendshipStatus != .isFriend || !traineeAction.secondaryEnabled)
+                                actionButton(
+                                    title: secondary,
+                                    isDestructive: false,
+                                    enabled: friendshipStatus == .isFriend && traineeAction.secondaryEnabled,
+                                    action: onTraineeSecondary
+                                )
                             }
                         }
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 24)
                     }
                 }
             }
         }
     }
-    
+
+    // MARK: - Sub-views
+
+    private var avatarFallback: some View {
+        Circle()
+            .fill(primaryColor.opacity(0.12))
+            .frame(width: 80, height: 80)
+            .overlay(
+                Text(initials)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(primaryColor)
+            )
+    }
+
     private var statusPill: some View {
         let (text, color): (String, Color) = {
             switch traineeStatus {
-            case .allClear: return ("All clear", .green)
-            case .attentionNeeded: return ("Attention needed", .red)
-            case .cutOff: return ("Cut off", Color(white: 0.25))
-            case .noStatus: return ("No status", .gray)
+            case .allClear:        return ("All clear", .green)
+            case .attentionNeeded: return ("Attention needed", .orange)
+            case .cutOff:          return ("Cut off", Color(white: 0.35))
+            case .noStatus:        return ("No status", .secondary)
             }
         }()
-        
         return Text(text)
             .font(.system(size: 12, weight: .semibold))
             .foregroundColor(color)
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(color.opacity(0.12))
+            .padding(.vertical, 5)
+            .background(color.opacity(0.1))
             .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private func statRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.primary)
+        }
+    }
+
+    @ViewBuilder
+    private func actionButton(title: String, isDestructive: Bool, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 15, weight: .medium))
+                Spacer()
+            }
+            .foregroundColor(
+                !enabled ? .secondary :
+                isDestructive ? .red :
+                primaryColor
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+            .background(enabled ? primaryColor.opacity(0.1) : primaryColor.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .disabled(!enabled)
     }
 }
 
 #Preview {
-    // Sample data similar to StatusCenterView style
-    // Example showing "Potential Friend" (not a friend yet)
     FriendProfileView(
         name: "Sungbin Yun",
         friendshipStatus: .isFriend,
@@ -378,7 +287,7 @@ struct FriendProfileView: View {
         traineeStatus: .attentionNeeded,
         streakDays: 6,
         timeLimitMinutes: 90,
-        pressureLevel: PressureLevel.standard,
+        pressureLevel: .standard,
         unlockURL: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),

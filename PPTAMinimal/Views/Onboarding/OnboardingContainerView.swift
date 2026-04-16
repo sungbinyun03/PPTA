@@ -20,8 +20,6 @@ struct OnboardingContainerView: View {
                 switch coordinator.currentStep {
                 case .welcome:
                     WelcomeView(coordinator: coordinator)
-                case .signInOrSignUp:
-                    SignInOrSignUpView(coordinator: coordinator)
                 case .createProfile:
                     CreateProfileView(coordinator: coordinator)
                 case .enableTracking:
@@ -81,6 +79,7 @@ struct OnboardingContainerView: View {
         .sheet(isPresented: $showPhoneVerificationSheet) {
             PhoneVerificationView()
                 .environmentObject(authViewModel)
+                .interactiveDismissDisabled(true)
         }
         .onChange(of: coordinator.currentStep) { _, step in
             if step == .completed, let uid = authViewModel.userSession?.uid {

@@ -1,178 +1,80 @@
 import SwiftUI
-import GoogleSignIn
-import GoogleSignInSwift
-import _AuthenticationServices_SwiftUI
-import FirebaseAuth
+import AuthenticationServices
 
 struct LoginView: View {
-    @State private var emailOrPhone = ""
-    @State private var password = ""
-    @State private var showingAppleSignIn = false
-    @State private var errorMessage = ""
     @EnvironmentObject var viewModel: AuthViewModel
-    
+    @State private var showingAppleSignIn = false
+
     private let primaryColor = Color("primaryColor")
-    private let backgroundColor = Color(UIColor.systemBackground)
-    private let textFieldBackground = Color("backgroundGray")
-    
+    private let backgroundGray = Color("backgroundGray")
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sign in")
-                    .font(.title)
-                    .fontWeight(.medium)
-                    .foregroundColor(primaryColor)
-                
-                Text("Welcome back")
-                    .font(.subheadline)
-                    .foregroundColor(primaryColor)
-            }
-            .padding(.top, 20)
-            
-            // Form fields
-            VStack(alignment: .leading, spacing: 20) {
-                InputView(text: $emailOrPhone, title: "Email or phone number", placeholder: "name@example.com or (555) 123-4567")
-                
-                // Password field
-                InputView(text: $password, title: "Password", placeholder: "********", isSecureField: true)
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-                
-                // Forgot password
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        // Forgot password action
-                    }) {
-                        Text("Forgot password?")
-                            .font(.caption)
-                            .foregroundColor(primaryColor)
-                    }
-                }
-                
-                // Divider
-                HStack {
-                    VStack { Divider() }
-                    Text("or")
-                        .font(.footnote)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    VStack { Divider() }
-                }
-                .padding(.vertical, 8)
-                
-                // Auth buttons
-                HStack(spacing: 20) {
-                    Spacer()
-                    
-                    // Google button
-                    Button(action: {
-                        Task {
-                            await viewModel.signInWithGoogle()
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(textFieldBackground)
-                                .frame(width: 60, height: 60)
-                            
-                            Text("G")
-                                .font(.title2)
-                                .fontWeight(.black)
-                                .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.2))
-                        }
-                    }
-                    
-                    // Apple button
-                    Button(action: {
-                        showingAppleSignIn = true
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(textFieldBackground)
-                                .frame(width: 60, height: 60)
-                            
-                            Image(systemName: "apple.logo")
-                                .font(.title2)
-                                .foregroundColor(.black)
-                        }
-                    }
-                    .sheet(isPresented: $showingAppleSignIn) {
-                        AppleSignInButton()
-                            .environmentObject(viewModel)
-                    }
-                    
-                    Spacer()
-                }
-                
-                // Sign Up
-                HStack {
-                    Spacer()
-                    
-                    Text("Don't have an account?")
-                        .foregroundColor(.secondary)
-                    
-                    NavigationLink {
-                        RegistrationView()
-                            .environmentObject(viewModel)
-                    } label: {
-                        Text("Sign up")
-                            .fontWeight(.medium)
-                            .foregroundColor(primaryColor)
-                    }
-                    
-                    Spacer()
-                }
-                .font(.caption)
-                .padding(.top)
-            }
-            
+        VStack(spacing: 0) {
             Spacer()
-            
-            // Sign In button
-            Button(action: {
-                Task {
-                    do {
-                        try await viewModel.signIn(phoneOrEmail: emailOrPhone, password: password)
-                    } catch {
-                        errorMessage = AuthViewModel.userFacingMessage(for: error)
+
+            // Branding
+            VStack(spacing: 8) {
+                Text("PPTA")
+                    .font(.system(size: 52, weight: .bold))
+                    .foregroundColor(primaryColor)
+                Text("Peer Pressure The App")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Sign-in buttons
+            VStack(spacing: 12) {
+                // Google
+                Button {
+                    Task { await viewModel.signInWithGoogle() }
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("G")
+                            .font(.title3)
+                            .fontWeight(.black)
+                            .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.2))
+                        Text("Continue with Google")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(backgroundGray)
+                    .cornerRadius(12)
                 }
-            }) {
-                Text("Sign In")
-                    .font(.headline)
-                    .fontWeight(.medium)
+
+                // Apple
+                Button {
+                    showingAppleSignIn = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "apple.logo")
+                            .font(.title3)
+                        Text("Continue with Apple")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                    }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(formIsValid ? primaryColor : Color.gray)
-                    .cornerRadius(10)
+                    .background(Color.black)
+                    .cornerRadius(12)
+                }
+                .sheet(isPresented: $showingAppleSignIn) {
+                    AppleSignInButton()
+                        .environmentObject(viewModel)
+                }
             }
-            .disabled(!formIsValid)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
         }
-        .onChange(of: emailOrPhone) { errorMessage = "" }
-        .onChange(of: password) { errorMessage = "" }
-        .background(backgroundColor)
-        .padding(.horizontal)
-        .padding(.bottom, 20)
-    }
-    
-    var formIsValid: Bool {
-        let trimmed = emailOrPhone.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isEmail = trimmed.contains("@")
-        let digits = emailOrPhone.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-        let isPhone = digits.count >= 10
-        return (isEmail || isPhone) && !password.isEmpty && password.count > 5
     }
 }
 
 #Preview {
-    NavigationView {
-        LoginView()
-            .environmentObject(AuthViewModel())
-    }
+    LoginView()
+        .environmentObject(AuthViewModel())
 }
