@@ -13,17 +13,20 @@ struct TraineeCellView: View {
     private var profilePicUrl: String?
 
     var onRelease: (() -> Void)? = nil
+    var onLock: (() -> Void)? = nil
 
     init(
         name: String,
         status: TraineeStatus,
         profilePicUrl: String? = nil,
-        onRelease: (() -> Void)? = nil
+        onRelease: (() -> Void)? = nil,
+        onLock: (() -> Void)? = nil
     ) {
         self.name = name
         self.status = status
         self.profilePicUrl = profilePicUrl
         self.onRelease = onRelease
+        self.onLock = onLock
     }
 
     var body: some View {
@@ -61,6 +64,17 @@ struct TraineeCellView: View {
                 
                 // Bottom row: buttons
                 HStack(spacing: 10) {
+                    Button(action: { if canLock { onLock?() } }) {
+                        Text("Lock")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .foregroundColor(lockTextColor)
+                            .background(lockBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .disabled(!canLock)
+
                     Button(action: { if canRelease { onRelease?() } }) {
                         Text("Release")
                             .font(.system(size: 14, weight: .semibold))
@@ -89,8 +103,11 @@ struct TraineeCellView: View {
     }
 
     // MARK: - Buttons state and appearance
+    private var canLock: Bool { status == .attentionNeeded }
     private var canRelease: Bool { status == .cutOff }
 
+    private var lockBackground: Color { canLock ? Color.orange : Color(.systemGray5) }
+    private var lockTextColor: Color { canLock ? .white : Color(.gray) }
     private var releaseBackground: Color { canRelease ? Color("primaryButtonColor") : Color(.systemGray5) }
     private var releaseTextColor: Color { canRelease ? .white : Color(.gray) }
 }

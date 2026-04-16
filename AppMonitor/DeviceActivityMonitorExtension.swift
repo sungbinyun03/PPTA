@@ -19,8 +19,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     /// to stay consistent with the existing `UnlockService` implementation.
     private static let sharedSecret = "a282b15352ee133e244ee5be0a2e3b9fa11b5503b6f22b1a92b57806a412122e"
     
-    /// TODO: Set this to the deployed `statusUpdate` Cloud Run URL.
-    /// This should be a separate function/service from unlockApp (recommended).
+    /// Deployed `statusUpdate` Cloud Run URL.
     private static let statusUpdateURL = URL(string: "https://statusupdate-538124351649.us-central1.run.app")!
 
     override func intervalDidStart(for activity: DeviceActivityName) {
@@ -54,12 +53,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // - Off: no shielding (just status updates)
             // - Standard / Hardcore: shield selected apps
             switch settings.pressureLevel {
-            case PressureLevel.off:
-                break
-            case PressureLevel.standard:
-                // TODO: When threshold is hit in Standard mode, send a notification to coaches (e.g. push or backend hook) so they know the trainee hit their limit—coordinate with existing `sendStatusUpdate` / FCM if needed.
-                store.shield.applications = settings.applications.applicationTokens
-            case PressureLevel.hardcore:
+            case .off:
+                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
+                return
+            case .standard:
+                // Standard mode: notify coaches, no auto-lock. Coaches decide whether to shield.
+                LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
+                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
+                return
+            case .hardcore:
                 store.shield.applications = settings.applications.applicationTokens
             }
             

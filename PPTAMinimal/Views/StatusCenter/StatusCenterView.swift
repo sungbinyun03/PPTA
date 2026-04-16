@@ -50,6 +50,11 @@ struct StatusCenterView: View {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
                                             guard let link = UnlockService.makeUnlockURL(childUID: user.id, coachUID: coachUID) else { return }
                                             UIApplication.shared.open(link)
+                                        },
+                                        onLock: {
+                                            guard let coachUID = Auth.auth().currentUser?.uid else { return }
+                                            guard let link = UnlockService.makeLockURL(childUID: user.id, coachUID: coachUID) else { return }
+                                            UIApplication.shared.open(link)
                                         }
                                     )
                                 }

@@ -70,6 +70,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
             return
         }
+
+        if
+            let type  = notification["type"] as? String, type == "lock",
+            let coach = notification["by"]   as? String
+        {
+            print("!!!! Lock notification received! Type: \(type), By: \(coach)")
+            Task { @MainActor in
+                DeviceActivityManager.shared.handleRemoteLock(from: coach)
+                completionHandler(.newData)
+            }
+            return
+        }
         
         if
             let type = notification["type"] as? String, type == "traineeStatus",

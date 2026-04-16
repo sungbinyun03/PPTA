@@ -20,7 +20,7 @@ class DeviceActivityManager {
     /// Must match backend `UNLOCK_SECRET` exactly (string bytes).
     private static let sharedSecret = "a282b15352ee133e244ee5be0a2e3b9fa11b5503b6f22b1a92b57806a412122e"
     
-    /// TODO: Set this to the deployed `statusUpdate` Cloud Run URL.
+    /// Deployed `statusUpdate` Cloud Run URL.
     private static let statusUpdateURL = URL(string: "https://statusupdate-538124351649.us-central1.run.app")!
     
     func startDeviceActivityMonitoring(
@@ -69,6 +69,22 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
     
+    @MainActor
+    func handleRemoteLock(from coach: String) {
+        let settings = LocalSettingsStore.load()
+        guard settings.isTracking else { return }
+
+        store.shield.applications = settings.applications.applicationTokens
+
+        NotificationManager.shared.sendNotification(
+            title: "Locked by \(coach)",
+            body: "Your coach locked your monitored apps."
+        )
+
+        // Best-effort: notify backend that user is now cut off.
+        sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+    }
+
     @MainActor
     func handleRemoteUnlock(from coach: String) {
         let settings = LocalSettingsStore.load()
