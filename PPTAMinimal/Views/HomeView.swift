@@ -114,15 +114,16 @@ struct HomeView: View {
                         .padding(.top, 5)
                         .padding(.bottom, 5)
                     
-                    ScrollView {
+                    Group {
                         if !previewMode {
                             ReportView()
-                                .frame(minHeight: 180, maxHeight: 220)
+                                .padding(.top, 40)
                         } else {
                             Text("Disabled during preview")
                         }
                     }
                     .frame(height: 210)
+                    .clipped()
                 }
                 .padding(.vertical, 5)
                 .frame(width: 333)

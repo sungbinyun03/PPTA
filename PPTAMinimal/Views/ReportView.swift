@@ -10,20 +10,29 @@ import FamilyControls
 import DeviceActivity
 
 struct ReportView: View {
-    private func requestScreenTimePermission() {
+    @State private var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
+    @State private var isRequestingPermission = false
+
+    private func requestScreenTimePermission() async {
         let center = AuthorizationCenter.shared
-        if center.authorizationStatus != .approved {
-            Task {
-                do {
-                    try await center.requestAuthorization(for: .individual)
-                    print("Requested FamilyControls/ScreenTime permission.")
-                } catch {
-                    print("Failed to request screen time auth: \(error)")
-                }
-            }
-        } else {
+        guard center.authorizationStatus != .approved else {
+            authorizationStatus = .approved
             print("Already approved for Screen Time.")
+            return
         }
+
+        isRequestingPermission = true
+        defer { isRequestingPermission = false }
+
+        do {
+            try await center.requestAuthorization(for: .individual)
+            print("Requested FamilyControls/ScreenTime permission.")
+        } catch {
+            print("Failed to request screen time auth: \(error)")
+        }
+
+        // Refresh the reactive state so SwiftUI re-renders this view correctly.
+        authorizationStatus = center.authorizationStatus
     }
     
     @State var context: DeviceActivityReport.Context = .init(rawValue: "Total Activity")
@@ -39,17 +48,21 @@ struct ReportView: View {
     var body: some View {
         
         VStack {
-            if AuthorizationCenter.shared.authorizationStatus == .approved {
+            if authorizationStatus == .approved {
                 DeviceActivityReport(context, filter: filter)
                     .frame(minHeight: 395)
+            } else if isRequestingPermission {
+                ProgressView("Requesting Screen Time access...")
+                    .padding()
             } else {
                 Text("Unable to load activity report. Please ensure permissions are granted.")
                     .foregroundColor(.red)
                     .padding()
             }
         }
-        .onAppear {
-            requestScreenTimePermission()
+        .task {
+            authorizationStatus = AuthorizationCenter.shared.authorizationStatus
+            await requestScreenTimePermission()
 
             // Prefer showing a report filtered to the user's selected apps/categories (when present).
             // If nothing is selected yet, we fall back to the unfiltered daily report.
