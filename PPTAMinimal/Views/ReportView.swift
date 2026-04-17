@@ -10,6 +10,7 @@ import FamilyControls
 import DeviceActivity
 
 struct ReportView: View {
+    @ObservedObject private var userSettingsManager = UserSettingsManager.shared
     @State private var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     @State private var isRequestingPermission = false
 
@@ -31,25 +32,34 @@ struct ReportView: View {
             print("Failed to request screen time auth: \(error)")
         }
 
-        // Refresh the reactive state so SwiftUI re-renders this view correctly.
         authorizationStatus = center.authorizationStatus
     }
-    
+
+    private var currentFilter: DeviceActivityFilter {
+        let selection = userSettingsManager.userSettings.applications
+        let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
+            return DeviceActivityFilter(
+                segment: .daily(during: todayInterval),
+                users: .all,
+                devices: .init([.iPhone, .iPad])
+            )
+        }
+        return DeviceActivityFilter(
+            segment: .daily(during: todayInterval),
+            users: .all,
+            devices: .init([.iPhone]),
+            applications: selection.applicationTokens,
+            categories: selection.categoryTokens
+        )
+    }
+
     @State var context: DeviceActivityReport.Context = .init(rawValue: "Total Activity")
-    @State private var selection = FamilyActivitySelection()
-    @State var filter = DeviceActivityFilter(
-        segment: .daily(
-            during: Calendar.current.dateInterval(of: .day, for: .now)!
-        ),
-        users: .all,
-        devices: .init([.iPhone, .iPad])
-    )
-    
+
     var body: some View {
-        
         VStack {
             if authorizationStatus == .approved {
-                DeviceActivityReport(context, filter: filter)
+                DeviceActivityReport(context, filter: currentFilter)
                     .frame(minHeight: 395)
             } else if isRequestingPermission {
                 ProgressView("Requesting Screen Time access...")
@@ -63,26 +73,6 @@ struct ReportView: View {
         .task {
             authorizationStatus = AuthorizationCenter.shared.authorizationStatus
             await requestScreenTimePermission()
-
-            // Prefer showing a report filtered to the user's selected apps/categories (when present).
-            // If nothing is selected yet, we fall back to the unfiltered daily report.
-            UserSettingsManager.shared.loadSettings { settings in
-                selection = settings.applications
-
-                guard !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty else {
-                    return
-                }
-
-                filter = DeviceActivityFilter(
-                    segment: .daily(
-                        during: Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-                    ),
-                    users: .all,
-                    devices: .init([.iPhone]),
-                    applications: selection.applicationTokens,
-                    categories: selection.categoryTokens
-                )
-            }
         }
     }
 }

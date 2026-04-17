@@ -7,6 +7,7 @@
 import DeviceActivity
 import SwiftUI
 import Foundation
+import FamilyControls
 
 extension DeviceActivityReport.Context {
     // If your app initializes a DeviceActivityReport with this context, then the system will use
@@ -58,6 +59,23 @@ struct TotalActivityReport: DeviceActivityReportScene {
             }
         }
         
+        // Append selected apps that had zero usage (not returned by DeviceActivity at all).
+        let seenTokens = Set(list.compactMap { $0.token })
+        struct PartialSettings: Decodable { var applications: FamilyActivitySelection }
+        if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
+           let data = suite.data(forKey: "UserSettings"),
+           let partial = try? JSONDecoder().decode(PartialSettings.self, from: data) {
+            for token in partial.applications.applicationTokens where !seenTokens.contains(token) {
+                list.append(AppDeviceActivity(
+                    id: "zero-\(token.hashValue)",
+                    displayName: "",
+                    duration: 0,
+                    numberOfPickups: 0,
+                    token: token
+                ))
+            }
+        }
+
         return ActivityReport(totalDuration: totalActivityDuration, apps: list)
     }
 }

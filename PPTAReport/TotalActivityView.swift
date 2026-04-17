@@ -41,11 +41,19 @@ struct ListRow: View {
         VStack(spacing: 4) {
             HStack(spacing: 0) {
                 if let token = eachApp.token {
-                    Label(token)
-                        .labelStyle(.iconOnly)
-                        .offset(x: -4)
+                    if eachApp.displayName.isEmpty {
+                        // Zero-activity app: system label renders both icon and name
+                        Label(token)
+                            .offset(x: -4)
+                    } else {
+                        Label(token)
+                            .labelStyle(.iconOnly)
+                            .offset(x: -4)
+                    }
                 }
-                Text(eachApp.displayName)
+                if !eachApp.displayName.isEmpty {
+                    Text(eachApp.displayName)
+                }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
 //                    HStack(spacing: 4) {
