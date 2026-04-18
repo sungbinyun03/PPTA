@@ -1,10 +1,3 @@
-//
-//  PhoneView.swift
-//  PPTAMinimal
-//
-//  Created by Sungbin Yun on 2/5/25.
-//
-
 import SwiftUI
 import FirebaseAuth
 
@@ -14,232 +7,196 @@ struct PhoneVerificationView: View {
     @State private var verificationID = ""
     @State private var isCodeSent = false
     @State private var errorMessage: String?
-    @State private var showKeyboard = false
-    @FocusState private var isTextFieldFocused: Bool
-    
+    @State private var isLoading = false
+    @FocusState private var isPhoneFocused: Bool
+    @FocusState private var isCodeFocused: Bool
+
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
-    
+
     private let primaryColor = Color("primaryColor")
-    private let backgroundColor = Color(UIColor.systemBackground)
-    private let textFieldBackground = Color("backgroundGray")
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if !isCodeSent {
-                // Phone number entry screen
-                phoneEntryView
-            } else {
-                // Verification code entry screen
-                codeEntryView
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(Color(.systemGray4))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            ScrollView {
+                if !isCodeSent {
+                    phoneEntryView
+                } else {
+                    codeEntryView
+                }
             }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, 16)
-        .background(backgroundColor)
-        .onAppear {
-            // Automatically focus the input field when view appears
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isTextFieldFocused = true
-            }
-        }
+        .background(Color(.systemBackground))
     }
-    
-    // MARK: - Phone Entry View
+
+    // MARK: - Phone Entry
+
     var phoneEntryView: some View {
-        VStack(alignment: .center, spacing: 20) {
-            Text("Phone Verification")
-                .font(.title)
-                .fontWeight(.medium)
-                .foregroundColor(primaryColor)
-                .padding(.top, 20)
-            
-            Text("Enter your phone number to verify your account")
-                .font(.subheadline)
-                .foregroundColor(primaryColor)
-                .padding(.bottom, 10)
-            
+        VStack(spacing: 24) {
+            VStack(spacing: 6) {
+                Text("Verify your number")
+                    .font(.custom("BambiBold", size: 28))
+                    .foregroundColor(primaryColor)
+                    .multilineTextAlignment(.center)
+                Text("We'll send a one-time code\nto confirm it's you.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 24)
+
             Image("onboarding-illustration-verify")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 200, height: 200)
-            
-            InputView(text: $phoneNumber, title: "Phone Number", placeholder: "(123) 456-789")
-                .borderedContainer()
-            
-            // Error message if any
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
+                .invertedForDarkMode()
+                .frame(maxHeight: 180)
+                .padding(.horizontal, 56)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Phone Number")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(primaryColor.opacity(0.6))
+                    .textCase(.uppercase)
+
+                HStack(spacing: 10) {
+                    Text("+1")
+                        .font(.body)
+                        .foregroundColor(primaryColor)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .background(primaryColor.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                    TextField("(555) 867-5309", text: $phoneNumber)
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                        .focused($isPhoneFocused)
+                        .font(.body)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .background(primaryColor.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+            .padding(.horizontal, 24)
+
+            if let msg = errorMessage {
+                Text(msg)
                     .font(.caption)
                     .foregroundColor(.red)
-                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
             }
-            
-            Spacer()
-            
-            // Send Code Button
-            Button(action: {
-                Task {
-                    await sendVerificationCode()
-                }
-            }) {
-                Text("Send Code")
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(!phoneNumber.isEmpty ? primaryColor : Color.gray)
-                    .cornerRadius(10)
+
+            PrimaryButton(
+                title: isLoading ? "Sending..." : "Send Code",
+                isDisabled: phoneNumber.isEmpty || isLoading
+            ) {
+                isPhoneFocused = false
+                Task { await sendVerificationCode() }
             }
-            .disabled(phoneNumber.isEmpty)
-            .padding(.bottom, 20)
-            
-            // Page indicators
-            HStack(spacing: 8) {
-                ForEach(0..<4) { index in
-                    Circle()
-                        .fill(index == 1 ? primaryColor : Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isPhoneFocused = true
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 20)
         }
     }
-    
-    // MARK: - Code Entry View
+
+    // MARK: - Code Entry
+
     var codeEntryView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            Text("Verification Code")
-                .font(.title)
-                .fontWeight(.medium)
-                .foregroundColor(primaryColor)
-                .padding(.top, 20)
-            
-            // Subtitle
-            Text("Please enter the verification code sent to \(formattedPhoneNumber)")
-                .font(.subheadline)
-                .foregroundColor(primaryColor)
-                .padding(.bottom, 20)
-            
-            // Hidden actual input field
+        VStack(spacing: 24) {
+            VStack(spacing: 6) {
+                Text("Enter the code")
+                    .font(.custom("BambiBold", size: 28))
+                    .foregroundColor(primaryColor)
+                    .multilineTextAlignment(.center)
+                Text("Sent to \(formattedPhoneNumber)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 24)
+
+            // Hidden real input — drives the digit boxes below
             TextField("", text: $verificationCode)
                 .keyboardType(.numberPad)
-                .focused($isTextFieldFocused)
+                .textContentType(.oneTimeCode)
+                .focused($isCodeFocused)
                 .opacity(0)
                 .frame(height: 0)
                 .onChange(of: verificationCode) { _, newValue in
-                    // Limit to 6 digits
-                    if newValue.count > 6 {
-                        verificationCode = String(newValue.prefix(6))
-                    }
-                    
-                    // Auto-verify when code is complete
-                    if newValue.count == 6 {
-                        Task {
-                            await verifyCode()
-                        }
-                    }
+                    if newValue.count > 6 { verificationCode = String(newValue.prefix(6)) }
+                    if newValue.count == 6 { Task { await verifyCode() } }
                 }
-            
-            // Verification code display fields
-            HStack(spacing: 8) {
+
+            // OTP digit boxes
+            HStack(spacing: 10) {
                 ForEach(0..<6, id: \.self) { index in
                     VerificationDigitField(index: index, code: $verificationCode)
-                        .onTapGesture {
-                            isTextFieldFocused = true
-                        }
                 }
             }
-            .padding(.vertical, 20)
-            
-            // Error message if any
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
+            .padding(.horizontal, 24)
+            .contentShape(Rectangle())
+            .onTapGesture { isCodeFocused = true }
+
+            if let msg = errorMessage {
+                Text(msg)
                     .font(.caption)
                     .foregroundColor(.red)
-                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
             }
-            
-            Spacer()
-            
-            // Verify Button
-            Button(action: {
-                Task {
-                    await verifyCode()
-                }
-            }) {
-                Text("Verify")
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(verificationCode.count == 6 ? primaryColor : Color.gray)
-                    .cornerRadius(10)
+
+            PrimaryButton(title: "Verify", isDisabled: verificationCode.count != 6) {
+                Task { await verifyCode() }
             }
-            .disabled(verificationCode.count != 6)
-            .padding(.bottom, 20)
-            
-            // Resend code button
-            Button(action: {
-                Task {
-                    verificationCode = ""
-                    await sendVerificationCode()
-                }
-            }) {
+            .padding(.horizontal, 24)
+
+            Button {
+                Task { verificationCode = ""; await sendVerificationCode() }
+            } label: {
                 Text("Resend code")
                     .font(.subheadline)
                     .foregroundColor(primaryColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
             }
-            
-            // Page indicators
-            HStack(spacing: 8) {
-                ForEach(0..<4) { index in
-                    Circle()
-                        .fill(index == 1 ? primaryColor : Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                }
+            .padding(.bottom, 40)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isCodeFocused = true
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 20)
         }
     }
-    
-    // Format phone number for display
+
+    // MARK: - Helpers
+
     var formattedPhoneNumber: String {
-        if phoneNumber.isEmpty {
-            return "(XXX) XXX-XXXX"
-        }
-        
-        // Basic formatting - in a real app, you'd want more robust formatting
         let cleaned = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-        if cleaned.count >= 10 {
-            let areaCode = cleaned.prefix(3)
-            let prefix = cleaned.dropFirst(3).prefix(3)
-            let suffix = cleaned.dropFirst(6).prefix(4)
-            return "(\(areaCode)) \(prefix)-\(suffix)"
-        }
-        return phoneNumber
+        guard cleaned.count >= 10 else { return phoneNumber }
+        return "(\(cleaned.prefix(3))) \(cleaned.dropFirst(3).prefix(3))-\(cleaned.dropFirst(6).prefix(4))"
     }
-    
-    // Send verification code
+
     private func sendVerificationCode() async {
-        // Clear any previous errors
         errorMessage = nil
-        
-        // Clean up the phone number to ensure it only contains digits
+        isLoading = true
+        defer { isLoading = false }
+
         let cleaned = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-        
         guard !cleaned.isEmpty else {
-            errorMessage = "Please enter a valid phone number"
+            errorMessage = "Please enter a valid phone number."
             return
         }
-        
-        // One phone = one account: block if already registered to another user
+
         do {
             if try await authViewModel.isPhoneNumberTaken(phoneNumber, excludingUid: authViewModel.userSession?.uid) {
                 errorMessage = "This phone number is already registered to another account."
@@ -249,90 +206,79 @@ struct PhoneVerificationView: View {
             errorMessage = AuthViewModel.userFacingMessage(for: error)
             return
         }
-        
-        let numberWithCountry = cleaned.hasPrefix("1") ? "+\(cleaned)" : "+1\(cleaned)"
-        
-        // Show loading state here if needed
-        
-        PhoneAuthProvider.provider().verifyPhoneNumber(numberWithCountry, uiDelegate: nil) { (verificationID, error) in
-            if let error = error {
-                print("Error details: \(error.localizedDescription)")
-                DispatchQueue.main.async { self.errorMessage = AuthViewModel.userFacingMessage(for: error) }
-                return
-            }
-            
-            guard let verificationID = verificationID else {
-                DispatchQueue.main.async { self.errorMessage = "Unable to send code. Please try again." }
-                return
-            }
-            
-            // Success
-            self.verificationID = verificationID
-            self.isCodeSent = true
-            
-            // Focus the code input field
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.isTextFieldFocused = true
+
+        let e164 = cleaned.hasPrefix("1") ? "+\(cleaned)" : "+1\(cleaned)"
+
+        PhoneAuthProvider.provider().verifyPhoneNumber(e164, uiDelegate: nil) { id, error in
+            DispatchQueue.main.async {
+                if let error {
+                    self.errorMessage = AuthViewModel.userFacingMessage(for: error)
+                    return
+                }
+                guard let id else {
+                    self.errorMessage = "Unable to send code. Please try again."
+                    return
+                }
+                self.verificationID = id
+                self.isCodeSent = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.isCodeFocused = true
+                }
             }
         }
     }
-    
-    // Verify the entered code
+
     private func verifyCode() async {
-        // Clear any previous errors
         errorMessage = nil
-        
-        guard verificationCode.count == 6, !verificationID.isEmpty else {
-            if verificationCode.isEmpty {
-                errorMessage = "Please enter the verification code"
-            }
-            return
-        }
-        
+        guard verificationCode.count == 6, !verificationID.isEmpty else { return }
+
         let credential = PhoneAuthProvider.provider().credential(
             withVerificationID: verificationID,
             verificationCode: verificationCode
         )
-        
-        if let currentUser = Auth.auth().currentUser {
-            do {
-                _ = try await currentUser.link(with: credential)
-                await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
-                dismiss()
-            } catch {
-                self.errorMessage = AuthViewModel.userFacingMessage(for: error)
-            }
+
+        guard let currentUser = Auth.auth().currentUser else { return }
+        do {
+            _ = try await currentUser.link(with: credential)
+            await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
+            dismiss()
+        } catch {
+            errorMessage = AuthViewModel.userFacingMessage(for: error)
         }
     }
 }
 
-// Individual digit field for verification code
+// MARK: - OTP digit box
+
 struct VerificationDigitField: View {
     let index: Int
     @Binding var code: String
-    
-    private let primaryColor = Color(red: 0.36, green: 0.42, blue: 0.26)
-    private let textFieldBackground = Color(red: 0.92, green: 0.92, blue: 0.92)
-    
+
+    private let primaryColor = Color("primaryColor")
+
+    var digit: String? {
+        guard code.count > index else { return nil }
+        return String(code[code.index(code.startIndex, offsetBy: index)])
+    }
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(textFieldBackground)
-                .frame(width: 55, height: 70)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(primaryColor.opacity(digit != nil ? 0.12 : 0.06))
+                .frame(height: 56)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(code.count > index ? primaryColor : Color.clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(digit != nil ? primaryColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
                 )
-            
-            if code.count > index {
-                let digit = String(code[code.index(code.startIndex, offsetBy: index)])
-                Text(digit)
-                    .font(.title)
-                    .fontWeight(.medium)
-                    .foregroundColor(.black)
+
+            if let d = digit {
+                Text(d)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(primaryColor)
             }
         }
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity)
     }
 }
 

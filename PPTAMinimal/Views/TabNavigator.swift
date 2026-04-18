@@ -17,20 +17,25 @@ struct TabNavigator: View {
     init(previewMode: Bool = false) {
         self.previewMode = previewMode
         
-        // Initialize tabbar appearance template
         let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(named: "secondaryColor")
-        appearance.stackedLayoutAppearance.normal.iconColor = .white
-        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(named: "primaryColor")
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+        appearance.shadowColor = UIColor.black.withAlphaComponent(0.08)
+
+        let inactive = UIColor.systemGray2
+        let active = UIColor(named: "primaryColor") ?? UIColor.systemGreen
+
+        appearance.stackedLayoutAppearance.normal.iconColor = inactive
+        appearance.stackedLayoutAppearance.selected.iconColor = active
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.white
+            .foregroundColor: inactive,
+            .font: UIFont.systemFont(ofSize: 10, weight: .medium)
         ]
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(named: "primaryColor")
+            .foregroundColor: active,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
         ]
 
-        // Assign the tabbar appearance template
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }

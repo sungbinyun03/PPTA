@@ -57,8 +57,6 @@ class OnboardingCoordinator: ObservableObject {
 
     private func completeOnboarding() {
         onboardingComplete = true
-        // Note: Per-user key is set by OnboardingContainerView (has access to uid).
-        UserDefaults.standard.set(true, forKey: "onboardingComplete")
     }
 
     func skipToMainApp() {

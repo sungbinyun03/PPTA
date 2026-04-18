@@ -1,81 +1,74 @@
-//
-//  EnableTrackingView.swift
-//  PPTAMinimal
-//
-//  Created by Jovy Zhou on 3/2/25.
-//
-
 import SwiftUI
 import FamilyControls
 
 struct EnableTrackingView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
     @State private var permissionGranted = false
-    
+
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            
-            Text("Enable Tracking")
-                .font(.largeTitle)
-                .fontWeight(.medium)
-                .foregroundColor(Color("primaryColor"))
-            
+        VStack(spacing: 0) {
             Image("onboarding-illustration-tracking")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 340, height: 250)
-            
-            Text("Allow Screentime Tracking")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(Color("primaryColor"))
-            
-            Text("We'll use this to help you stay focused!")
-                .font(.body)
-                .foregroundColor(Color("primaryColor"))
-                .padding(.bottom, 20)
-            
-            Spacer()
-            
-            Button(action: {
-                coordinator.advance()
-            }) {
-                Text("I'll do this later")
+                .invertedForDarkMode()
+                .padding(.horizontal, 32)
+                .padding(.top, 48)
+
+            VStack(spacing: 12) {
+                Text("Track screen time")
+                    .font(.custom("BambiBold", size: 28))
+                    .foregroundColor(Color("primaryColor"))
+                    .multilineTextAlignment(.center)
+
+                Text("We use Screen Time to monitor the apps you choose — so your coaches can keep you on track.")
+                    .font(.body)
                     .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            
-            PrimaryButton(title: "Enable", isDisabled: permissionGranted) {
-                requestScreenTimePermission()
+            .padding(.horizontal, 32)
+            .padding(.top, 28)
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                PrimaryButton(
+                    title: permissionGranted ? "Enabled ✓" : "Enable Screen Time",
+                    isDisabled: permissionGranted
+                ) {
+                    Task { await requestScreenTimePermission() }
+                }
+                .padding(.horizontal, 24)
+
+                Button {
+                    coordinator.advance()
+                } label: {
+                    Text("I'll do this later")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                PageIndicator(page: 2, length: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 36)
             }
-            
-            PageIndicator(page: 3)
-                .padding(.bottom, 20)
         }
-        .padding()
         .onChange(of: permissionGranted) { _, newValue in
             if newValue {
-                // Wait a moment to show the success state, then advance
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                     coordinator.advance()
                 }
             }
         }
     }
-    
-    private func requestScreenTimePermission() {
+
+    private func requestScreenTimePermission() async {
         let center = AuthorizationCenter.shared
         if center.authorizationStatus != .approved {
-            Task {
-                do {
-                    try await center.requestAuthorization(for: .individual)
-                    print("Requested FamilyControls/ScreenTime permission.")
-                } catch {
-                    print("Failed to request screen time auth: \(error)")
-                }
+            do {
+                try await center.requestAuthorization(for: .individual)
+            } catch {
+                print("Failed to request screen time auth: \(error)")
             }
-        } else {
-            print("Already approved for Screen Time.")
         }
         permissionGranted = true
     }

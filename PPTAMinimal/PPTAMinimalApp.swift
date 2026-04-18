@@ -16,12 +16,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication,
                        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           FirebaseApp.configure()
+          // Register for APNs unconditionally — required for Firebase Phone Auth silent
+          // push verification regardless of whether the user grants notification permission.
+          UIApplication.shared.registerForRemoteNotifications()
           UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
-            }
+            .requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
           UNUserNotificationCenter.current().delegate = self
           Messaging.messaging().delegate = self
           return true
@@ -129,7 +128,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @StateObject var viewModel = AuthViewModel()
+    @StateObject var viewModel = AuthViewModel.shared
     
     /// Onboarding completion is stored per user (by uid) so a new account on the same device sees onboarding.
     private var onboardingComplete: Bool {
@@ -152,14 +151,13 @@ struct PPTAMinimalApp: App {
                     LoginView()
                         .environmentObject(viewModel)
                 }
-            } else if onboardingComplete {
-               TabNavigator()
-                .environmentObject(viewModel)
+            } else if viewModel.isOnboardingComplete {
+                TabNavigator()
+                    .environmentObject(viewModel)
             } else {
                 OnboardingContainerView()
                     .environmentObject(viewModel)
             }
-
         }
     }
 }

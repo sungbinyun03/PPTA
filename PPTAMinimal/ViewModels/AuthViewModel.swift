@@ -21,6 +21,7 @@ protocol AuthenticationFormProtocol {
 class AuthViewModel: ObservableObject {
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
+    @Published var isOnboardingComplete: Bool = false
     
     private let authService: AuthService
     private let userRepository: UserRepository
@@ -139,6 +140,14 @@ class AuthViewModel: ObservableObject {
                     email: firebaseUser.email ?? "No Email"
                 )
                 try await userRepository.saveUser(newUser)
+                let defaultSettings = UserSettings(
+                    thresholdHour: 0,
+                    thresholdMinutes: 0,
+                    pressureLevel: PressureLevel.off,
+                    onboardingCompleted: false,
+                    peerCoaches: []
+                )
+                UserSettingsManager.shared.saveSettings(defaultSettings)
             }
 
             await fetchUser()
@@ -172,7 +181,6 @@ class AuthViewModel: ObservableObject {
 
                 let exists = try await userRepository.userExists(firebaseUser.uid)
                 if !exists {
-                    // If user doesn't exist in Firestore, create a new record
                     let fullName = extractAppleFullName(from: result)
                     let newUser = User(
                         id: firebaseUser.uid,
@@ -180,6 +188,14 @@ class AuthViewModel: ObservableObject {
                         email: firebaseUser.email ?? "No Email"
                     )
                     try await userRepository.saveUser(newUser)
+                    let defaultSettings = UserSettings(
+                        thresholdHour: 0,
+                        thresholdMinutes: 0,
+                        pressureLevel: PressureLevel.off,
+                        onboardingCompleted: false,
+                        peerCoaches: []
+                    )
+                    UserSettingsManager.shared.saveSettings(defaultSettings)
                 }
                 
                 print("CHECK 1")
@@ -209,6 +225,12 @@ class AuthViewModel: ObservableObject {
     }
 
     
+    func markOnboardingComplete() {
+        guard let uid = userSession?.uid else { return }
+        UserDefaults.standard.set(true, forKey: "onboardingComplete_\(uid)")
+        isOnboardingComplete = true
+    }
+
     func fetchUser() async {
         guard let uid = authService.currentUser?.uid else {
             self.userSession = nil
@@ -216,7 +238,13 @@ class AuthViewModel: ObservableObject {
         }
         do {
             self.currentUser = try await userRepository.fetchUser(by: uid)
-            // If there's a stored FCM token from before login
+            if self.currentUser == nil {
+                // Firestore doc was deleted (e.g. data reset) — clear stale onboarding flag
+                UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(uid)")
+                isOnboardingComplete = false
+            } else {
+                isOnboardingComplete = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
+            }
             if let storedToken = UserDefaults.standard.string(forKey: "fcmToken") {
                 await updateFCMToken(storedToken)
                 UserDefaults.standard.removeObject(forKey: "fcmToken")

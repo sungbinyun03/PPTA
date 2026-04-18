@@ -29,8 +29,7 @@ struct OnboardingContainerView: View {
                 case .findFriends:
                     FindFriendsView(coordinator: coordinator)
                 case .completed:
-                    HomeView() 
-                        .environmentObject(authViewModel)
+                    EmptyView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -50,9 +49,7 @@ struct OnboardingContainerView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if coordinator.currentStep != .completed {
                         Button("Skip") {
-                            if let uid = authViewModel.userSession?.uid {
-                                UserDefaults.standard.set(true, forKey: "onboardingComplete_\(uid)")
-                            }
+                            authViewModel.markOnboardingComplete()
                             coordinator.skipToMainApp()
                         }
                         .foregroundColor(Color("primaryColor"))
@@ -82,8 +79,8 @@ struct OnboardingContainerView: View {
                 .interactiveDismissDisabled(true)
         }
         .onChange(of: coordinator.currentStep) { _, step in
-            if step == .completed, let uid = authViewModel.userSession?.uid {
-                UserDefaults.standard.set(true, forKey: "onboardingComplete_\(uid)")
+            if step == .completed {
+                authViewModel.markOnboardingComplete()
             }
         }
     }

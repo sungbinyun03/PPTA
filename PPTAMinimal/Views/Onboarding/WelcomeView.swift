@@ -1,64 +1,51 @@
-//
-//  WelcomeView.swift
-//  PPTAMinimal
-//
-//  Created by Jovy Zhou on 3/2/25.
-//
-
 import SwiftUI
 
 struct WelcomeView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
-    
+
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            
-            HStack(spacing: 8) {
-                Text("Welcome!")
-                    .font(.largeTitle)
-                    .fontWeight(.medium)
+        VStack(spacing: 0) {
+            VStack(spacing: 4) {
+                Text("PPTA")
+                    .font(.custom("BambiBold", size: 44))
                     .foregroundColor(Color("primaryColor"))
-                
-                Text("👋")
-                    .font(.largeTitle)
+                Text("Peer Pressure The App")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
-            .padding(.bottom, 30)
-            
-            ZStack {
-                Circle()
-                    .stroke(Color.primary.opacity(0.3), lineWidth: 1)
-                    .frame(width: 260, height: 260)
-                
-                Image("onboarding-illustration-one")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 200, height: 200)
+            .padding(.top, 48)
+
+            Image("onboarding-illustration-one 1")
+                .resizable()
+                .scaledToFit()
+                .invertedForDarkMode()
+                .padding(.horizontal, 24)
+                .padding(.vertical, 32)
+
+            VStack(spacing: 8) {
+                Text("Set goals together.")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color("primaryColor"))
+                Text("Hold each other accountable\nand stay focused.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.bottom, 40)
-            
-            Text("Set goals together")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(Color("primaryColor"))
-            
-            Text("Stay focused with friends")
-                .font(.body)
-                .foregroundColor(Color("primaryColor"))
-                .padding(.bottom, 20)
-            
+            .padding(.horizontal, 32)
+
             Spacer()
-            
-            PrimaryButton(title: "Get Started") {
-                coordinator.advance()
+
+            VStack(spacing: 16) {
+                PrimaryButton(title: "Get Started") {
+                    coordinator.advance()
+                }
+                .padding(.horizontal, 24)
+
+                PageIndicator(page: 0, length: 5)
+                    .padding(.bottom, 36)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 20)
-            
-            PageIndicator()
-                .padding(.bottom, 20)
         }
-        .padding()
     }
 }
 
