@@ -76,8 +76,9 @@ struct TraineeStatsRowView: View {
             isCoach: false,
             isTrainee: true,
             traineeStatus: .attentionNeeded,
-        streakDays: 6,
-            timeLimitMinutes: 90
+            streakDays: 6,
+            timeLimitMinutes: 90,
+            pressureLevel: .standard
         )
     ])
 }
@@ -92,7 +93,8 @@ struct TraineeStatsRowView: View {
             isTrainee: true,
             traineeStatus: .attentionNeeded,
             streakDays: 6,
-            timeLimitMinutes: 90
+            timeLimitMinutes: 90,
+            pressureLevel: .standard
         )
     ])
     .preferredColorScheme(.dark)
