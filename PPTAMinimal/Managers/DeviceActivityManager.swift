@@ -81,6 +81,9 @@ class DeviceActivityManager {
             body: "Your coach locked your monitored apps."
         )
 
+        // Sync in-memory state so the main app reflects the new status immediately.
+        UserSettingsManager.shared.update { $0.traineeStatus = .cutOff }
+
         // Best-effort: notify backend that user is now cut off.
         sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
     }
@@ -95,14 +98,19 @@ class DeviceActivityManager {
             )
             return
         }
-        
+
         store.shield.applications = nil
 
         NotificationManager.shared.sendNotification(
             title: "Unlocked by \(coach)",
             body: "Be Mindful of Your Screentime!"
         )
-        
+
+        // Sync in-memory state so the main app reflects the new status immediately.
+        if settings.isTracking {
+            UserSettingsManager.shared.update { $0.traineeStatus = .allClear }
+        }
+
         // Best-effort: notify backend that user is back to allClear.
         if settings.isTracking {
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)

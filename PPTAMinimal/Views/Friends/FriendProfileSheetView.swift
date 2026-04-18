@@ -34,6 +34,7 @@ struct FriendProfileSheetView: View {
                     streakDays: vm.streakDays,
                     timeLimitMinutes: vm.timeLimitMinutes,
                     pressureLevel: vm.pressureLevel,
+                    lockURL: makeLockURLIfNeeded(),
                     unlockURL: makeUnlockURLIfNeeded(),
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
@@ -54,6 +55,14 @@ struct FriendProfileSheetView: View {
         .task { await vm.refresh() }
     }
     
+    private func makeLockURLIfNeeded() -> URL? {
+        guard vm.friendshipStatus == .isFriend else { return nil }
+        guard vm.isTrainee else { return nil }
+        guard vm.traineeStatus == .attentionNeeded else { return nil }
+        guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
+        return UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID)
+    }
+
     private func makeUnlockURLIfNeeded() -> URL? {
         guard vm.friendshipStatus == .isFriend else { return nil }
         // vm.isTrainee means: the other user is my trainee (I coach them).

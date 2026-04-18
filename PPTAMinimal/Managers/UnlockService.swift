@@ -12,7 +12,7 @@ import CryptoKit
 enum UnlockService {
     private static let unlockBaseURL = URL(string:"https://unlockapp-iy4j75c7pq-uc.a.run.app")!
     /// Deployed lock endpoint URL (same query-signature contract as unlock).
-    private static let lockBaseURL = URL(string:"https://lockapp-iy4j75c7pq-uc.a.run.app")!
+    private static let lockBaseURL = URL(string:"https://lockapp-538124351649.us-central1.run.app")!
     private static let secretData =
         Data("a282b15352ee133e244ee5be0a2e3b9fa11b5503b6f22b1a92b57806a412122e".utf8)
 

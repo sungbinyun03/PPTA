@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FirebaseAuth
-import UIKit
 
 struct StatusCenterView: View {
     @StateObject private var vm = StatusCenterViewModel()
@@ -46,15 +45,16 @@ struct StatusCenterView: View {
                                         name: user.name,
                                         status: user.traineeStatus ?? .noStatus,
                                         profilePicUrl: user.profileImageURL?.absoluteString,
+                                        pressureLevel: user.pressureLevel,
                                         onRelease: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
                                             guard let link = UnlockService.makeUnlockURL(childUID: user.id, coachUID: coachUID) else { return }
-                                            UIApplication.shared.open(link)
+                                            Task { await vm.performAction(url: link, traineeId: user.id) }
                                         },
                                         onLock: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
                                             guard let link = UnlockService.makeLockURL(childUID: user.id, coachUID: coachUID) else { return }
-                                            UIApplication.shared.open(link)
+                                            Task { await vm.performAction(url: link, traineeId: user.id) }
                                         }
                                     )
                                 }
@@ -99,6 +99,31 @@ struct StatusCenterView: View {
             .scrollIndicators(.hidden)
             .task { await vm.refresh() }
             .refreshable { await vm.refresh() }
+            .overlay {
+                if vm.isPerformingAction {
+                    ZStack {
+                        Color.black.opacity(0.15).ignoresSafeArea()
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .padding(20)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let err = vm.errorMessage {
+                    Text(err)
+                        .font(.footnote)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut, value: vm.errorMessage)
             .sheet(isPresented: $showFriendProfile) {
                 if let otherId = selectedUserId {
                     FriendProfileSheetView(otherUserId: otherId)

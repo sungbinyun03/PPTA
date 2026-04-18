@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct TraineeCellView: View {
-    private var name: String // TODO: Update once User and other fields get updated
+    private var name: String
     private var status: TraineeStatus
     private var profilePicUrl: String?
+    private var pressureLevel: PressureLevel
 
     var onRelease: (() -> Void)? = nil
     var onLock: (() -> Void)? = nil
@@ -19,12 +20,14 @@ struct TraineeCellView: View {
         name: String,
         status: TraineeStatus,
         profilePicUrl: String? = nil,
+        pressureLevel: PressureLevel = .off,
         onRelease: (() -> Void)? = nil,
         onLock: (() -> Void)? = nil
     ) {
         self.name = name
         self.status = status
         self.profilePicUrl = profilePicUrl
+        self.pressureLevel = pressureLevel
         self.onRelease = onRelease
         self.onLock = onLock
     }
@@ -96,15 +99,16 @@ struct TraineeCellView: View {
     private var statusDotColor: Color {
         switch status {
         case .allClear: return .green
-        case .attentionNeeded: return .red
-        case .cutOff: return Color(white: 0.25)
+        case .attentionNeeded: return .orange
+        case .cutOff: return .red
         case .noStatus: return .clear
         }
     }
 
     // MARK: - Buttons state and appearance
     private var canLock: Bool { status == .attentionNeeded }
-    private var canRelease: Bool { status == .cutOff }
+    // Hardcore trainees cannot be remotely unlocked — the device blocks it.
+    private var canRelease: Bool { status == .cutOff && pressureLevel != .hardcore }
 
     private var lockBackground: Color { canLock ? Color.orange : Color(.systemGray5) }
     private var lockTextColor: Color { canLock ? .white : Color(.gray) }

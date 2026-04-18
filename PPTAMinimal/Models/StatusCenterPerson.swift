@@ -20,6 +20,7 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let traineeStatus: TraineeStatus?
     let streakDays: Int
     let timeLimitMinutes: Int
+    let pressureLevel: PressureLevel
 }
 
 

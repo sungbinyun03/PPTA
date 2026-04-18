@@ -60,24 +60,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
         if
-            let type  = notification["type"] as? String, type == "unlock",
-            let coach = notification["by"]   as? String
+            let type = notification["type"] as? String, type == "unlock",
+            notification["by"] as? String != nil
         {
-            print("!!!! Unlock notification received! Type: \(type), By: \(coach)")
+            // Prefer resolved display name; fall back to UID if server didn't include it.
+            let coachName = (notification["byName"] as? String) ?? "Your coach"
+            print("!!!! Unlock notification received. Coach: \(coachName)")
             Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteUnlock(from: coach)
-                completionHandler(.newData)         
+                DeviceActivityManager.shared.handleRemoteUnlock(from: coachName)
+                completionHandler(.newData)
             }
             return
         }
 
         if
-            let type  = notification["type"] as? String, type == "lock",
-            let coach = notification["by"]   as? String
+            let type = notification["type"] as? String, type == "lock",
+            notification["by"] as? String != nil
         {
-            print("!!!! Lock notification received! Type: \(type), By: \(coach)")
+            let coachName = (notification["byName"] as? String) ?? "Your coach"
+            print("!!!! Lock notification received. Coach: \(coachName)")
             Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteLock(from: coach)
+                DeviceActivityManager.shared.handleRemoteLock(from: coachName)
                 completionHandler(.newData)
             }
             return
@@ -87,10 +90,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let type = notification["type"] as? String, type == "traineeStatus",
             let status = notification["status"] as? String
         {
-            // Best-effort: show a coach-visible notification immediately.
+            let traineeName = notification["traineeName"] as? String ?? "Your trainee"
+            let body: String = {
+                switch status {
+                case TraineeStatus.attentionNeeded.rawValue:
+                    return "\(traineeName) is approaching their screen time limit."
+                case TraineeStatus.cutOff.rawValue:
+                    return "\(traineeName) has hit their screen time limit."
+                case TraineeStatus.allClear.rawValue:
+                    return "\(traineeName) is back on track."
+                default:
+                    return "\(traineeName) has a status update."
+                }
+            }()
             NotificationManager.shared.sendNotification(
-                title: "Trainee status update",
-                body: status
+                title: "Accountability update",
+                body: body
             )
             completionHandler(.newData)
             return

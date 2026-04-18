@@ -29,6 +29,7 @@ struct FriendProfileView: View {
     let timeLimitMinutes: Int
     let pressureLevel: PressureLevel
 
+    let lockURL: URL?
     let unlockURL: URL?
 
     // MARK: - Role request / relationship actions
@@ -129,7 +130,24 @@ struct FriendProfileView: View {
                         }
                         .padding(.top, 4)
 
-                        // MARK: Unlock CTA (coach action when trainee is locked/attention)
+                        // MARK: Lock / Unlock CTAs (coach actions)
+                        if let lockURL {
+                            Button { openURL(lockURL) } label: {
+                                HStack {
+                                    Text("Lock")
+                                        .font(.system(size: 15, weight: .semibold))
+                                    Spacer()
+                                    Image(systemName: "lock")
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 13)
+                                .background(Color.orange)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+                            .padding(.horizontal, 20)
+                        }
+
                         if let unlockURL {
                             Button { openURL(unlockURL) } label: {
                                 HStack {
@@ -288,6 +306,7 @@ struct FriendProfileView: View {
         streakDays: 6,
         timeLimitMinutes: 90,
         pressureLevel: .standard,
+        lockURL: nil,
         unlockURL: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),
