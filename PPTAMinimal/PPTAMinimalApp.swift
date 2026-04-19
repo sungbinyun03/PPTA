@@ -129,6 +129,7 @@ struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel.shared
+    @Environment(\.scenePhase) private var scenePhase
     
     /// Onboarding completion is stored per user (by uid) so a new account on the same device sees onboarding.
     private var onboardingComplete: Bool {
@@ -157,6 +158,12 @@ struct PPTAMinimalApp: App {
             } else {
                 OnboardingContainerView()
                     .environmentObject(viewModel)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, viewModel.userSession != nil else { return }
+            Task { @MainActor in
+                await UserSettingsManager.shared.applyPendingStatusIfNeeded()
             }
         }
     }

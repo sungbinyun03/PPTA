@@ -18,35 +18,31 @@ struct ReportView: View {
         let center = AuthorizationCenter.shared
         guard center.authorizationStatus != .approved else {
             authorizationStatus = .approved
-            print("Already approved for Screen Time.")
             return
         }
-
         isRequestingPermission = true
         defer { isRequestingPermission = false }
-
         do {
             try await center.requestAuthorization(for: .individual)
-            print("Requested FamilyControls/ScreenTime permission.")
         } catch {
             print("Failed to request screen time auth: \(error)")
         }
-
         authorizationStatus = center.authorizationStatus
     }
 
+    // Today with hourly segmentation — feeds the progress ring, per-app list, and hourly chart
     private var currentFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
         if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
             return DeviceActivityFilter(
-                segment: .daily(during: todayInterval),
+                segment: .hourly(during: todayInterval),
                 users: .all,
                 devices: .init([.iPhone, .iPad])
             )
         }
         return DeviceActivityFilter(
-            segment: .daily(during: todayInterval),
+            segment: .hourly(during: todayInterval),
             users: .all,
             devices: .init([.iPhone]),
             applications: selection.applicationTokens,
@@ -54,13 +50,38 @@ struct ReportView: View {
         )
     }
 
-    @State var context: DeviceActivityReport.Context = .init(rawValue: "Total Activity")
+    // Last 7 days with daily segmentation — feeds the weekly bar chart
+    private var weeklyFilter: DeviceActivityFilter {
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: .now)
+        let weekStart = calendar.date(byAdding: .day, value: -6, to: todayStart) ?? todayStart
+        let last7Days = DateInterval(start: weekStart, end: .now)
+        let selection = userSettingsManager.userSettings.applications
+        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
+            return DeviceActivityFilter(
+                segment: .daily(during: last7Days),
+                users: .all,
+                devices: .init([.iPhone, .iPad])
+            )
+        }
+        return DeviceActivityFilter(
+            segment: .daily(during: last7Days),
+            users: .all,
+            devices: .init([.iPhone]),
+            applications: selection.applicationTokens,
+            categories: selection.categoryTokens
+        )
+    }
 
     var body: some View {
-        VStack {
+        Group {
             if authorizationStatus == .approved {
-                DeviceActivityReport(context, filter: currentFilter)
-                    .frame(minHeight: 395)
+                VStack(spacing: 0) {
+                    DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
+                        .frame(height: 140)
+                    DeviceActivityReport(.init("Total Activity"), filter: currentFilter)
+                        .frame(minHeight: 500)
+                }
             } else if isRequestingPermission {
                 ProgressView("Requesting Screen Time access...")
                     .padding()

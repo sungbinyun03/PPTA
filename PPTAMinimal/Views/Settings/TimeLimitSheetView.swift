@@ -69,7 +69,7 @@ struct TimeLimitSheetView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 15))
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color(red: 0.247, green: 0.266, blue: 0.211), lineWidth: 4)
+                        .stroke(Color("primaryColor").opacity(0.3), lineWidth: 4)
                 )
 
                 Spacer()
@@ -101,7 +101,7 @@ struct TimeLimitSheetView: View {
                             .font(.body.weight(.medium))
                             .foregroundColor(.white)
                             .frame(width: 45, height: 45)
-                            .background(Color.blue)
+                            .background(Color("primaryColor"))
                             .clipShape(Circle())
                     }
                     .accessibilityLabel("Confirm selection")

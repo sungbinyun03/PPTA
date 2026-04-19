@@ -44,12 +44,14 @@ struct SettingsView: View {
                 }
             }
             // simple alert on upload failure
-            .alert("Upload failed",
-                   isPresented: .constant(uploadError != nil)) {
-                Button("OK") { uploadError = nil }
-            } message: {
-                Text(uploadError ?? "")
-            }
+            .appAlert(
+                isPresented: .init(
+                    get: { uploadError != nil },
+                    set: { if !$0 { uploadError = nil } }
+                ),
+                title: "Upload failed",
+                message: uploadError ?? ""
+            )
         }
     }
     
@@ -82,7 +84,7 @@ struct SettingsView: View {
         HStack(alignment: .center, spacing: 16) {
             ZStack {
                 Circle()
-                    .strokeBorder(Color(red: 0.266, green: 0.337, blue: 0.180), lineWidth: 6)
+                    .strokeBorder(Color("primaryColor"), lineWidth: 6)
                     .frame(width: 130, height: 130)
                 
                 avatarImage                                   // computed below
@@ -108,7 +110,7 @@ struct SettingsView: View {
                     }
                     .padding(6)
                     .background(
-                        Color(red: 0.521, green: 0.651, blue: 0.423).opacity(0.1)
+                        Color("primaryColor").opacity(0.1)
                     )
                     .clipShape(Capsule())
                 }
@@ -154,7 +156,7 @@ struct SettingsView: View {
             Text("Change Photo")
                 .font(.custom("SatoshiVariable-Bold_Light", size: 14))
                 .padding(4)
-                .background(Color(red: 0.4392, green: 0.4784, blue: 0.3843))
+                .background(Color("primaryColor"))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -216,7 +218,7 @@ struct SettingsView: View {
                         icon: Image(systemName: "clock.fill")
                             .resizable()
                             .scaledToFit()
-                            .foregroundStyle(Color.blue)
+                            .foregroundStyle(Color("primaryColor"))
                             .scaleEffect(0.35),
                         text: "App Limits",
                         iconScale: 2
@@ -227,7 +229,7 @@ struct SettingsView: View {
                         icon: Image(systemName: "gauge.with.dots.needle.33percent")
                             .resizable()
                             .scaledToFit()
-                            .foregroundStyle(Color.green)
+                            .foregroundStyle(Color("primaryColor"))
                             .scaleEffect(0.35),
                         text: "Pressure Level",
                         iconScale: 2

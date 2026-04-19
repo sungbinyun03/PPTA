@@ -31,16 +31,17 @@ class DeviceActivityManager {
     ) {
         let thresholdComponents = DateComponents(hour: hour, minute: minute)
         
-        // Monitor from midnight to 23:59, repeating daily
+        // Monitor from midnight to 23:59:59, repeating daily
         let schedule = DeviceActivitySchedule(
             intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true,
-            warningTime: DateComponents(minute: 5) // optional
+            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+            repeats: true
         )
-        
+
         let event = DeviceActivityEvent(
             applications: appTokens.applicationTokens,
+            categories: appTokens.categoryTokens,
+            webDomains: [],
             threshold: thresholdComponents
         )
         

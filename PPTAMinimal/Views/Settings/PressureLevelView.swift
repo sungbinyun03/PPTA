@@ -17,21 +17,16 @@ struct PressureLevelView: View {
             Text("Choose how strongly your friends can hold you accountable.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
-                .foregroundColor(.blue)
-                .padding(.horizontal)
-
-            (Text("Note: ").fontWeight(.bold) + Text("Your streak resets when (TODO) blah blah blah"))
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
+                .padding(.horizontal)
 
             VStack(spacing: 12) {
                 pressureCard(
                     level: PressureLevel.off,
                     title: "Off",
                     description: "No monitoring or pressure.\nTake a break :)",
-                    backgroundColor: Color(red: 0.88, green: 0.88, blue: 0.88),
-                    textColor: .primary,
+                    backgroundColor: Color("primaryColor").opacity(0.08),
+                    textColor: Color("primaryColor"),
                     showStar: false
                 )
                 pressureCard(
@@ -46,39 +41,30 @@ struct PressureLevelView: View {
                     level: PressureLevel.hardcore,
                     title: "Hardcore",
                     description: "Trainees get locked\ninstantly when they exceed.",
-                    backgroundColor: Color.orange,
+                    backgroundColor: Color("primaryColor"),
                     textColor: .white,
                     showStar: false
                 )
             }
             .padding(.horizontal)
 
-            Button(action: saveToFirebase) {
-                Text("Save Settings")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
+            PrimaryButton(title: "Save Settings", action: saveToFirebase)
             .padding(.horizontal)
             .padding(.top, 8)
 
             Spacer(minLength: 20)
         }
         .padding(.vertical, 20)
-        .alert("Saved", isPresented: $showConfirmedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Your coaches have been informed of your new pressure level!")
-        }
-        .alert("Set up App Limits first", isPresented: $showViableLimitsRequiredAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Set a daily time limit and at least one app or category in App Limits, tap Save Settings, then try again.")
-        }
+        .appAlert(
+            isPresented: $showConfirmedAlert,
+            title: "Saved",
+            message: "Your coaches have been informed of your new pressure level!"
+        )
+        .appAlert(
+            isPresented: $showViableLimitsRequiredAlert,
+            title: "Set up App Limits first",
+            message: "Set a daily time limit and at least one app or category in App Limits, tap Save Settings, then try again."
+        )
         .onAppear {
             loadFromUserSettings()
         }

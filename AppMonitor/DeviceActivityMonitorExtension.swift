@@ -54,8 +54,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // - Standard / Hardcore: shield selected apps
             switch settings.pressureLevel {
             case .off:
-                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
-                return
+                return  // unreachable: guard settings.isTracking above already handles this
             case .standard:
                 // Standard mode: notify coaches, no auto-lock. Coaches decide whether to shield.
                 LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)

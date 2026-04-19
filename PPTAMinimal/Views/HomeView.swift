@@ -105,35 +105,75 @@ struct HomeView: View {
     }
 
     
-    private var reportSection: some View {
-        VStack {
-            Button(action: { isReportViewPresented.toggle() }) {
-                VStack {
-                    Text("Daily Screen Time")
-                        .font(.custom("SatoshiVariable-Bold_Light", size: 20))
-                        .padding(.top, 5)
-                        .padding(.bottom, 5)
-                    
-                    Group {
-                        if !previewMode {
-                            ReportView()
-                                .padding(.top, 40)
-                        } else {
-                            Text("Disabled during preview")
-                        }
-                    }
-                    .frame(height: 210)
-                    .clipped()
-                }
-                .padding(.vertical, 5)
-                .frame(width: 333)
-                .clipShape(RoundedRectangle(cornerRadius: 15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color(red: 0.247, green: 0.266, blue: 0.211), lineWidth: 4)
-                )
-            }
+    private var summaryFilter: DeviceActivityFilter {
+        let selection = userSettingsManager.userSettings.applications
+        let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
+        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
+            return DeviceActivityFilter(
+                segment: .daily(during: todayInterval),
+                users: .all,
+                devices: .init([.iPhone, .iPad])
+            )
         }
+        return DeviceActivityFilter(
+            segment: .daily(during: todayInterval),
+            users: .all,
+            devices: .init([.iPhone]),
+            applications: selection.applicationTokens,
+            categories: selection.categoryTokens
+        )
+    }
+
+    private var reportSection: some View {
+        Button(action: { isReportViewPresented.toggle() }) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("SCREEN TIME")
+                        .font(.custom("Satoshi-Variable", size: 11))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
+                        .foregroundColor(Color("primaryColor").opacity(0.6))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color("primaryColor").opacity(0.5))
+                }
+
+                Text("Daily Screen Time")
+                    .font(.custom("BambiBold", size: 22))
+                    .foregroundColor(Color("primaryColor"))
+
+                Group {
+                    if !previewMode {
+                        DeviceActivityReport(.init("Summary Ring"), filter: summaryFilter)
+                    } else {
+                        Text("Preview mode")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 170)
+
+                HStack {
+                    Spacer()
+                    Text("Tap for full breakdown")
+                        .font(.custom("Satoshi-Variable", size: 12))
+                        .fontWeight(.medium)
+                        .foregroundColor(Color("primaryColor").opacity(0.4))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color("primaryColor").opacity(0.4))
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color("primaryColor").opacity(0.07))
+            )
+            .padding(.horizontal, 24)
+        }
+        .buttonStyle(.plain)
         .sheet(isPresented: $isReportViewPresented) {
             NavigationStack {
                 ReportView()
@@ -146,18 +186,23 @@ struct HomeView: View {
     
     private func startAlwaysOnMonitoring(with settings: UserSettings) {
         let monitoringKey = "isMonitoringActive"
-        let alreadyActive = UserDefaults.standard.bool(forKey: monitoringKey)
-        
+        // Cross-check the persisted flag against the actual running activities so that
+        // a device restart or OS-level suspension doesn't permanently block restarts.
+        let flagSaysActive = UserDefaults.standard.bool(forKey: monitoringKey)
+        let systemSaysActive = DeviceActivityCenter().activities
+            .contains(DeviceActivityName("AppUsageMonitoring"))
+        let alreadyActive = flagSaysActive && systemSaysActive
+
         // If the user is not tracking (e.g. pressure level Off), ensure monitoring is not running.
         if settings.isTracking == false {
-            if alreadyActive {
+            if systemSaysActive {
                 DeviceActivityManager.shared.stopMonitoring()
                 UserDefaults.standard.set(false, forKey: monitoringKey)
             }
             print("Tracking disabled; monitoring is not running.")
             return
         }
-        
+
         if alreadyActive {
 //            NotificationManager.shared.sendNotification(
 //               title: "Monitoring already active",

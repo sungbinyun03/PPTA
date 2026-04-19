@@ -8,74 +8,104 @@ import DeviceActivity
 import SwiftUI
 import Foundation
 import FamilyControls
+import ManagedSettings
 
 extension DeviceActivityReport.Context {
-    // If your app initializes a DeviceActivityReport with this context, then the system will use
-    // your extension's corresponding DeviceActivityReportScene to render the contents of the
-    // report.
     static let totalActivity = Self("Total Activity")
 }
 
-// MARK: - Device Activity Report Contents
 struct TotalActivityReport: DeviceActivityReportScene {
-    // Define which context your scene will represent.
     let context: DeviceActivityReport.Context = .totalActivity
-    
-    // Define the custom configuration and the resulting view for this report.
     let content: (ActivityReport) -> TotalActivityView
-    
-    /// DeviceActivityResults -> Filter
+
     func makeConfiguration(
-        representing data: DeviceActivityResults<DeviceActivityData>) async -> ActivityReport {
-        // Reformat the data into a configuration that can be used to create
-        // the report's view.
-        print("TotalActivityReport.makeConfiguration: invoked with DeviceActivityResults")
-        var totalActivityDuration: Double = 0
-        var list: [AppDeviceActivity] = []
-        // NOTE: We intentionally do NOT try to sync resolved app names cross-device.
-        // Prior attempts to do so (appList for coaches) were unreliable/impossible in practice.
-        
+        representing data: DeviceActivityResults<DeviceActivityData>
+    ) async -> ActivityReport {
+        print("TotalActivityReport.makeConfiguration: invoked")
+
+        // Keyed by bundle ID → accumulated stats
+        var appData: [String: (name: String, duration: TimeInterval, pickups: Int, notifications: Int, token: ApplicationToken?)] = [:]
+        var hourlyTotals = [TimeInterval](repeating: 0, count: 24)
+        var totalDuration: TimeInterval = 0
+
         for await eachData in data {
-            for await activitySegment in eachData.activitySegments {
-                for await categoryActivity in activitySegment.categories {
-                    for await applicationActivity in categoryActivity.applications {
-                        let appName = (applicationActivity.application.localizedDisplayName ?? "nil")
-                        let bundle = (applicationActivity.application.bundleIdentifier ?? "nil")
-                        let duration = applicationActivity.totalActivityDuration
-                        totalActivityDuration += duration
-                        let numberOfPickups = applicationActivity.numberOfPickups
-                        let token = applicationActivity.application.token
-                        let appActivity = AppDeviceActivity(
-                            id: bundle,
-                            displayName: appName,
-                            duration: duration,
-                            numberOfPickups: numberOfPickups,
-                            token: token
-                        )
-                        list.append(appActivity)
+            for await segment in eachData.activitySegments {
+                let hour = Calendar.current.component(.hour, from: segment.dateInterval.start)
+                guard hour < 24 else { continue }
+
+                for await category in segment.categories {
+                    for await app in category.applications {
+                        let bundle = app.application.bundleIdentifier ?? "unknown-\(app.application.token?.hashValue ?? 0)"
+                        let d = app.totalActivityDuration
+
+                        if var existing = appData[bundle] {
+                            existing.duration += d
+                            existing.pickups += app.numberOfPickups
+                            existing.notifications += app.numberOfNotifications
+                            appData[bundle] = existing
+                        } else {
+                            appData[bundle] = (
+                                app.application.localizedDisplayName ?? "",
+                                d,
+                                app.numberOfPickups,
+                                app.numberOfNotifications,
+                                app.application.token
+                            )
+                        }
+
+                        hourlyTotals[hour] += d
+                        totalDuration += d
                     }
                 }
-
             }
         }
-        
-        // Append selected apps that had zero usage (not returned by DeviceActivity at all).
-        let seenTokens = Set(list.compactMap { $0.token })
-        struct PartialSettings: Decodable { var applications: FamilyActivitySelection }
+
+        var list = appData.map { bundle, info in
+            AppDeviceActivity(
+                id: bundle,
+                displayName: info.name,
+                duration: info.duration,
+                numberOfPickups: info.pickups,
+                numberOfNotifications: info.notifications,
+                token: info.token
+            )
+        }
+
+        // Read limit + zero-activity apps from App Group
+        struct PartialSettings: Decodable {
+            var applications: FamilyActivitySelection
+            var thresholdHour: Int?
+            var thresholdMinutes: Int?
+        }
+
+        var limitMinutes = 0
+
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
-           let data = suite.data(forKey: "UserSettings"),
-           let partial = try? JSONDecoder().decode(PartialSettings.self, from: data) {
+           let settingsData = suite.data(forKey: "UserSettings"),
+           let partial = try? JSONDecoder().decode(PartialSettings.self, from: settingsData) {
+
+            limitMinutes = ((partial.thresholdHour ?? 0) * 60) + (partial.thresholdMinutes ?? 0)
+
+            let seenTokens = Set(list.compactMap { $0.token })
             for token in partial.applications.applicationTokens where !seenTokens.contains(token) {
                 list.append(AppDeviceActivity(
                     id: "zero-\(token.hashValue)",
                     displayName: "",
                     duration: 0,
                     numberOfPickups: 0,
+                    numberOfNotifications: 0,
                     token: token
                 ))
             }
         }
 
-        return ActivityReport(totalDuration: totalActivityDuration, apps: list)
+        let hourlyBuckets = hourlyTotals.enumerated().map { HourlyBucket(id: $0.offset, duration: $0.element) }
+
+        return ActivityReport(
+            totalDuration: totalDuration,
+            limitMinutes: limitMinutes,
+            apps: list,
+            hourlyBuckets: hourlyBuckets
+        )
     }
 }

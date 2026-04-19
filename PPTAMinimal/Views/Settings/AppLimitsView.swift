@@ -28,11 +28,6 @@ struct AppLimitsView: View {
 
             Divider()
             
-            (Text("Note: ").fontWeight(.bold) + Text("Your streak resets when (TODO) blah blah blah"))
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-
             // Draft time limit (committed with “Save Settings”), styled like the Daily Limit card
             VStack(spacing: 8) {
                 Text("Time limit")
@@ -43,11 +38,11 @@ struct AppLimitsView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.gray.opacity(0.08))
+            .background(Color("primaryColor").opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: 15))
             .overlay(
                 RoundedRectangle(cornerRadius: 15)
-                    .stroke(Color(red: 0.247, green: 0.266, blue: 0.211), lineWidth: 2)
+                    .stroke(Color("primaryColor").opacity(0.3), lineWidth: 2)
             )
             
             ScrollView {
@@ -90,56 +85,46 @@ struct AppLimitsView: View {
             Button(action: { isPickerPresented = true }) {
                 Label("Select Apps", systemImage: "plus.circle.fill")
                     .font(.headline)
-                    .padding()
+                    .foregroundColor(Color("primaryColor"))
                     .frame(maxWidth: .infinity)
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                    .padding()
+                    .background(Color("primaryColor").opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            // This modifier brings up the FamilyActivityPicker
+            .buttonStyle(.plain)
             .familyActivityPicker(isPresented: $isPickerPresented, selection: $selection)
-            
+
             Button(action: { showTimeLimitSheet = true }) {
                 Label("Select Time Limit", systemImage: "clock.fill")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(Color("primaryColor"))
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.orange)
-                    .cornerRadius(10)
+                    .background(Color("primaryColor").opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
+            .buttonStyle(.plain)
             .sheet(isPresented: $showTimeLimitSheet) {
                 TimeLimitSheetView(draftHours: $draftThresholdHour, draftMinutes: $draftThresholdMinutes)
             }
 
-            // Button to save the selection in Firestore
-            Button(action: {
-                if saveToFirebase() {
-                    showSavedAlert = true
-                }
-            }) {
-                Text("Save Settings")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
+            PrimaryButton(title: "Save Settings") {
+                if saveToFirebase() { showSavedAlert = true }
             }
 
             Spacer()
         }
         .padding()
-        .alert("Settings Saved!", isPresented: $showSavedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Make sure to screenshot and share them with your coaches so they know what your goals are!")
-        }
-        .alert("Turn Pressure to Off first", isPresented: $showPressureOffRequiredAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Turn Pressure level to Off and save first, then you can clear your time limit or remove all apps.")
-        }
+        .appAlert(
+            isPresented: $showSavedAlert,
+            title: "Settings Saved!",
+            message: "Make sure to screenshot and share them with your coaches so they know what your goals are!"
+        )
+        .appAlert(
+            isPresented: $showPressureOffRequiredAlert,
+            title: "Turn Pressure to Off first",
+            message: "Turn Pressure level to Off and save first, then you can clear your time limit or remove all apps."
+        )
         .onAppear {
             loadFromUserSettings()
         }

@@ -407,10 +407,11 @@ SwiftUI Views (auto re-render)
 ## 10. DeviceActivity & ScreenTime
 
 ### Monitoring setup (DeviceActivityManager)
-- Schedule: daily 00:00–23:59, repeating
-- Event: `timeLimitReached` at user-configured threshold
-- Warning: 5 minutes before threshold → `eventWillReachThresholdWarning`
+- Schedule: daily 00:00–23:59:59, repeating (no `warningTime` — that's for interval end, not threshold)
+- Event: `timeLimitReached` at user-configured threshold — includes **both** `applicationTokens` AND `categoryTokens`
+- `eventWillReachThresholdWarning` fires automatically by the system when approaching threshold
 - Shielding: `ManagedSettingsStore().shield.applications`
+- `isMonitoringActive` flag is cross-checked with `DeviceActivityCenter().activities` on every start attempt so a device restart or OS suspension doesn't permanently block monitoring restarts
 
 ### Extension event handlers (AppMonitor/DeviceActivityMonitorExtension.swift)
 | Event | Off | Standard | Hardcore |
@@ -424,12 +425,20 @@ SwiftUI Views (auto re-render)
 - App group ID: `group.com.sungbinyun.com.PPTADev`
 - Extension reads UserSettings via `LocalSettingsStore.load()`
 - Extension writes pending status via `LocalSettingsStore.savePendingStatus(_:resetStartDate:)`
-- Main app calls `UserSettingsManager.applyPendingStatusIfNeeded()` on launch to consume and sync to Firestore
+- Main app calls `UserSettingsManager.applyPendingStatusIfNeeded()` on **app launch** (HomeView.onAppear) AND **every foreground** (scenePhase → `.active` in PPTAMinimalApp) to consume and sync to Firestore
 
 ### ScreenTime report (PPTAReport extension)
-- Uses `DeviceActivityReport` API
-- Accessed via "Daily Screen Time" button on HomeView as a sheet
-- Shows filtered daily report based on user's selected apps
+Three `DeviceActivityReport.Context` scenes registered in `PPTAReport.swift`:
+
+| Context | Raw value | Filter | View | Purpose |
+|---|---|---|---|---|
+| `.totalActivity` | `"Total Activity"` | `.hourly()` today | `TotalActivityView` | Progress ring + hourly chart + per-app list |
+| `.weeklyTrend` | `"Weekly Trend"` | `.daily()` last 7 days | `WeeklyTrendView` | 7-day bar chart |
+| `.summaryRing` | `"Summary Ring"` | `.daily()` today | `SummaryRingView` | Ring only — shown inline on HomeView card |
+
+**HomeView** shows a summary card with `DeviceActivityReport(.init("Summary Ring"), ...)` inline; tapping opens the full `ReportView` sheet which stacks `.weeklyTrend` (140pt) above `.totalActivity` (min 500pt).
+
+**Fonts in PPTAReport extension**: `X_BAMBI.TTF` and `Satoshi-Variable.ttf` are both included in the PPTAReport target (via `membershipExceptions` in project.pbxproj) and registered in `PPTAReport/Info.plist` under `UIAppFonts`. Named colors from the main app's asset catalog are NOT available in the extension — `primaryColor` is hardcoded as `Color(red: 68/255, green: 86/255, blue: 46/255)` (light) / `Color(red: 141/255, green: 147/255, blue: 136/255)` (dark) via `Color.appPrimary(_:)` in `TotalActivityView.swift`.
 
 ---
 
@@ -531,7 +540,8 @@ Presented with `.sheet()` from their parent views — not pushed on NavigationSt
 - **Section headers**: `.uppercased()` + `.system(size: 11, weight: .semibold)` + `primaryColor.opacity(0.6)`
 - **Initials circles**: `primaryColor.opacity(0.12)` fill + `primaryColor` text — NOT `Color(.tertiarySystemFill)` + `.primary`
 - **Cards**: `primaryColor.opacity(0.1)` fill + `RoundedRectangle(cornerRadius: 12, style: .continuous)` — avoid `List` with `.insetGrouped`. Do NOT use `Color("backgroundGray")` for cards — it has no dark mode variant and disappears on dark backgrounds.
-- **Custom fonts**: `BambiBold` (headings in ProfileView), `SatoshiVariable-Bold_Light` (subheadings)
+- **Custom fonts**: `BambiBold` (headings, ring numbers), `Satoshi-Variable` (body, labels, stats). Use `.custom("BambiBold", size:)` and `.custom("Satoshi-Variable", size:)` with `.fontWeight()` modifier. Both fonts are registered in both the main app and PPTAReport extension targets.
+- **Portrait only**: App is locked to portrait orientation (`UIInterfaceOrientationPortrait` only in project.pbxproj build settings).
 
 ### Patterns to avoid
 - `List` with `.insetGrouped` — looks stock, clashes with custom cards
@@ -584,3 +594,6 @@ Presented with `.sheet()` from their parent views — not pushed on NavigationSt
 
 ### Overall status
 **Pre-beta.** Core features are functional. Blockers before first TestFlight: forgot password, profile image upload optionally, and streak reset copy. The UID-based relationship model is the future; avoid adding to the legacy phone-based system.
+
+### Cleanup TODO
+- Delete `AppMonitor/SettingsLoader.swift` — dead code, never called. `LocalSettingsStore.load()` is the canonical App Group reader used by the extension.
