@@ -23,7 +23,6 @@ struct TotalActivityReport: DeviceActivityReportScene {
     ) async -> ActivityReport {
         print("TotalActivityReport.makeConfiguration: invoked")
 
-        // Keyed by bundle ID → accumulated stats
         var appData: [String: (name: String, duration: TimeInterval, pickups: Int, notifications: Int, token: ApplicationToken?)] = [:]
         var hourlyTotals = [TimeInterval](repeating: 0, count: 24)
         var totalDuration: TimeInterval = 0

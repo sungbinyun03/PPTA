@@ -217,7 +217,6 @@ struct AppActivityRow: View {
                     .foregroundColor(primary)
             }
 
-            // Usage bar
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(primary.opacity(0.1))
@@ -227,7 +226,6 @@ struct AppActivityRow: View {
             }
             .frame(height: 5)
 
-            // Notification + pickup stats
             if app.numberOfNotifications > 0 || app.numberOfPickups > 0 {
                 HStack(spacing: 10) {
                     if app.numberOfNotifications > 0 {
@@ -250,11 +248,6 @@ struct AppActivityRow: View {
                 .foregroundColor(.secondary)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(primary.opacity(0.07))
-        )
     }
 }
 
