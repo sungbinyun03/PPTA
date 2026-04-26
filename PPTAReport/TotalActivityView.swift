@@ -24,7 +24,7 @@ struct TotalActivityView: View {
             List {
                 Section {
                     ForEach(activityReport.apps) { eachApp in
-                        ListRow(eachApp: eachApp)
+                        ListRow(eachApp: eachApp, timeLimitSeconds: activityReport.timeLimitSeconds)
                     }
                 }
             }
@@ -36,9 +36,10 @@ struct TotalActivityView: View {
 
 struct ListRow: View {
     var eachApp: AppDeviceActivity
-    
+    var timeLimitSeconds: TimeInterval
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             HStack(spacing: 0) {
                 if let token = eachApp.token {
                     if eachApp.displayName.isEmpty {
@@ -56,27 +57,30 @@ struct ListRow: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-//                    HStack(spacing: 4) {
-//                        Text("Pickups")
-//                            .font(.footnote)
-//                            .foregroundColor(.secondary)
-//                            .frame(width: 72, alignment: .leading)
-//                        Text("\(eachApp.numberOfPickups) Times")
-//                            .font(.headline)
-//                            .bold()
-//                            .frame(minWidth: 52, alignment: .trailing)
-//                    }
                     HStack(spacing: 4) {
-//                        Text("Time")
-//                            .font(.footnote)
-//                            .foregroundColor(.secondary)
-//                            .frame(width: 72, alignment: .leading)
-                        Text(String(eachApp.duration.toString()))
+                        Text(timeLimitSeconds > 0
+                            ? "\(eachApp.duration.toString()) / \(timeLimitSeconds.toString())"
+                            : eachApp.duration.toString())
                             .font(.headline)
-//                            .bold()
                             .frame(minWidth: 52, alignment: .trailing)
                     }
                 }
+            }
+            if timeLimitSeconds > 0 {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(Color.green)
+                            .frame(
+                                width: geo.size.width * min(eachApp.duration / timeLimitSeconds, 1.0),
+                                height: 4
+                            )
+                    }
+                }
+                .frame(height: 4)
             }
         }
         .listRowBackground(Color.clear)

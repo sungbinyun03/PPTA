@@ -11,6 +11,7 @@ import ManagedSettings
 
 struct ActivityReport {
     let totalDuration: TimeInterval
+    let timeLimitSeconds: TimeInterval
     let apps: [AppDeviceActivity]
 }
 
@@ -24,9 +25,11 @@ struct AppDeviceActivity: Identifiable {
 
 extension TimeInterval {
     func toString() -> String {
-        let time = NSInteger(self)
-        let minutes = (time / 60) % 60
-        let hours = (time / 3600)
-        return String(format: "%0.2d:%0.2d", hours,minutes)
+        let total = Int(self)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        if h > 0 && m > 0 { return "\(h)h \(m)m" }
+        if h > 0 { return "\(h)h" }
+        return "\(m)m"
     }
 }

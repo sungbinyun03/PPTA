@@ -59,12 +59,18 @@ struct TotalActivityReport: DeviceActivityReportScene {
             }
         }
         
-        // Append selected apps that had zero usage (not returned by DeviceActivity at all).
+        // Append selected apps with zero usage and read the daily time limit.
         let seenTokens = Set(list.compactMap { $0.token })
-        struct PartialSettings: Decodable { var applications: FamilyActivitySelection }
+        struct PartialSettings: Decodable {
+            var applications: FamilyActivitySelection
+            var thresholdHour: Int
+            var thresholdMinutes: Int
+        }
+        var timeLimitSeconds: TimeInterval = 0
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
            let data = suite.data(forKey: "UserSettings"),
            let partial = try? JSONDecoder().decode(PartialSettings.self, from: data) {
+            timeLimitSeconds = TimeInterval(partial.thresholdHour * 3600 + partial.thresholdMinutes * 60)
             for token in partial.applications.applicationTokens where !seenTokens.contains(token) {
                 list.append(AppDeviceActivity(
                     id: "zero-\(token.hashValue)",
@@ -76,6 +82,9 @@ struct TotalActivityReport: DeviceActivityReportScene {
             }
         }
 
-        return ActivityReport(totalDuration: totalActivityDuration, apps: list)
+        // Sort descending by duration; zero-usage apps fall to the bottom.
+        list.sort { $0.duration > $1.duration }
+
+        return ActivityReport(totalDuration: totalActivityDuration, timeLimitSeconds: timeLimitSeconds, apps: list)
     }
 }
