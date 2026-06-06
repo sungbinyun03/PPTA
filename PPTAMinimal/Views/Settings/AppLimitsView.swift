@@ -15,8 +15,14 @@ struct AppLimitsView: View {
     @State private var showTimeLimitSheet = false
     @State private var showSavedAlert = false
     @State private var showPressureOffRequiredAlert = false
+    @State private var showLockedAlert = false
+
+    private var isLocked: Bool {
+        userSettingsManager.userSettings.traineeStatus == .cutOff &&
+        userSettingsManager.userSettings.pressureLevel == .hardcore
+    }
     @State private var selection = FamilyActivitySelection()
-    /// Draft daily limit (saved only when user taps “Save Settings”), like `selection`.
+    /// Draft daily limit (saved only when user taps "Save Settings"), like `selection`.
     @State private var draftThresholdHour: Int = 0
     @State private var draftThresholdMinutes: Int = 0
     
@@ -27,8 +33,24 @@ struct AppLimitsView: View {
                 .fontWeight(.bold)
 
             Divider()
-            
-            // Draft time limit (committed with “Save Settings”), styled like the Daily Limit card
+
+            if isLocked {
+                HStack(spacing: 10) {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(Color("primaryColor"))
+                    Text("Your apps are locked until midnight. Limits cannot be changed.")
+                        .font(.custom("Satoshi-Variable", size: 13))
+                        .foregroundColor(Color("primaryColor"))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color("primaryColor").opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            // Draft time limit (committed with "Save Settings"), styled like the Daily Limit card
             VStack(spacing: 8) {
                 Text("Time limit")
                     .font(.custom("SatoshiVariable-Bold_Light", size: 20))
@@ -85,13 +107,14 @@ struct AppLimitsView: View {
             Button(action: { isPickerPresented = true }) {
                 Label("Select Apps", systemImage: "plus.circle.fill")
                     .font(.headline)
-                    .foregroundColor(Color("primaryColor"))
+                    .foregroundColor(isLocked ? .secondary : Color("primaryColor"))
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color("primaryColor").opacity(0.1))
+                    .background(isLocked ? Color(.systemGray5) : Color("primaryColor").opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(isLocked)
             .familyActivityPicker(isPresented: $isPickerPresented, selection: $selection)
 
             Text("Limit applies to total combined usage across all selected apps.")
@@ -103,18 +126,19 @@ struct AppLimitsView: View {
             Button(action: { showTimeLimitSheet = true }) {
                 Label("Select Time Limit", systemImage: "clock.fill")
                     .font(.headline)
-                    .foregroundColor(Color("primaryColor"))
+                    .foregroundColor(isLocked ? .secondary : Color("primaryColor"))
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color("primaryColor").opacity(0.1))
+                    .background(isLocked ? Color(.systemGray5) : Color("primaryColor").opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(isLocked)
             .sheet(isPresented: $showTimeLimitSheet) {
                 TimeLimitSheetView(draftHours: $draftThresholdHour, draftMinutes: $draftThresholdMinutes)
             }
 
-            PrimaryButton(title: "Save Settings") {
+            PrimaryButton(title: "Save Settings", isDisabled: isLocked) {
                 if saveToFirebase() { showSavedAlert = true }
             }
 
@@ -146,6 +170,7 @@ struct AppLimitsView: View {
     /// - Returns: `true` if settings were saved; `false` if validation blocked the save.
     @discardableResult
     private func saveToFirebase() -> Bool {
+        guard !isLocked else { return false }
         let current = userSettingsManager.userSettings
         let wouldBeViable = UserSettings.appLimitsAreViable(
             thresholdHour: draftThresholdHour,
