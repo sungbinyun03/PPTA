@@ -94,6 +94,12 @@ struct AppLimitsView: View {
             .buttonStyle(.plain)
             .familyActivityPicker(isPresented: $isPickerPresented, selection: $selection)
 
+            Text("Limit applies to total combined usage across all selected apps.")
+                .font(.custom("Satoshi-Variable", size: 12))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+
             Button(action: { showTimeLimitSheet = true }) {
                 Label("Select Time Limit", systemImage: "clock.fill")
                     .font(.headline)

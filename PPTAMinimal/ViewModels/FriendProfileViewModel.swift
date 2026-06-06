@@ -38,6 +38,10 @@ final class FriendProfileViewModel: ObservableObject {
     @Published var coachAction = ActionConfig(title: "Request as Coach", enabled: false)
     @Published var traineeAction = ActionConfig(title: "Request as Trainee", enabled: false)
 
+    @Published var isPerformingLockUnlock = false
+    @Published var lockUnlockError: String?
+    @Published var lockedByName: String? = nil
+
     private let otherUserId: String
 
     private let usersRepo = UserRepository()
@@ -78,6 +82,8 @@ final class FriendProfileViewModel: ObservableObject {
                 traineeStatus = .noStatus
             }
 
+            lockedByName = otherSettings?.lockedByName
+
             // Friends-only policy (client-side gating; server enforces too)
             let friends = try await friendships.areFriends(uid, otherUserId)
             friendshipStatus = friends ? .isFriend : .notFriend
@@ -109,6 +115,35 @@ final class FriendProfileViewModel: ObservableObject {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Lock / Unlock actions
+
+    func performLock(url: URL) async {
+        await performLockUnlockAction(url: url)
+    }
+
+    func performUnlock(url: URL) async {
+        await performLockUnlockAction(url: url)
+    }
+
+    private func performLockUnlockAction(url: URL) async {
+        isPerformingLockUnlock = true
+        lockUnlockError = nil
+        defer { isPerformingLockUnlock = false }
+        do {
+            var req = URLRequest(url: url)
+            req.httpMethod = "GET"
+            req.timeoutInterval = 15
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                lockUnlockError = "Action failed — please try again."
+                return
+            }
+            await refresh()
+        } catch {
+            lockUnlockError = error.localizedDescription
         }
     }
 

@@ -13,6 +13,7 @@ struct TraineeCellView: View {
     private var profilePicUrl: String?
     private var pressureLevel: PressureLevel
 
+    var lockedByName: String? = nil
     var onRelease: (() -> Void)? = nil
     var onLock: (() -> Void)? = nil
 
@@ -21,6 +22,7 @@ struct TraineeCellView: View {
         status: TraineeStatus,
         profilePicUrl: String? = nil,
         pressureLevel: PressureLevel = .off,
+        lockedByName: String? = nil,
         onRelease: (() -> Void)? = nil,
         onLock: (() -> Void)? = nil
     ) {
@@ -28,6 +30,7 @@ struct TraineeCellView: View {
         self.status = status
         self.profilePicUrl = profilePicUrl
         self.pressureLevel = pressureLevel
+        self.lockedByName = lockedByName
         self.onRelease = onRelease
         self.onLock = onLock
     }
@@ -50,6 +53,24 @@ struct TraineeCellView: View {
             }
                 .frame(width: 65, height: 65)
                 .clipShape(Circle())
+                .overlay(alignment: .bottomTrailing) {
+                    if status == .cutOff, let locker = lockedByName {
+                        let parts = locker.split(separator: " ")
+                        let initials = parts.prefix(2)
+                            .compactMap { $0.first }
+                            .map(String.init)
+                            .joined()
+                            .uppercased()
+                        Text(initials)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 22, height: 22)
+                            .background(Color.orange)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                            .offset(x: 2, y: 2)
+                    }
+                }
             VStack(spacing: 12) {
                 // Top row: avatar + name + small status dot
                 HStack(alignment: .center, spacing: 12) {

@@ -93,6 +93,14 @@ struct PhoneVerificationView: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 24)
+
+                Button(errorMessage?.contains("already registered") == true ? "Back to sign in" : "Skip for now") {
+                    dismiss()
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
             }
 
             PrimaryButton(
@@ -116,6 +124,25 @@ struct PhoneVerificationView: View {
 
     var codeEntryView: some View {
         VStack(spacing: 24) {
+            HStack {
+                Button {
+                    isCodeSent = false
+                    verificationCode = ""
+                    errorMessage = nil
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Change number")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(primaryColor)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+
             VStack(spacing: 6) {
                 Text("Enter the code")
                     .font(.custom("BambiBold", size: 28))

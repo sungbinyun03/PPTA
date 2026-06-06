@@ -29,8 +29,9 @@ struct FriendProfileView: View {
     let timeLimitMinutes: Int
     let pressureLevel: PressureLevel
 
-    let lockURL: URL?
-    let unlockURL: URL?
+    let onLock: (() -> Void)?
+    let onUnlock: (() -> Void)?
+    let lockedByName: String?
 
     // MARK: - Role request / relationship actions
     let coachAction: FriendProfileViewModel.ActionConfig
@@ -41,7 +42,6 @@ struct FriendProfileView: View {
     let onTraineeSecondary: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
 
     private let primaryColor = Color("primaryColor")
 
@@ -131,8 +131,8 @@ struct FriendProfileView: View {
                         .padding(.top, 4)
 
                         // MARK: Lock / Unlock CTAs (coach actions)
-                        if let lockURL {
-                            Button { openURL(lockURL) } label: {
+                        if let onLock {
+                            Button { onLock() } label: {
                                 HStack {
                                     Text("Lock")
                                         .font(.system(size: 15, weight: .semibold))
@@ -148,8 +148,8 @@ struct FriendProfileView: View {
                             .padding(.horizontal, 20)
                         }
 
-                        if let unlockURL {
-                            Button { openURL(unlockURL) } label: {
+                        if let onUnlock {
+                            Button { onUnlock() } label: {
                                 HStack {
                                     Text(traineeStatus == .attentionNeeded ? "Preemptively Release" : "Release")
                                         .font(.system(size: 15, weight: .semibold))
@@ -180,6 +180,11 @@ struct FriendProfileView: View {
                             statRow(label: "Daily limit", value: "\(timeLimitMinutes) min")
                             statRow(label: "Pressure", value: pressureLevel.rawValue)
                             statRow(label: "Streak", value: "\(streakDays) days")
+
+                            if let locker = lockedByName, traineeStatus == .cutOff {
+                                Divider().opacity(0.3)
+                                statRow(label: "Locked by", value: locker)
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
@@ -306,8 +311,9 @@ struct FriendProfileView: View {
         streakDays: 6,
         timeLimitMinutes: 90,
         pressureLevel: .standard,
-        lockURL: nil,
-        unlockURL: nil,
+        onLock: nil,
+        onUnlock: nil,
+        lockedByName: nil,
         coachAction: .init(title: "Request as Coach", enabled: true),
         traineeAction: .init(title: "Request as Trainee", enabled: true),
         onCoachPrimary: {},

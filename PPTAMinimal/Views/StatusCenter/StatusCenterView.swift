@@ -10,8 +10,7 @@ import FirebaseAuth
 
 struct StatusCenterView: View {
     @StateObject private var vm = StatusCenterViewModel()
-    @State private var selectedUserId: String? = nil
-    @State private var showFriendProfile = false
+    @State private var selectedPerson: StatusCenterPerson? = nil
     
     var body: some View {
         NavigationStack {
@@ -19,8 +18,7 @@ struct StatusCenterView: View {
                 VStack(spacing: 5) {
                     ProfileView(headerPart1: "", headerPart2: "Status Center", subHeader: "Your place for tracking accountability")
                     TraineeStatsRowView(trainees: vm.trainees) { trainee in
-                        selectedUserId = trainee.id
-                            showFriendProfile = true
+                        selectedPerson = trainee
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -46,6 +44,7 @@ struct StatusCenterView: View {
                                         status: user.traineeStatus ?? .noStatus,
                                         profilePicUrl: user.profileImageURL?.absoluteString,
                                         pressureLevel: user.pressureLevel,
+                                        lockedByName: user.lockedByName,
                                         onRelease: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
                                             guard let link = UnlockService.makeUnlockURL(childUID: user.id, coachUID: coachUID) else { return }
@@ -79,8 +78,7 @@ struct StatusCenterView: View {
                             } else {
                                 ForEach(vm.coaches) { user in
                                         Button(action: {
-                                        selectedUserId = user.id
-                                            showFriendProfile = true
+                                            selectedPerson = user
                                         }) {
                                             CoachCellView(
                                                 name: user.name,
@@ -124,10 +122,8 @@ struct StatusCenterView: View {
                 }
             }
             .animation(.easeInOut, value: vm.errorMessage)
-            .sheet(isPresented: $showFriendProfile) {
-                if let otherId = selectedUserId {
-                    FriendProfileSheetView(otherUserId: otherId)
-                }
+            .sheet(item: $selectedPerson) { person in
+                FriendProfileSheetView(otherUserId: person.id)
             }
         }
     }

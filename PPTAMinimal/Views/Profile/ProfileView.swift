@@ -8,6 +8,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var viewModel: AuthViewModel
+    @ObservedObject private var settingsMgr = UserSettingsManager.shared
     private var headerPart1: String
     private var headerPart2: String?
     private var subHeader: String
@@ -23,24 +24,29 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 12) {
                     NavigationLink(destination: SettingsView()) {
-                        Text(user.intiials)
-                            .font(.title)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.white)
-                            .frame(width: 58, height: 58)
-                            .background(Color(.systemGray3))
-                            .clipShape(Circle())
-                            .offset(y:0) // Moves the circle slightly higher
-                            .overlay(alignment: .bottomTrailing) {
-                                Circle()
-                                    .fill(Color.white)  // white internal background
-                                    .frame(width: 20, height: 20)
-                                    .offset(y: 0)
-                                Image(systemName: "gearshape.fill") // filled gear for clear lines
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.gray) // gray gear lines
-                                    .offset(y: 0)
+                        Group {
+                            if let url = settingsMgr.userSettings.profileImageURL {
+                                AsyncImage(url: url) { phase in
+                                    if let image = phase.image {
+                                        image.resizable().scaledToFill()
+                                    } else {
+                                        initialsCircle(for: user)
+                                    }
+                                }
+                                .frame(width: 58, height: 58)
+                                .clipShape(Circle())
+                            } else {
+                                initialsCircle(for: user)
                             }
+                        }
+                        .overlay(alignment: .bottomTrailing) {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 20, height: 20)
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.gray)
+                        }
                     }
                     .buttonStyle(.plain)
                     
@@ -72,6 +78,16 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 24) // Keeps the main layout structured
         }
+    }
+
+    private func initialsCircle(for user: User) -> some View {
+        Text(user.intiials)
+            .font(.title)
+            .fontWeight(.semibold)
+            .foregroundStyle(.white)
+            .frame(width: 58, height: 58)
+            .background(Color(.systemGray3))
+            .clipShape(Circle())
     }
 }
 

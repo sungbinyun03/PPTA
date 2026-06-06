@@ -9,6 +9,7 @@ import DeviceActivity
 import ManagedSettings
 import Foundation
 import CryptoKit
+import UserNotifications
 
 // Optionally override any of the functions below.
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
@@ -25,21 +26,27 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
         let settings = LocalSettingsStore.load()
-        
-        // Reset to allClear at the start of the window (near-real-time coach visibility).
-        if settings.isTracking {
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
+        guard settings.isTracking else { return }
+
+        // Guard: send allClear at most once per calendar day.
+        // intervalDidStart fires both at genuine midnight AND on monitoring restarts
+        // (OS suspension recovery, app relaunch). Without this guard, each restart
+        // sends another coach notification.
+        let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+        let today = Calendar.current.startOfDay(for: Date())
+        if let last = suite?.object(forKey: "lastAllClearSentDate") as? Date,
+           Calendar.current.isDate(last, inSameDayAs: today) {
+            return
         }
+        suite?.set(today, forKey: "lastAllClearSentDate")
+        LocalSettingsStore.savePendingStatus(.allClear, resetStartDate: nil)
+        sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
     }
-    
+
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
         store.shield.applications = nil
-        
-        let settings = LocalSettingsStore.load()
-        if settings.isTracking {
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
-        }
+        // No statusUpdate here — intervalDidStart fires at 00:00 and handles the reset.
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
@@ -59,14 +66,22 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 // Standard mode: notify coaches, no auto-lock. Coaches decide whether to shield.
                 LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
                 sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
+                scheduleLocalNotification(
+                    title: "Time's up",
+                    body: "You've reached your daily limit. Your coaches have been notified."
+                )
                 return
             case .hardcore:
                 store.shield.applications = settings.applications.applicationTokens
             }
-            
+
             // Persist locally for the app to pick up (streak reset), AND notify backend immediately.
             LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: Date())
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+            scheduleLocalNotification(
+                title: "Time's up",
+                body: "Your apps are locked for the rest of the day."
+            )
         }
     
     override func eventWillReachThresholdWarning(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
@@ -79,6 +94,21 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
         }
     
+    // MARK: - Local notification
+
+    private func scheduleLocalNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "threshold-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
     // MARK: - Backend status update
     
     /// Sends a signed status update to Cloud Run so coaches can see changes almost immediately.

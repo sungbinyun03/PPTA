@@ -21,6 +21,7 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let streakDays: Int
     let timeLimitMinutes: Int
     let pressureLevel: PressureLevel
+    let lockedByName: String?
 }
 
 

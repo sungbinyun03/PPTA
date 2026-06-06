@@ -68,10 +68,15 @@ final class UserSettings: Codable {
     /// When false, they should appear with `.noStatus` to their coaches.
     /// Kept in sync with `pressureLevel`: `false` when `PressureLevel.off`, otherwise `true` (on decode and in `UserSettingsManager.saveSettings`).
     var isTracking: Bool
-    
+
     /// Status visible to this user's coaches / trainees.
     var traineeStatus: TraineeStatus
-    
+
+    /// UID of the coach who last remotely locked this user (nil when unlocked).
+    var lockedByUID: String? = nil
+    /// Display name of the coach who last remotely locked this user (nil when unlocked).
+    var lockedByName: String? = nil
+
     private enum CodingKeys: String, CodingKey {
         case applications, thresholdHour, thresholdMinutes,
              pressureLevel = "selectedMode",
@@ -80,7 +85,8 @@ final class UserSettings: Codable {
              coaches, trainees,
              coachIds, traineeIds,
              startDailyStreakDate,
-             isTracking, traineeStatus
+             isTracking, traineeStatus,
+             lockedByUID, lockedByName
     }
 
     /// Single definition of “viable” limits (used by Home, save validation, etc.).
@@ -169,9 +175,10 @@ final class UserSettings: Codable {
         }
 
         startDailyStreakDate = try? container.decode(Date.self, forKey: .startDailyStreakDate)
-        // Source of truth: Off = no tracking; any other level participates.
         isTracking = pressureLevel.isTracking
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
+        lockedByUID = try? container.decode(String.self, forKey: .lockedByUID)
+        lockedByName = try? container.decode(String.self, forKey: .lockedByName)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -190,6 +197,8 @@ final class UserSettings: Codable {
         try container.encodeIfPresent(startDailyStreakDate, forKey: .startDailyStreakDate)
         try container.encode(isTracking, forKey: .isTracking)
         try container.encode(traineeStatus, forKey: .traineeStatus)
+        try container.encodeIfPresent(lockedByUID, forKey: .lockedByUID)
+        try container.encodeIfPresent(lockedByName, forKey: .lockedByName)
     }
     
     

@@ -192,23 +192,24 @@ struct FriendsView: View {
         onAccept: @escaping () -> Void,
         onDecline: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             initialsCircle(name: name, size: 40)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(name)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
-
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Button(action: onDecline) {
                     Text("Decline")
                         .font(.system(size: 13, weight: .medium))
@@ -229,9 +230,10 @@ struct FriendsView: View {
                         .clipShape(Capsule())
                 }
             }
+            .fixedSize()
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 13)
         .background(primaryColor.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(Rectangle())

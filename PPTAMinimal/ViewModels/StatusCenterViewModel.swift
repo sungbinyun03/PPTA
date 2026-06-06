@@ -64,7 +64,8 @@ final class StatusCenterViewModel: ObservableObject {
                     traineeStatus: nil,
                     streakDays: p.streakDays,
                     timeLimitMinutes: p.timeLimitMinutes,
-                    pressureLevel: p.pressureLevel
+                    pressureLevel: p.pressureLevel,
+                    lockedByName: nil
                 )
             }
 
@@ -78,7 +79,8 @@ final class StatusCenterViewModel: ObservableObject {
                     traineeStatus: p.traineeStatus,
                     streakDays: p.streakDays,
                     timeLimitMinutes: p.timeLimitMinutes,
-                    pressureLevel: p.pressureLevel
+                    pressureLevel: p.pressureLevel,
+                    lockedByName: p.lockedByName
                 )
             }
 
@@ -106,12 +108,13 @@ final class StatusCenterViewModel: ObservableObject {
                     let newStatus = TraineeStatus(rawValue: rawStatus) ?? .noStatus
                     let isTracking = data["isTracking"] as? Bool ?? false
                     let effectiveStatus: TraineeStatus = isTracking ? newStatus : .noStatus
+                    let lockedByName = data["lockedByName"] as? String
 
                     // Update in-place without a full re-fetch.
                     if let idx = self.trainees.firstIndex(where: { $0.id == traineeId }) {
                         let existing = self.trainees[idx]
-                        // Only replace if status actually changed.
-                        if existing.traineeStatus != effectiveStatus {
+                        let newLockedByName = lockedByName ?? existing.lockedByName
+                        if existing.traineeStatus != effectiveStatus || existing.lockedByName != newLockedByName {
                             self.trainees[idx] = StatusCenterPerson(
                                 id: existing.id,
                                 name: existing.name,
@@ -121,7 +124,8 @@ final class StatusCenterViewModel: ObservableObject {
                                 traineeStatus: effectiveStatus,
                                 streakDays: existing.streakDays,
                                 timeLimitMinutes: existing.timeLimitMinutes,
-                                pressureLevel: existing.pressureLevel
+                                pressureLevel: existing.pressureLevel,
+                                lockedByName: newLockedByName
                             )
                         }
                     }
@@ -192,7 +196,8 @@ final class StatusCenterViewModel: ObservableObject {
                         traineeStatus: effectiveStatus,
                         streakDays: streakDays,
                         timeLimitMinutes: timeLimitMinutes,
-                        pressureLevel: settings?.pressureLevel ?? .off
+                        pressureLevel: settings?.pressureLevel ?? .off,
+                        lockedByName: settings?.lockedByName
                     )
                 }
             }

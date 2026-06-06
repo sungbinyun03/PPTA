@@ -25,20 +25,26 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
-                    if !userSettingsManager.userSettings.hasViableAppLimits {
-                        NoAppLimitsHomeCardView()
-                    }
-                    if userSettingsManager.userSettings.pressureLevel == PressureLevel.off {
-                        PressureOffHomeCardView()
-                    }
-                    if userSettingsManager.userSettings.traineeIds.isEmpty
-                        && userSettingsManager.userSettings.trainees.isEmpty {
-                        NoTraineesHomeCardView()
-                    }
-                    if userSettingsManager.userSettings.coachIds.isEmpty
-                        && userSettingsManager.userSettings.coaches.isEmpty
-                    {
-                        NoCoachesHomeCardView()
+                    if userSettingsManager.userSettings.traineeStatus == .cutOff
+                        && userSettingsManager.userSettings.pressureLevel == .hardcore {
+                        HStack(spacing: 12) {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.white)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Apps Locked")
+                                    .font(.custom("BambiBold", size: 15))
+                                    .foregroundColor(.white)
+                                Text("You've hit your Hardcore limit for today.")
+                                    .font(.custom("Satoshi-Variable", size: 13))
+                                    .foregroundColor(.white.opacity(0.85))
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(Color.red.opacity(0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .padding(.horizontal, 24)
                     }
                     DashboardView()
                     StreakBannerView()

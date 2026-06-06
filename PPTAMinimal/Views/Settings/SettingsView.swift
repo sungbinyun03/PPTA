@@ -16,10 +16,15 @@ struct SettingsView: View {
     @ObservedObject private var settingsMgr = UserSettingsManager.shared
     
     // MARK: – Local state
-    @State private var selectedTab   = "Settings"
+    @State private var selectedTab     = "Settings"
     @State private var pickerItem: PhotosPickerItem?
-    @State private var isUploading   = false
-    @State private var uploadError:  String?
+    @State private var isUploading     = false
+    @State private var uploadError:    String?
+    @State private var isEditingName   = false
+    @State private var editedName      = ""
+    @State private var isSavingName    = false
+
+    @Environment(\.openURL) private var openURL
     
     // MARK: – View body
     var body: some View {
@@ -97,24 +102,54 @@ struct SettingsView: View {
             .overlay(changePhotoButton.offset(y: 60))
             
             VStack(alignment: .leading, spacing: 12) {
-                Text(viewModel.currentUser?.name ?? "User")
-                    .font(.custom("BambiBold", size: 22))
-                    .fontWeight(.bold)
-                
-                NavigationLink(destination: EditProfileView()) {
-                    HStack(spacing: 4) {
-                        Text("Edit your profile")
-                            .font(.custom("SatoshiVariable-Bold_Light", size: 14))
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
+                if isEditingName {
+                    TextField("Your name", text: $editedName)
+                        .font(.custom("BambiBold", size: 20))
+                        .foregroundColor(Color("primaryColor"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color("primaryColor").opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    HStack(spacing: 12) {
+                        Button("Cancel") {
+                            isEditingName = false
+                            editedName = ""
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                        Button(isSavingName ? "Saving..." : "Save") {
+                            guard !isSavingName else { return }
+                            let trimmed = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            isSavingName = true
+                            Task {
+                                await viewModel.updateUserDisplayName(displayName: trimmed)
+                                isSavingName = false
+                                isEditingName = false
+                            }
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(Color("primaryColor"))
+                        .disabled(editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingName)
                     }
-                    .padding(6)
-                    .background(
-                        Color("primaryColor").opacity(0.1)
-                    )
-                    .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 6) {
+                        Text(viewModel.currentUser?.name ?? "User")
+                            .font(.custom("BambiBold", size: 22))
+                            .fontWeight(.bold)
+                        Button {
+                            editedName = viewModel.currentUser?.name ?? ""
+                            isEditingName = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color("primaryColor").opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
             }
         }
         .offset(x: -20)
@@ -235,8 +270,14 @@ struct SettingsView: View {
                         iconScale: 2
                     )
                 }
-                settingsRow(icon: Image(systemName: "lock.shield"), text: "Security", iconScale: 1.2)
-                settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support", iconScale: 1.2)
+                Button {
+                    if let url = URL(string: "https://forms.gle/YOUR_FORM_ID") {
+                        openURL(url)
+                    }
+                } label: {
+                    settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support", iconScale: 1.2)
+                }
+                .buttonStyle(.plain)
 
                 Button(role: .destructive) {
                     viewModel.signOut()

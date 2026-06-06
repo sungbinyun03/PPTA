@@ -71,14 +71,15 @@ struct TraineeStatsRowView: View {
     TraineeStatsRowView(trainees: [
         .init(
             id: "preview-user",
-        name: "Peter Parker",
+            name: "Peter Parker",
             profileImageURL: nil,
             isCoach: false,
             isTrainee: true,
             traineeStatus: .attentionNeeded,
             streakDays: 6,
             timeLimitMinutes: 90,
-            pressureLevel: .standard
+            pressureLevel: .standard,
+            lockedByName: nil
         )
     ])
 }
@@ -94,7 +95,8 @@ struct TraineeStatsRowView: View {
             traineeStatus: .attentionNeeded,
             streakDays: 6,
             timeLimitMinutes: 90,
-            pressureLevel: .standard
+            pressureLevel: .standard,
+            lockedByName: nil
         )
     ])
     .preferredColorScheme(.dark)

@@ -110,6 +110,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
 
+        if let type = notification["type"] as? String, type == "roleRequestReceived" {
+            let name = notification["requesterName"] as? String ?? "Someone"
+            let role = notification["role"] as? String ?? "coach"
+            let roleLabel = role == "trainee" ? "trainee" : "coach"
+            NotificationManager.shared.sendNotification(
+                title: "New role request",
+                body: "\(name) wants to be your \(roleLabel)."
+            )
+            completionHandler(.newData)
+            return
+        }
+
+        if let type = notification["type"] as? String, type == "roleRequestAccepted" {
+            let name = notification["acceptorName"] as? String ?? "Your friend"
+            let role = notification["role"] as? String ?? "coach"
+            let roleLabel = role == "trainee" ? "trainee" : "coach"
+            NotificationManager.shared.sendNotification(
+                title: "Request accepted",
+                body: "\(name) accepted your \(roleLabel) request."
+            )
+            completionHandler(.newData)
+            return
+        }
+
         completionHandler(.noData)
     }
     
