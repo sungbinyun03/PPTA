@@ -134,6 +134,7 @@ class AuthViewModel: ObservableObject {
             // 4. If this is a first-time user, create their Firestore record
             let exists = try await userRepository.userExists(firebaseUser.uid)
             if !exists {
+                UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(firebaseUser.uid)")
                 let newUser = User(
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName ?? "Unknown",
@@ -181,6 +182,7 @@ class AuthViewModel: ObservableObject {
 
                 let exists = try await userRepository.userExists(firebaseUser.uid)
                 if !exists {
+                    UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(firebaseUser.uid)")
                     let fullName = extractAppleFullName(from: result)
                     let newUser = User(
                         id: firebaseUser.uid,
@@ -274,6 +276,21 @@ class AuthViewModel: ObservableObject {
     func signOut() {
         do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
         catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
+    }
+
+    func deleteIncompleteAccount() {
+        Task {
+            guard let firebaseUser = Auth.auth().currentUser else { signOut(); return }
+            let uid = firebaseUser.uid
+            try? await userRepository.deleteUser(uid: uid)
+            try? await Firestore.firestore().collection("userSettings").document(uid).delete()
+            try? await firebaseUser.delete()
+            await MainActor.run {
+                googleSignInService.signOut()
+                self.userSession = nil
+                self.currentUser = nil
+            }
+        }
     }
 
     /// Returns a short, user-friendly error message (no codes or technical jargon).

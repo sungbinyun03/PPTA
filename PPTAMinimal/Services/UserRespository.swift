@@ -57,6 +57,10 @@ class UserRepository {
     }
     
     func updateUserField(uid: String, field: String, value: Any) async throws {
-            try await db.collection(collectionName).document(uid).updateData([field: value])
-        }
+        try await db.collection(collectionName).document(uid).updateData([field: value])
+    }
+
+    func deleteUser(uid: String) async throws {
+        try await db.collection(collectionName).document(uid).delete()
+    }
 }

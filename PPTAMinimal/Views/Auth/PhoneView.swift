@@ -2,6 +2,7 @@ import SwiftUI
 import FirebaseAuth
 
 struct PhoneVerificationView: View {
+    @State private var countryCode: String = ""
     @State private var phoneNumber: String = ""
     @State private var verificationCode: String = ""
     @State private var verificationID = ""
@@ -24,6 +25,15 @@ struct PhoneVerificationView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 4)
 
+            HStack {
+                Spacer()
+                Button("Cancel sign up") { authViewModel.deleteIncompleteAccount() }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+            }
+
             ScrollView {
                 if !isCodeSent {
                     phoneEntryView
@@ -32,8 +42,13 @@ struct PhoneVerificationView: View {
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color(.systemBackground))
+        .onTapGesture {
+            isPhoneFocused = false
+            isCodeFocused = false
+        }
     }
 
     // MARK: - Phone Entry
@@ -66,13 +81,24 @@ struct PhoneVerificationView: View {
                     .textCase(.uppercase)
 
                 HStack(spacing: 10) {
-                    Text("+1")
-                        .font(.body)
-                        .foregroundColor(primaryColor)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                        .background(primaryColor.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    HStack(spacing: 2) {
+                        Text("+")
+                            .font(.body)
+                            .foregroundColor(primaryColor)
+                        TextField("1", text: $countryCode)
+                            .keyboardType(.numberPad)
+                            .font(.body)
+                            .frame(width: 32)
+                            .multilineTextAlignment(.leading)
+                            .onChange(of: countryCode) { _, newValue in
+                                let digits = newValue.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+                                countryCode = String(digits.prefix(3))
+                            }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
+                    .background(primaryColor.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                     TextField("(555) 867-5309", text: $phoneNumber)
                         .keyboardType(.phonePad)
@@ -93,19 +119,11 @@ struct PhoneVerificationView: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 24)
-
-                Button(errorMessage?.contains("already registered") == true ? "Back to sign in" : "Skip for now") {
-                    dismiss()
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
             }
 
             PrimaryButton(
                 title: isLoading ? "Sending..." : "Send Code",
-                isDisabled: phoneNumber.isEmpty || isLoading
+                isDisabled: phoneNumber.isEmpty || countryCode.isEmpty || isLoading
             ) {
                 isPhoneFocused = false
                 Task { await sendVerificationCode() }
@@ -148,7 +166,7 @@ struct PhoneVerificationView: View {
                     .font(.custom("BambiBold", size: 28))
                     .foregroundColor(primaryColor)
                     .multilineTextAlignment(.center)
-                Text("Sent to \(formattedPhoneNumber)")
+                Text("Sent to +\(countryCode) \(formattedPhoneNumber)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -218,14 +236,18 @@ struct PhoneVerificationView: View {
         isLoading = true
         defer { isLoading = false }
 
-        let cleaned = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-        guard !cleaned.isEmpty else {
+        let cleanedNumber = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        let cleanedCode = countryCode.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+
+        guard !cleanedNumber.isEmpty else {
             errorMessage = "Please enter a valid phone number."
             return
         }
 
+        let e164 = "+\(cleanedCode)\(cleanedNumber)"
+
         do {
-            if try await authViewModel.isPhoneNumberTaken(phoneNumber, excludingUid: authViewModel.userSession?.uid) {
+            if try await authViewModel.isPhoneNumberTaken(e164, excludingUid: authViewModel.userSession?.uid) {
                 errorMessage = "This phone number is already registered to another account."
                 return
             }
@@ -233,8 +255,6 @@ struct PhoneVerificationView: View {
             errorMessage = AuthViewModel.userFacingMessage(for: error)
             return
         }
-
-        let e164 = cleaned.hasPrefix("1") ? "+\(cleaned)" : "+1\(cleaned)"
 
         PhoneAuthProvider.provider().verifyPhoneNumber(e164, uiDelegate: nil) { id, error in
             DispatchQueue.main.async {
@@ -267,9 +287,12 @@ struct PhoneVerificationView: View {
         guard let currentUser = Auth.auth().currentUser else { return }
         do {
             _ = try await currentUser.link(with: credential)
-            await authViewModel.updateUserPhoneNumber(phoneNumber: phoneNumber)
+            let cleanedCode = countryCode.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+            let cleanedNumber = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+            await authViewModel.updateUserPhoneNumber(phoneNumber: "+\(cleanedCode)\(cleanedNumber)")
             dismiss()
         } catch {
+            print("DEBUG: verifyCode error — domain: \((error as NSError).domain), code: \((error as NSError).code), msg: \(error.localizedDescription)")
             errorMessage = AuthViewModel.userFacingMessage(for: error)
         }
     }
