@@ -151,7 +151,7 @@ struct FriendProfileView: View {
                         if let onUnlock {
                             Button { onUnlock() } label: {
                                 HStack {
-                                    Text(traineeStatus == .attentionNeeded ? "Preemptively Release" : "Release")
+                                    Text("Release")
                                         .font(.system(size: 15, weight: .semibold))
                                     Spacer()
                                     Image(systemName: "lock.open")

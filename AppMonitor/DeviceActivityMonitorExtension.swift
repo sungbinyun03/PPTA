@@ -25,6 +25,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
+        // The grace window is a separate activity riding alongside the daily one; its
+        // interval boundaries carry no meaning for daily status or streaks.
+        guard activity != UnlockGrace.activityName else { return }
         let settings = LocalSettingsStore.load()
         guard settings.isTracking else { return }
 
@@ -45,6 +48,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
+        // Never let the grace activity's interval end clear a shield it didn't apply.
+        guard activity != UnlockGrace.activityName else { return }
         store.shield.applications = nil
         // No statusUpdate here — intervalDidStart fires at 00:00 and handles the reset.
     }
@@ -54,7 +59,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         
             let settings = LocalSettingsStore.load()
             guard settings.isTracking else { return }
-            
+
+            // Post-unlock grace expired: the trainee burned their 10 minutes of app usage.
+            // Re-shield in every mode and hand them back to their coaches, who can release
+            // them again. The streak was already reset at the original cutoff, so pass
+            // `resetStartDate: nil` — expiring grace shouldn't punish it a second time.
+            if activity == UnlockGrace.activityName {
+                store.shield.applications = settings.applications.applicationTokens
+                DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
+                LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
+                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+                scheduleLocalNotification(
+                    title: "Time's up",
+                    body: "Your \(UnlockGrace.durationMinutes) minutes are up — your apps are locked again."
+                )
+                return
+            }
+
             // Minimal: one threshold event => treat it as "daily limit reached".
             // Mode behavior:
             // - Off: no shielding (just status updates)
@@ -86,6 +107,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventWillReachThresholdWarning(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
             super.eventWillReachThresholdWarning(event, activity: activity)
+            // Defensive: the grace schedule sets no warningTime, but a warning here would
+            // wrongly flag a released trainee as attentionNeeded.
+            guard activity != UnlockGrace.activityName else { return }
             let settings = LocalSettingsStore.load()
             guard settings.isTracking else { return }
             
