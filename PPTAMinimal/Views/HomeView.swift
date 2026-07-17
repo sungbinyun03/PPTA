@@ -196,15 +196,16 @@ struct HomeView: View {
         // a device restart or OS-level suspension doesn't permanently block restarts.
         let flagSaysActive = UserDefaults.standard.bool(forKey: monitoringKey)
         let systemSaysActive = DeviceActivityCenter().activities
-            .contains(DeviceActivityName("AppUsageMonitoring"))
+            .contains(DeviceActivityManager.dailyActivityName)
         let alreadyActive = flagSaysActive && systemSaysActive
 
         // If the user is not tracking (e.g. pressure level Off), ensure monitoring is not running.
+        // Off means nothing stays armed, so this tears down any grace period too. Unconditional
+        // because a grace period can outlive the daily activity — gating on `systemSaysActive`
+        // would leave it armed after switching to Off. Stopping is idempotent.
         if settings.isTracking == false {
-            if systemSaysActive {
-                DeviceActivityManager.shared.stopMonitoring()
-                UserDefaults.standard.set(false, forKey: monitoringKey)
-            }
+            DeviceActivityManager.shared.stopAllMonitoring()
+            UserDefaults.standard.set(false, forKey: monitoringKey)
             print("Tracking disabled; monitoring is not running.")
             return
         }

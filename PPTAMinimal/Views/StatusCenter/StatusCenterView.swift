@@ -43,7 +43,6 @@ struct StatusCenterView: View {
                                         name: user.name,
                                         status: user.traineeStatus ?? .noStatus,
                                         profilePicUrl: user.profileImageURL?.absoluteString,
-                                        pressureLevel: user.pressureLevel,
                                         lockedByName: user.lockedByName,
                                         onRelease: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }

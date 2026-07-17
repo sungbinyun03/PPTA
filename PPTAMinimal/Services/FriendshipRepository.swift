@@ -64,6 +64,20 @@ final class FriendshipRepository {
         return try docs.map { try $0.data(as: Friendship.self) }
     }
 
+    /// Deletes every friendship document that involves `uid` (as requester or requestee).
+    /// Used when a user deletes their account so no dangling relationships remain.
+    func deleteAllInvolving(uid: String) async throws {
+        let asRequester = try await db.collection(collection)
+            .whereField("requesterId", isEqualTo: uid)
+            .getDocuments()
+        let asRequestee = try await db.collection(collection)
+            .whereField("requesteeId", isEqualTo: uid)
+            .getDocuments()
+        for doc in asRequester.documents + asRequestee.documents {
+            try await doc.reference.delete()
+        }
+    }
+
     /// Returns true if `a` and `b` have an accepted friendship in either direction.
     func areFriends(_ a: String, _ b: String) async throws -> Bool {
         let q1 = try await db.collection(collection)

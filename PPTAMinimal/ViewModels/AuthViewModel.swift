@@ -8,6 +8,9 @@
 import SwiftUI
 import Firebase
 import FirebaseAuth
+import FirebaseFirestore
+import FirebaseStorage
+import FirebaseMessaging
 import GoogleSignIn
 import AuthenticationServices
 import CryptoKit
@@ -15,6 +18,21 @@ import CryptoKit
 
 protocol AuthenticationFormProtocol {
     var formIsValid: Bool { get }
+}
+
+/// Errors surfaced by the account-deletion flow.
+enum AccountDeletionError: LocalizedError {
+    /// Firebase requires a recent login before it will delete the Auth record.
+    /// `providerID` is the user's sign-in provider ("password", "google.com", "apple.com")
+    /// so the UI can present the correct re-authentication path.
+    case reauthRequired(providerID: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .reauthRequired:
+            return "For your security, please confirm it's you to finish deleting your account."
+        }
+    }
 }
 
 @MainActor
@@ -27,19 +45,25 @@ class AuthViewModel: ObservableObject {
     private let userRepository: UserRepository
     private let googleSignInService: GoogleSignInService
     private let appleSignInService: AppleSignInService
+    private let friendshipRepository: FriendshipRepository
+    private let roleRequestRepository: RoleRequestRepository
     static let shared = AuthViewModel()
 
-    
+
     init(
         authService: AuthService = AuthService(),
         userRepository: UserRepository = UserRepository(),
         googleSignInService: GoogleSignInService = GoogleSignInService(),
-        appleSignInService: AppleSignInService = AppleSignInService()
+        appleSignInService: AppleSignInService = AppleSignInService(),
+        friendshipRepository: FriendshipRepository = FriendshipRepository(),
+        roleRequestRepository: RoleRequestRepository = RoleRequestRepository()
     ) {
         self.authService = authService
         self.userRepository = userRepository
         self.googleSignInService = googleSignInService
         self.appleSignInService = appleSignInService
+        self.friendshipRepository = friendshipRepository
+        self.roleRequestRepository = roleRequestRepository
         
         self.userSession = authService.currentUser
         Task { await fetchUser() }
@@ -97,7 +121,8 @@ class AuthViewModel: ObservableObject {
         
         let newUser = User(id: firebaseUser.uid, name: name, email: email, phoneNumber: normalized, fcmToken: nil)
         try await userRepository.saveUser(newUser)
-        
+        await registerFCMToken()
+
         // New users: Off pressure, 0h 0m limit, no apps (see UserSettings init defaults).
         let defaultSettings = UserSettings(
             thresholdHour: 0,
@@ -141,6 +166,7 @@ class AuthViewModel: ObservableObject {
                     email: firebaseUser.email ?? "No Email"
                 )
                 try await userRepository.saveUser(newUser)
+                await registerFCMToken()
                 let defaultSettings = UserSettings(
                     thresholdHour: 0,
                     thresholdMinutes: 0,
@@ -190,6 +216,7 @@ class AuthViewModel: ObservableObject {
                         email: firebaseUser.email ?? "No Email"
                     )
                     try await userRepository.saveUser(newUser)
+                    await registerFCMToken()
                     let defaultSettings = UserSettings(
                         thresholdHour: 0,
                         thresholdMinutes: 0,
@@ -267,10 +294,28 @@ class AuthViewModel: ObservableObject {
     
     func updateFCMToken(_ token: String) async {
         guard let uid = authService.currentUser?.uid else { return }
-        try? await userRepository.updateUserField(
-            uid: uid, field: "fcmToken", value: token)
+        // Merge-write so this succeeds even if the user doc was just created (or not yet fully written).
+        try? await userRepository.setUserFields(uid: uid, ["fcmToken": token])
         print(" Firestore ✅: Successfully updated FCM token for UID \(uid) to: \(token)")
         await fetchUser()
+    }
+
+    /// Fetches the current FCM registration token on demand and hydrates it to Firestore.
+    ///
+    /// Called right after account creation. The `didReceiveRegistrationToken` callback often
+    /// fires *before* the user is signed in (token dropped) or *before* `users/<uid>` exists
+    /// (write fails), leaving fresh users with no `fcmToken` — which then crashes the lock/unlock
+    /// Cloud Functions. Pulling the token via `Messaging.token()` here doesn't depend on that
+    /// callback, and the merge-write can't fail on a missing/partial doc.
+    func registerFCMToken() async {
+        guard let uid = authService.currentUser?.uid else { return }
+        do {
+            let token = try await Messaging.messaging().token()
+            try await userRepository.setUserFields(uid: uid, ["fcmToken": token])
+            print(" Firestore ✅: Hydrated FCM token post-signup for UID \(uid)")
+        } catch {
+            print("DEBUG: registerFCMToken error: \(error.localizedDescription)")
+        }
     }
     
     func signOut() {
@@ -291,6 +336,128 @@ class AuthViewModel: ObservableObject {
                 self.currentUser = nil
             }
         }
+    }
+
+    // MARK: - Account Deletion
+
+    /// The sign-in provider of the current user ("password", "google.com", "apple.com").
+    var currentAuthProviderID: String? {
+        Auth.auth().currentUser?.providerData.first?.providerID
+    }
+
+    /// Permanently deletes the signed-in user's account and all associated data.
+    ///
+    /// All Firestore / Storage / relationship cleanup runs *while still authenticated*;
+    /// the Firebase Auth record is deleted **last**. If Firebase requires a recent login,
+    /// throws `AccountDeletionError.reauthRequired` so the caller can collect fresh
+    /// credentials and retry via `reauthenticateAndDeleteAccount(with:)`.
+    func deleteAccount() async throws {
+        guard let firebaseUser = Auth.auth().currentUser else { signOut(); return }
+        try await performAccountDeletion(firebaseUser: firebaseUser)
+    }
+
+    /// Re-authenticates with a fresh credential, then deletes the account.
+    /// Called by the UI after collecting credentials in response to `reauthRequired`.
+    func reauthenticateAndDeleteAccount(with credential: AuthCredential) async throws {
+        guard let firebaseUser = Auth.auth().currentUser else { signOut(); return }
+        try await firebaseUser.reauthenticate(with: credential)
+        try await performAccountDeletion(firebaseUser: firebaseUser)
+    }
+
+    /// Runs the Apple re-authentication flow from a `SignInWithAppleButton` completion,
+    /// then deletes the account.
+    func reauthenticateWithAppleCompletion(_ result: Result<ASAuthorization, Error>) async throws {
+        guard let credential = try await appleSignInService.handleCompletion(result) else {
+            throw NSError(domain: "Auth", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Apple sign-in failed. Please try again."])
+        }
+        try await reauthenticateAndDeleteAccount(with: credential)
+    }
+
+    /// Presents Google sign-in and returns a fresh credential for re-authentication.
+    func googleReauthCredential() async throws -> AuthCredential {
+        guard let topVC = topViewController() else {
+            throw NSError(domain: "Auth", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Couldn't present Google sign-in."])
+        }
+        return try await googleSignInService.signIn(withPresenting: topVC)
+    }
+
+    private func performAccountDeletion(firebaseUser: FirebaseAuth.User) async throws {
+        let uid = firebaseUser.uid
+
+        // 1. Best-effort cascade cleanup — while still authenticated.
+        await cascadeDeleteUserData(uid: uid)
+
+        // 2. Delete the Firebase Auth record (the crux).
+        do {
+            try await firebaseUser.delete()
+        } catch {
+            let ns = error as NSError
+            guard ns.domain == "FIRAuthErrorDomain" else { throw error }
+            let authCode = AuthErrorCode(_bridgedNSError: ns)
+            switch authCode {
+            case .requiresRecentLogin:
+                throw AccountDeletionError.reauthRequired(
+                    providerID: firebaseUser.providerData.first?.providerID ?? "password")
+            default:
+                throw error
+            }
+        }
+
+        // 3. Local cleanup + sign out (root view switches to LoginView on userSession == nil).
+        finishAccountDeletion(uid: uid)
+    }
+
+    /// Removes everything that references this user across Firestore and Storage.
+    /// Each step is best-effort so a single failure doesn't block the rest of the deletion.
+    private func cascadeDeleteUserData(uid: String) async {
+        let settings = UserSettingsManager.shared.userSettings
+
+        // Dissolve peer relationships server-side (scrubs the *other* user's coachIds/traineeIds).
+        // role .coach: `otherId` is my trainee; role .trainee: `otherId` is my coach.
+        for traineeId in settings.traineeIds {
+            try? await roleRequestRepository.removeRelationship(otherId: traineeId, role: .coach)
+        }
+        for coachId in settings.coachIds {
+            try? await roleRequestRepository.removeRelationship(otherId: coachId, role: .trainee)
+        }
+
+        // Delete pending friend + role requests involving this user.
+        try? await friendshipRepository.deleteAllInvolving(uid: uid)
+        try? await roleRequestRepository.deleteAllInvolving(uid: uid)
+
+        // Delete the profile image blob (no-op if none exists).
+        try? await Storage.storage().reference(withPath: "profilePictures/\(uid).jpg").delete()
+
+        // Delete this user's own Firestore documents.
+        try? await userRepository.deleteUser(uid: uid)
+        try? await Firestore.firestore().collection("userSettings").document(uid).delete()
+    }
+
+    /// Tears down local state after the account has been deleted, then signs out.
+    private func finishAccountDeletion(uid: String) {
+        // Stop screen-time enforcement so no shields linger for a deleted account.
+        DeviceActivityManager.shared.stopAllMonitoring()
+
+        // Clear per-user onboarding flag and the shared app-group snapshot.
+        UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(uid)")
+        let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+        suite?.removeObject(forKey: "UserSettings")
+        suite?.removeObject(forKey: "CurrentUserId")
+
+        googleSignInService.signOut()
+        self.userSession = nil
+        self.currentUser = nil
+        self.isOnboardingComplete = false
+    }
+
+    /// Returns the top-most presented view controller for presenting provider sign-in flows.
+    private func topViewController() -> UIViewController? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?.rootViewController
     }
 
     /// Returns a short, user-friendly error message (no codes or technical jargon).

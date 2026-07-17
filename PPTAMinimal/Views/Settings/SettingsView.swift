@@ -9,6 +9,8 @@
 import SwiftUI
 import PhotosUI
 import FirebaseStorage
+import FirebaseAuth
+import AuthenticationServices
 
 struct SettingsView: View {
     // MARK: – Dependencies
@@ -284,6 +286,8 @@ struct SettingsView: View {
                 } label: {
                     settingsRow(icon: Image(systemName: "rectangle.portrait.and.arrow.right").offset(x:0.5), text: "Log Out", iconScale: 1.1)
                 }
+
+                DeleteAccountRow()
             } else {
                 FriendsView()
             }
@@ -311,6 +315,231 @@ struct SettingsView: View {
                 .foregroundColor(.gray)
         }
         .padding()
+    }
+}
+
+// MARK: – Delete Account
+
+/// Destructive "Delete Account" row plus its confirmation and re-authentication flows.
+/// Kept self-contained so `SettingsView` doesn't carry the deletion state.
+private struct DeleteAccountRow: View {
+    @EnvironmentObject private var viewModel: AuthViewModel
+
+    @State private var showConfirm     = false
+    @State private var isDeleting      = false
+    @State private var errorMessage: String?
+    @State private var showPasswordSheet = false
+    @State private var password        = ""
+
+    var body: some View {
+        Button(role: .destructive) {
+            showConfirm = true
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Group {
+                    if isDeleting {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                }
+                .frame(width: 44, height: 32)
+
+                Text(isDeleting ? "Deleting…" : "Delete Account")
+                    .foregroundColor(.red)
+
+                Spacer()
+
+                if !isDeleting {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding()
+        }
+        .disabled(isDeleting)
+        // Destructive confirmation
+        .alert("Delete Account?", isPresented: $showConfirm) {
+            Button("Delete", role: .destructive) { startDeletion() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This permanently deletes your account and all of your data. This can't be undone.")
+        }
+        // Error surface
+        .appAlert(
+            isPresented: .init(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            ),
+            title: "Couldn't delete account",
+            message: errorMessage ?? ""
+        )
+        // Password re-auth (email/password accounts)
+        .sheet(isPresented: $showPasswordSheet) {
+            passwordReauthSheet
+        }
+    }
+
+    // MARK: - Re-auth sheet (email/password)
+
+    private var passwordReauthSheet: some View {
+        VStack(spacing: 20) {
+            Text("Confirm it's you")
+                .font(.custom("BambiBold", size: 22))
+                .foregroundColor(Color("primaryColor"))
+
+            Text("Enter your password to permanently delete your account.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            SecureField("Password", text: $password)
+                .textContentType(.password)
+                .padding()
+                .background(Color("primaryColor").opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Button {
+                confirmPasswordReauth()
+            } label: {
+                Text("Delete Account")
+                    .font(.headline)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .disabled(password.isEmpty || isDeleting)
+
+            Button("Cancel") {
+                password = ""
+                showPasswordSheet = false
+            }
+            .foregroundColor(.secondary)
+
+            Spacer()
+        }
+        .padding(24)
+        .presentationDetents([.medium])
+    }
+
+    // MARK: - Actions
+
+    private func startDeletion() {
+        isDeleting = true
+        Task { @MainActor in
+            do {
+                try await viewModel.deleteAccount()
+                // Success: root view switches to LoginView automatically.
+            } catch let AccountDeletionError.reauthRequired(providerID) {
+                await handleReauth(providerID: providerID)
+            } catch {
+                errorMessage = AuthViewModel.userFacingMessage(for: error)
+            }
+            isDeleting = false
+        }
+    }
+
+    @MainActor
+    private func handleReauth(providerID: String) async {
+        switch providerID {
+        case "google.com":
+            do {
+                let credential = try await viewModel.googleReauthCredential()
+                try await viewModel.reauthenticateAndDeleteAccount(with: credential)
+            } catch {
+                errorMessage = AuthViewModel.userFacingMessage(for: error)
+            }
+        case "apple.com":
+            await reauthWithApple()
+        default: // "password"
+            showPasswordSheet = true
+        }
+    }
+
+    private func confirmPasswordReauth() {
+        guard let email = viewModel.currentUser?.email, !password.isEmpty else { return }
+        isDeleting = true
+        Task { @MainActor in
+            let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+            do {
+                try await viewModel.reauthenticateAndDeleteAccount(with: credential)
+            } catch {
+                errorMessage = AuthViewModel.userFacingMessage(for: error)
+            }
+            password = ""
+            showPasswordSheet = false
+            isDeleting = false
+        }
+    }
+
+    /// Runs Apple re-authentication via a fresh authorization request.
+    @MainActor
+    private func reauthWithApple() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let provider = ASAuthorizationAppleIDProvider()
+            let request = provider.createRequest()
+            viewModel.handleSignInWithAppleRequest(request)
+
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            let delegate = AppleReauthDelegate { result in
+                Task { @MainActor in
+                    do {
+                        try await viewModel.reauthenticateWithAppleCompletion(result)
+                    } catch {
+                        errorMessage = AuthViewModel.userFacingMessage(for: error)
+                    }
+                    continuation.resume()
+                }
+            }
+            // The delegate retains both itself and the controller until the callback fires.
+            delegate.retainAndPerform(with: controller)
+        }
+    }
+}
+
+/// One-shot delegate that bridges `ASAuthorizationController` callbacks into a closure.
+/// Retains itself and the controller for the flow's lifetime, then releases both.
+private final class AppleReauthDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private let completion: (Result<ASAuthorization, Error>) -> Void
+    private var controller: ASAuthorizationController?
+    private var selfRetain: AppleReauthDelegate?
+
+    init(completion: @escaping (Result<ASAuthorization, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func retainAndPerform(with controller: ASAuthorizationController) {
+        self.controller = controller
+        self.selfRetain = self
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    private func finish(_ result: Result<ASAuthorization, Error>) {
+        completion(result)
+        controller = nil
+        selfRetain = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithAuthorization authorization: ASAuthorization) {
+        finish(.success(authorization))
+    }
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithError error: Error) {
+        finish(.failure(error))
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow }) ?? ASPresentationAnchor()
     }
 }
 

@@ -11,7 +11,6 @@ struct TraineeCellView: View {
     private var name: String
     private var status: TraineeStatus
     private var profilePicUrl: String?
-    private var pressureLevel: PressureLevel
 
     var lockedByName: String? = nil
     var onRelease: (() -> Void)? = nil
@@ -21,7 +20,6 @@ struct TraineeCellView: View {
         name: String,
         status: TraineeStatus,
         profilePicUrl: String? = nil,
-        pressureLevel: PressureLevel = .off,
         lockedByName: String? = nil,
         onRelease: (() -> Void)? = nil,
         onLock: (() -> Void)? = nil
@@ -29,7 +27,6 @@ struct TraineeCellView: View {
         self.name = name
         self.status = status
         self.profilePicUrl = profilePicUrl
-        self.pressureLevel = pressureLevel
         self.lockedByName = lockedByName
         self.onRelease = onRelease
         self.onLock = onLock
@@ -128,8 +125,7 @@ struct TraineeCellView: View {
 
     // MARK: - Buttons state and appearance
     private var canLock: Bool { status == .attentionNeeded }
-    // Hardcore trainees cannot be remotely unlocked — the device blocks it.
-    private var canRelease: Bool { status == .cutOff && pressureLevel != .hardcore }
+    private var canRelease: Bool { status == .cutOff }
 
     private var lockBackground: Color { canLock ? Color.orange : Color(.systemGray5) }
     private var lockTextColor: Color { canLock ? .white : Color(.gray) }

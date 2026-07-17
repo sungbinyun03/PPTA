@@ -60,6 +60,13 @@ class UserRepository {
         try await db.collection(collectionName).document(uid).updateData([field: value])
     }
 
+    /// Create-or-merge specific fields on a user document.
+    /// Unlike `updateData`, `setData(merge:)` succeeds even if the document doesn't exist yet,
+    /// and only touches the given fields — so it won't clobber the rest of the doc.
+    func setUserFields(uid: String, _ fields: [String: Any]) async throws {
+        try await db.collection(collectionName).document(uid).setData(fields, merge: true)
+    }
+
     func deleteUser(uid: String) async throws {
         try await db.collection(collectionName).document(uid).delete()
     }

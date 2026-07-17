@@ -33,6 +33,20 @@ final class RoleRequestRepository {
         return try snap.documents.compactMap { try $0.data(as: RoleRequest.self) }
     }
 
+    /// Deletes every role-request document that involves `uid` (as requester or target).
+    /// Used when a user deletes their account so no dangling requests remain.
+    func deleteAllInvolving(uid: String) async throws {
+        let asRequester = try await db.collection(collection)
+            .whereField("requesterId", isEqualTo: uid)
+            .getDocuments()
+        let asTarget = try await db.collection(collection)
+            .whereField("targetId", isEqualTo: uid)
+            .getDocuments()
+        for doc in asRequester.documents + asTarget.documents {
+            try await doc.reference.delete()
+        }
+    }
+
     // MARK: - Writes (Cloud Functions)
 
     func createRoleRequest(targetId: String, role: RoleRequestRole) async throws -> String {
