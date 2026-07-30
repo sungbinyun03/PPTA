@@ -100,7 +100,7 @@ struct TraineeCoachView: View {
         }
         .task { await viewModel.refresh() }
         .sheet(item: $selectedPerson) { person in
-            FriendProfileSheetView(otherUserId: person.id)
+            FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot)
         }
     }
 }

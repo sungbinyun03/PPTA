@@ -79,22 +79,22 @@ final class FriendshipRepository {
     }
 
     /// Returns true if `a` and `b` have an accepted friendship in either direction.
+    /// Runs both directional queries concurrently rather than sequentially.
     func areFriends(_ a: String, _ b: String) async throws -> Bool {
-        let q1 = try await db.collection(collection)
+        async let forward = db.collection(collection)
             .whereField("requesterId", isEqualTo: a)
             .whereField("requesteeId", isEqualTo: b)
             .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
             .limit(to: 1)
             .getDocuments()
-        if !q1.documents.isEmpty { return true }
-
-        let q2 = try await db.collection(collection)
+        async let reverse = db.collection(collection)
             .whereField("requesterId", isEqualTo: b)
             .whereField("requesteeId", isEqualTo: a)
             .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
             .limit(to: 1)
             .getDocuments()
-        return !q2.documents.isEmpty
+        let (q1, q2) = try await (forward, reverse)
+        return !q1.documents.isEmpty || !q2.documents.isEmpty
     }
 }
 

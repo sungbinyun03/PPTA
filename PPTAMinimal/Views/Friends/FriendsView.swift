@@ -9,14 +9,21 @@ import SwiftUI
 import Contacts
 import UIKit
 
+/// Identifies who the profile sheet should show, plus whatever the tapped row
+/// already has in memory so `FriendProfileSheetView` can render instantly.
+private struct FriendProfileTarget: Identifiable {
+    let id: String
+    let name: String
+    let profilePicUrl: URL?
+}
+
 struct FriendsView: View {
     @StateObject private var vm = FriendsViewModel()
     @EnvironmentObject private var roleInbox: RoleRequestsInboxViewModel
     @State private var phoneToAdd: String = ""
     @State private var isContactsImportPresented = false
     @State private var showContactsPermissionAlert = false
-    @State private var selectedUserId: String? = nil
-    @State private var showFriendProfile = false
+    @State private var profileTarget: FriendProfileTarget? = nil
 
     private let primaryColor = Color("primaryColor")
 
@@ -90,7 +97,7 @@ struct FriendsView: View {
                                     requestCard(
                                         name: pair.user.name,
                                         subtitle: roleRequestSubtitle(role: pair.request.role),
-                                        onTap: { selectedUserId = pair.user.id; showFriendProfile = true },
+                                        onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
                                         onAccept: { Task { await roleInbox.accept(pair.id) } },
                                         onDecline: { Task { await roleInbox.decline(pair.id) } }
                                     )
@@ -105,7 +112,7 @@ struct FriendsView: View {
                                     requestCard(
                                         name: pair.user.name,
                                         subtitle: nil,
-                                        onTap: { selectedUserId = pair.user.id; showFriendProfile = true },
+                                        onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
                                         onAccept: { Task { await vm.accept(pair.friendship.id) } },
                                         onDecline: { Task { await vm.declineOrCancel(pair.friendship.id) } }
                                     )
@@ -119,7 +126,7 @@ struct FriendsView: View {
                                 ForEach(vm.outgoingRequests, id: \.friendship.id) { pair in
                                     pendingCard(
                                         name: pair.user.name,
-                                        onTap: { selectedUserId = pair.user.id; showFriendProfile = true },
+                                        onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
                                         onCancel: { Task { await vm.declineOrCancel(pair.friendship.id) } }
                                     )
                                 }
@@ -152,10 +159,11 @@ struct FriendsView: View {
         .sheet(isPresented: $isContactsImportPresented) {
             FriendsContactsImportView()
         }
-        .sheet(isPresented: $showFriendProfile) {
-            if let id = selectedUserId {
-                FriendProfileSheetView(otherUserId: id)
-            }
+        .sheet(item: $profileTarget) { target in
+            FriendProfileSheetView(
+                otherUserId: target.id,
+                snapshot: .init(name: target.name, profilePicUrl: target.profilePicUrl?.absoluteString)
+            )
         }
         .alert("Contacts Permission Required", isPresented: $showContactsPermissionAlert) {
             Button("Cancel", role: .cancel) {}
@@ -288,8 +296,7 @@ struct FriendsView: View {
     @ViewBuilder
     private func friendRow(friend: User) -> some View {
         Button {
-            selectedUserId = friend.id
-            showFriendProfile = true
+            profileTarget = FriendProfileTarget(id: friend.id, name: friend.name, profilePicUrl: vm.friendProfileImageURLs[friend.id])
         } label: {
             HStack(spacing: 12) {
                 InitialsProfilePicView(name: friend.name, profilePicUrl: vm.friendProfileImageURLs[friend.id]?.absoluteString, size: 40)

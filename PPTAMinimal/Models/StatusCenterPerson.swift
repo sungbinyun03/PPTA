@@ -22,6 +22,22 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let timeLimitMinutes: Int
     let pressureLevel: PressureLevel
     let lockedByName: String?
+
+    /// Data this list entry already has in memory, handed to `FriendProfileSheetView`
+    /// so it renders immediately instead of showing a blank loading screen.
+    var profileSnapshot: FriendProfileViewModel.Snapshot {
+        .init(
+            name: name,
+            profilePicUrl: profileImageURL?.absoluteString,
+            isCoach: isCoach,
+            isTrainee: isTrainee,
+            traineeStatus: traineeStatus,
+            streakDays: streakDays,
+            timeLimitMinutes: timeLimitMinutes,
+            pressureLevel: pressureLevel,
+            lockedByName: lockedByName
+        )
+    }
 }
 
 

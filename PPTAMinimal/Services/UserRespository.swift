@@ -28,6 +28,7 @@ class UserRepository {
     /// Fetch a `User` document by uid. Returns nil if not found.
     func fetchUser(by uid: String) async throws -> User? {
         let snapshot = try await db.collection(collectionName).document(uid).getDocument()
+        guard snapshot.exists else { return nil }
         return try snapshot.data(as: User.self)
     }
 

@@ -122,7 +122,7 @@ struct StatusCenterView: View {
             }
             .animation(.easeInOut, value: vm.errorMessage)
             .sheet(item: $selectedPerson) { person in
-                FriendProfileSheetView(otherUserId: person.id)
+                FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot)
             }
         }
     }

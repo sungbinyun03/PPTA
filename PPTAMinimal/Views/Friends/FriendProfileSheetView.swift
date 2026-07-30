@@ -13,9 +13,9 @@ struct FriendProfileSheetView: View {
 
     @StateObject private var vm: FriendProfileViewModel
 
-    init(otherUserId: String) {
+    init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init()) {
         self.otherUserId = otherUserId
-        _vm = StateObject(wrappedValue: FriendProfileViewModel(otherUserId: otherUserId))
+        _vm = StateObject(wrappedValue: FriendProfileViewModel(otherUserId: otherUserId, snapshot: snapshot))
     }
 
     var body: some View {
@@ -23,13 +23,26 @@ struct FriendProfileSheetView: View {
             Color(.systemBackground).ignoresSafeArea()
             VStack {
             if vm.name.isEmpty {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Loading...")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                if let error = vm.errorMessage {
+                    VStack(spacing: 12) {
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Try Again") { Task { await vm.refresh() } }
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .padding(.horizontal, 32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Loading...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 FriendProfileView(
                     name: vm.name,
@@ -53,7 +66,7 @@ struct FriendProfileSheetView: View {
                 )
             }
 
-            if let error = vm.errorMessage ?? vm.lockUnlockError {
+            if !vm.name.isEmpty, let error = vm.errorMessage ?? vm.lockUnlockError {
                 Text(error)
                     .foregroundColor(.red)
                     .font(.footnote)
