@@ -38,22 +38,7 @@ struct TraineeStatsCardView: View {
                     // Left Column: Profile Stats
                     VStack(alignment: .leading, spacing: 12) {
                         // Small avatar (kept as image; swap to placeholder if needed)
-                        Group {
-                            if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image.resizable().scaledToFill()
-                                    default:
-                                        Image("google-icon").resizable().scaledToFill()
-                                    }
-                                }
-                            } else {
-                                Image("google-icon").resizable().scaledToFill()
-                            }
-                        }
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
+                        InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 50)
                             .overlay(
                                 Circle().stroke(Color("primaryColor"), lineWidth: 3)
                             )

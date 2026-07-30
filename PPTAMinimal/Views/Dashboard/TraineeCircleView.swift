@@ -20,24 +20,7 @@ struct TraineeCircleView: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 20) {
-            Group {
-                if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Image("google-icon").resizable().scaledToFill()
-                        }
-                    }
-                } else {
-            Image("google-icon")
-                .resizable()
-                .scaledToFill()
-                }
-            }
-                .frame(width: 75, height: 75)
-                .clipShape(Circle())
+            InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 75)
                 .overlay {
                     Circle()
                         .inset(by: -5)

@@ -13,6 +13,7 @@ import FirebaseFirestore
 
 final class FriendsViewModel: ObservableObject {
     @Published var friends: [User] = []
+    @Published var friendProfileImageURLs: [String: URL] = [:]
     @Published var incomingRequests: [(friendship: Friendship, user: User)] = []
     @Published var outgoingRequests: [(friendship: Friendship, user: User)] = []
     @Published var isLoading = false
@@ -20,6 +21,7 @@ final class FriendsViewModel: ObservableObject {
     
     private let friendships = FriendshipRepository()
     private let users = UserRepository()
+    private let userSettings = UserSettingsRepository()
     private let db = Firestore.firestore()
 
     private var incomingListener: ListenerRegistration?
@@ -48,6 +50,18 @@ final class FriendsViewModel: ObservableObject {
                     if let u = maybe { acc.append(u) }
                 }
             }
+            let imageURLs = try await withThrowingTaskGroup(of: (String, URL?).self) { group in
+                for id in acceptedUserIds {
+                    group.addTask {
+                        let settings = try? await self.userSettings.fetchSettings(for: id)
+                        return (id, settings?.profileImageURL)
+                    }
+                }
+                return try await group.reduce(into: [String: URL]()) { acc, pair in
+                    if let url = pair.1 { acc[pair.0] = url }
+                }
+            }
+
             let incoming = try await friendships.fetchIncomingRequests(for: uid)
             let incomingPairs = try await withThrowingTaskGroup(of: (Friendship, User?) .self) { group in
                 for fr in incoming {
@@ -68,6 +82,7 @@ final class FriendsViewModel: ObservableObject {
             }
             
             self.friends = acceptedUsers
+            self.friendProfileImageURLs = imageURLs
             self.incomingRequests = incomingPairs
             self.outgoingRequests = outgoingPairs
         } catch {

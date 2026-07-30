@@ -21,22 +21,7 @@ struct CoachCellView: View {
 
     var body: some View {
         HStack {
-            Group {
-                if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Image("google-icon").resizable().scaledToFill()
-                        }
-                    }
-                } else {
-                    Image("google-icon").resizable().scaledToFill()
-                }
-            }
-                .frame(width: 65, height: 65)
-                .clipShape(Circle())
+            InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 65)
             VStack(spacing: 12) {
                 HStack(alignment: .center, spacing: 12) {
                     Text(name)

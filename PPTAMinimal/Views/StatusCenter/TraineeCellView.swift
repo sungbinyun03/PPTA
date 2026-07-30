@@ -34,22 +34,7 @@ struct TraineeCellView: View {
 
     var body: some View {
         HStack {
-            Group {
-                if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Image("google-icon").resizable().scaledToFill()
-                        }
-                    }
-                } else {
-                    Image("google-icon").resizable().scaledToFill()
-                }
-            }
-                .frame(width: 65, height: 65)
-                .clipShape(Circle())
+            InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 65)
                 .overlay(alignment: .bottomTrailing) {
                     if status == .cutOff, let locker = lockedByName {
                         let parts = locker.split(separator: " ")

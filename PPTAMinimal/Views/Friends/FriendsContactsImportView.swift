@@ -156,7 +156,7 @@ struct FriendsContactsImportView: View {
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
         HStack(spacing: 12) {
-            initialsCircle(name: name, size: 40)
+            InitialsProfilePicView(name: name, profilePicUrl: nil, size: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
@@ -228,27 +228,6 @@ struct FriendsContactsImportView: View {
             .background(primaryColor)
             .clipShape(Capsule())
         }
-    }
-
-    // MARK: - Helpers
-
-    @ViewBuilder
-    private func initialsCircle(name: String, size: CGFloat) -> some View {
-        Circle()
-            .fill(primaryColor.opacity(0.12))
-            .frame(width: size, height: size)
-            .overlay(
-                Text(initials(from: name))
-                    .font(.system(size: size * 0.35, weight: .semibold))
-                    .foregroundColor(primaryColor)
-            )
-    }
-
-    private func initials(from name: String) -> String {
-        let parts = name.split(separator: " ")
-        let first = parts.first?.first.map(String.init) ?? ""
-        let last = parts.dropFirst().first?.first.map(String.init) ?? ""
-        return (first + last).uppercased()
     }
 
     @MainActor

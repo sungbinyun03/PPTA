@@ -193,7 +193,7 @@ struct FriendsView: View {
         onDecline: @escaping () -> Void
     ) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            initialsCircle(name: name, size: 40)
+            InitialsProfilePicView(name: name, profilePicUrl: nil, size: 40)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(name)
@@ -249,7 +249,7 @@ struct FriendsView: View {
         onCancel: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 12) {
-            initialsCircle(name: name, size: 40)
+            InitialsProfilePicView(name: name, profilePicUrl: nil, size: 40)
 
             Text(name)
                 .font(.system(size: 15, weight: .medium))
@@ -292,7 +292,7 @@ struct FriendsView: View {
             showFriendProfile = true
         } label: {
             HStack(spacing: 12) {
-                initialsCircle(name: friend.name, size: 40)
+                InitialsProfilePicView(name: friend.name, profilePicUrl: vm.friendProfileImageURLs[friend.id]?.absoluteString, size: 40)
 
                 Text(friend.name)
                     .font(.system(size: 15, weight: .medium))
@@ -310,27 +310,6 @@ struct FriendsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Helpers
-
-    @ViewBuilder
-    private func initialsCircle(name: String, size: CGFloat) -> some View {
-        Circle()
-            .fill(primaryColor.opacity(0.12))
-            .frame(width: size, height: size)
-            .overlay(
-                Text(initials(from: name))
-                    .font(.system(size: size * 0.35, weight: .semibold))
-                    .foregroundColor(primaryColor)
-            )
-    }
-
-    private func initials(from name: String) -> String {
-        let parts = name.split(separator: " ")
-        let first = parts.first?.first.map(String.init) ?? ""
-        let last = parts.dropFirst().first?.first.map(String.init) ?? ""
-        return (first + last).uppercased()
     }
 
     private func openAppSettings() {
