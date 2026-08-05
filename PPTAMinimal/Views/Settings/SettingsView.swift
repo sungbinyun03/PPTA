@@ -271,11 +271,11 @@ struct SettingsView: View {
                     )
                 }
                 Button {
-                    if let url = URL(string: "https://forms.gle/YOUR_FORM_ID") {
+                    if let url = URL(string: "https://forms.gle/VbHG5VJrMXGQuFV3A") {
                         openURL(url)
                     }
                 } label: {
-                    settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support", iconScale: 1.2)
+                    settingsRow(icon: Image(systemName: "questionmark.circle"), text: "Support/Feedback Form", iconScale: 1.2)
                 }
                 .buttonStyle(.plain)
 

@@ -82,7 +82,7 @@ struct TraineeCellView: View {
                     .disabled(!canLock)
 
                     Button(action: { if canRelease { onRelease?() } }) {
-                        Text("Release")
+                        Text("Snooze Lock (10 min)")
                             .font(.system(size: 14, weight: .semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
