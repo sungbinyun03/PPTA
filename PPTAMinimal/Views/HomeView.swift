@@ -26,20 +26,25 @@ struct HomeView: View {
                 ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                 ScrollView {
                     VStack(spacing: 12) {
-                        if userSettingsManager.userSettings.traineeStatus == .cutOff {
-                            statusBanner(
-                                icon: "lock.fill",
-                                title: "Apps Locked",
-                                message: "Get one of your coaches to give you 10 more minutes!",
-                                color: .red
-                            )
-                        } else if userSettingsManager.userSettings.traineeStatus == .snoozedLock {
-                            statusBanner(
-                                icon: "clock",
-                                title: "Snooze Active",
-                                message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
-                                color: Color(red: 1.0, green: 0.7, blue: 0.0)
-                            )
+                        // Only show status banners when tracking is active.
+                        // Pressure level Off leaves traineeStatus in Firestore as-is
+                        // (stale), so we must guard on isTracking to avoid false alerts.
+                        if userSettingsManager.userSettings.isTracking {
+                            if userSettingsManager.userSettings.traineeStatus == .cutOff {
+                                statusBanner(
+                                    icon: "lock.fill",
+                                    title: "Apps Locked",
+                                    message: "Get one of your coaches to give you 10 more minutes!",
+                                    color: .red
+                                )
+                            } else if userSettingsManager.userSettings.traineeStatus == .snoozedLock {
+                                statusBanner(
+                                    icon: "clock",
+                                    title: "Snooze Active",
+                                    message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
+                                    color: Color(red: 1.0, green: 0.7, blue: 0.0)
+                                )
+                            }
                         }
                         DashboardView()
                         StreakBannerView()

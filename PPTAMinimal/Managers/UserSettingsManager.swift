@@ -30,6 +30,17 @@ final class UserSettingsManager : ObservableObject{
 
         // Keep in sync with pressure level: Off means not participating in tracking.
         settings.isTracking = settings.pressureLevel.isTracking
+
+        // Sync traineeStatus with tracking state so coaches always see an accurate ring.
+        // Off → noStatus (clears any stale cutOff/attentionNeeded from a prior session).
+        // Any non-Off mode → allClear (tracking just started; no limit hit yet).
+        if !settings.isTracking {
+            settings.traineeStatus = .noStatus
+        } else if settings.traineeStatus == .noStatus {
+            // Only reset to allClear from noStatus — don't overwrite an active cutOff
+            // or attentionNeeded that was set by the extension mid-session.
+            settings.traineeStatus = .allClear
+        }
         
         print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
         LocalSettingsStore.saveCurrentUserId(userID)
