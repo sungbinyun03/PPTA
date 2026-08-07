@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TraineeCoachView: View {
-    @StateObject private var viewModel = StatusCenterViewModel()
+    @EnvironmentObject private var viewModel: StatusCenterViewModel
     @State private var selectedPerson: StatusCenterPerson? = nil
     @State private var showTraineesInfo = false
     @State private var showCoachesInfo = false
@@ -109,4 +109,5 @@ struct TraineeCoachView: View {
 
 #Preview {
     TraineeCoachView()
+        .environmentObject(StatusCenterViewModel())
 }

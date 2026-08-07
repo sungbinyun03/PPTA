@@ -11,6 +11,7 @@ struct TabNavigator: View {
     @State private var selected = 0
     @StateObject private var roleInbox = RoleRequestsInboxViewModel()
     @StateObject private var friendsBadgeVm = FriendsViewModel()
+    @StateObject private var statusVm = StatusCenterViewModel()
     @ObservedObject private var notifications = NotificationManager.shared
     
     private let previewMode: Bool
@@ -48,6 +49,7 @@ struct TabNavigator: View {
                     Image(systemName: "house.fill")
                     Text("Home")
                 }
+                .badge(statusVm.trainees.filter { $0.traineeStatus == .attentionNeeded }.count)
                 .tag(0)
             FriendsView()
                 .tabItem {
@@ -59,9 +61,11 @@ struct TabNavigator: View {
                     }
                     Text("Friends")
                 }
+                .badge(friendsBadgeVm.incomingRequests.count + roleInbox.incoming.count)
                 .tag(1)
         }
         .environmentObject(roleInbox)
+        .environmentObject(statusVm)
         .overlay(alignment: .top) {
             if let banner = notifications.inAppBanner {
                 InAppBannerView(title: banner.title, message: banner.body) {
@@ -75,6 +79,7 @@ struct TabNavigator: View {
             roleInbox.startListening()
             await friendsBadgeVm.refresh()
             friendsBadgeVm.startListening()
+            await statusVm.refresh()
         }
         .onDisappear {
             roleInbox.stopListening()
