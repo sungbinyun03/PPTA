@@ -5,6 +5,14 @@
 //  Created by Damien Koh on 14/10/25.
 //
 
+// ============================================================
+// ⚠️  DEAD CODE — STATUS CENTER TAB REMOVED
+// ============================================================
+// This cell was only used inside StatusCenterView, which is no
+// longer in the tab bar. Nothing in the active app references
+// TraineeCellView. Safe to delete.
+// ============================================================
+
 import SwiftUI
 
 struct TraineeCellView: View {

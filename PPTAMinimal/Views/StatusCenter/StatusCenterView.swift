@@ -5,6 +5,21 @@
 //  Created by Damien Koh on 7/10/25.
 //
 
+// ============================================================
+// ⚠️  DEAD CODE — STATUS CENTER TAB REMOVED
+// ============================================================
+// The Status Center was removed from the tab bar intentionally
+// to keep the app focused on fewer screens.
+//
+// This entire file (and the other files in Views/StatusCenter/)
+// are no longer reachable from the app. Safe to delete when
+// ready to clean up.
+//
+// DO NOT add new features here or wire this back into TabNavigator.
+// Use FriendProfileSheetView (via FriendsView or TraineeCoachView)
+// for coach/trainee interactions instead.
+// ============================================================
+
 import SwiftUI
 import FirebaseAuth
 

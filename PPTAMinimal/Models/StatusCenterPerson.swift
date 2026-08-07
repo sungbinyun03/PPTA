@@ -5,6 +5,17 @@
 //  Created by Assistant on 12/21/25.
 //
 
+// ============================================================
+// ℹ️  NOTE — STILL ACTIVELY USED (not dead code)
+// ============================================================
+// StatusCenterPerson is the data model for TraineeCoachView
+// (Home tab circles) and FriendProfileSheetView snapshots.
+// It is NOT tied to the removed Status Center tab.
+//
+// If you ever remove TraineeCoachView, evaluate whether this
+// model can be deleted or replaced with a simpler struct.
+// ============================================================
+
 import Foundation
 
 struct StatusCenterPerson: Identifiable, Equatable {

@@ -5,6 +5,14 @@
 //  Created by Damien Koh on 11/10/25.
 //
 
+// ============================================================
+// ⚠️  DEAD CODE — STATUS CENTER TAB REMOVED
+// ============================================================
+// This card was only used inside TraineeStatsRowView, which was
+// only used inside StatusCenterView. Nothing in the active app
+// references TraineeStatsCardView. Safe to delete.
+// ============================================================
+
 import SwiftUI
 
 struct TraineeStatsCardView: View {

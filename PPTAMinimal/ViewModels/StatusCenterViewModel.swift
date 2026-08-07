@@ -5,6 +5,17 @@
 //  Created by Assistant on 12/21/25.
 //
 
+// ============================================================
+// ℹ️  NOTE — STILL ACTIVELY USED (not dead code)
+// ============================================================
+// Despite the name, StatusCenterViewModel is NOT tied to the
+// removed Status Center tab. It is still used by TraineeCoachView
+// (shown on the Home tab) to load the trainee/coach circles.
+//
+// If you ever remove TraineeCoachView, this file can be deleted.
+// Do NOT delete it just because the Status Center tab is gone.
+// ============================================================
+
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
