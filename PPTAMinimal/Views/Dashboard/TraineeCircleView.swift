@@ -38,7 +38,7 @@ struct TraineeCircleView: View {
                             Image(systemName: "exclamationmark.circle.fill")
                                 .font(.system(size: 20))
                                 .foregroundColor(.orange)
-                                .background(Circle().fill(Color.white).padding(-2))
+                                .background(Circle().fill(Color(.systemBackground)).padding(-2))
                         }
                         .buttonStyle(.plain)
                         .offset(y: 10)
