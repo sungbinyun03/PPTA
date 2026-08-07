@@ -22,37 +22,52 @@ struct HomeView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
-                    if userSettingsManager.userSettings.traineeStatus == .cutOff
-                        && userSettingsManager.userSettings.pressureLevel == .hardcore {
-                        HStack(spacing: 12) {
-                            Image(systemName: "lock.fill")
-                                .foregroundColor(.white)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Apps Locked")
-                                    .font(.custom("BambiBold", size: 15))
+            VStack(spacing: 0) {
+                ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
+                ScrollView {
+                    VStack(spacing: 12) {
+                        if userSettingsManager.userSettings.traineeStatus == .cutOff
+                            && userSettingsManager.userSettings.pressureLevel == .hardcore {
+                            HStack(spacing: 12) {
+                                Image(systemName: "lock.fill")
                                     .foregroundColor(.white)
-                                Text("You've hit your Hardcore limit for today.")
-                                    .font(.custom("Satoshi-Variable", size: 13))
-                                    .foregroundColor(.white.opacity(0.85))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apps Locked")
+                                        .font(.custom("BambiBold", size: 15))
+                                        .foregroundColor(.white)
+                                    Text("You've hit your Hardcore limit for today.")
+                                        .font(.custom("Satoshi-Variable", size: 13))
+                                        .foregroundColor(.white.opacity(0.85))
+                                }
+                                Spacer()
                             }
-                            Spacer()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .background(Color.red.opacity(0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.horizontal, 24)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(Color.red.opacity(0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .padding(.horizontal, 24)
+                        DashboardView()
+                        StreakBannerView()
+                        reportSection
+                        TraineeCoachView()
                     }
-                    DashboardView()
-                    StreakBannerView()
-                    reportSection
-                    TraineeCoachView()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.top, 0)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 12)
+                .refreshable {
+                    await withCheckedContinuation { continuation in
+                        UserSettingsManager.shared.loadSettings { loadedSettings in
+                            DispatchQueue.main.async {
+                                UserSettingsManager.shared.userSettings = loadedSettings
+                                Task { @MainActor in
+                                    await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+                                    continuation.resume()
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         /// Keeps Screen Time monitoring aligned with `userSettings` whenever it changes (Firestore load, Pressure / App Limits save, etc.). `onAppear` alone is not enough when Home stays under the stack after pushing Settings.
