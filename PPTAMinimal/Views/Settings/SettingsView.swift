@@ -23,6 +23,8 @@ struct SettingsView: View {
     @State private var isEditingName   = false
     @State private var editedName      = ""
     @State private var isSavingName    = false
+    @State private var showAppLimitsWarning    = false
+    @State private var showPressureLevelWarning = false
 
     @Environment(\.openURL) private var openURL
     
@@ -249,26 +251,74 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             if selectedTab == "Settings" {
                 NavigationLink(destination: AppLimitsView()) {
-                    settingsRow(
-                        icon: Image(systemName: "clock.fill")
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "clock.fill")
                             .resizable()
                             .scaledToFit()
                             .foregroundStyle(Color("primaryColor"))
-                            .scaleEffect(0.35),
-                        text: "App Limits",
-                        iconScale: 2
-                    )
+                            .scaleEffect(0.35)
+                            .scaleEffect(2)
+                            .frame(width: Self.settingsRowIconSlotWidth, height: Self.settingsRowIconSlotHeight)
+                            .clipped()
+                        Text("App Limits")
+                            .foregroundColor(.primary)
+                        if !settingsMgr.userSettings.hasViableAppLimits {
+                            Button { showAppLimitsWarning = true } label: {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.orange)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                }
+                .popover(isPresented: $showAppLimitsWarning) {
+                    Text("No apps selected or daily limit is 0. Tap App Limits to choose apps and set your daily limit.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(16)
+                        .frame(width: 260)
+                        .presentationCompactAdaptation(.popover)
                 }
                 NavigationLink(destination: PressureLevelView()) {
-                    settingsRow(
-                        icon: Image(systemName: "gauge.with.dots.needle.33percent")
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "gauge.with.dots.needle.33percent")
                             .resizable()
                             .scaledToFit()
                             .foregroundStyle(Color("primaryColor"))
-                            .scaleEffect(0.35),
-                        text: "Pressure Level",
-                        iconScale: 2
-                    )
+                            .scaleEffect(0.35)
+                            .scaleEffect(2)
+                            .frame(width: Self.settingsRowIconSlotWidth, height: Self.settingsRowIconSlotHeight)
+                            .clipped()
+                        Text("Pressure Level")
+                            .foregroundColor(.primary)
+                        if settingsMgr.userSettings.pressureLevel == .off {
+                            Button { showPressureLevelWarning = true } label: {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.orange)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                }
+                .popover(isPresented: $showPressureLevelWarning) {
+                    Text("Pressure level is Off — enable Standard or Hardcore so coaches can help hold you accountable.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(16)
+                        .frame(width: 260)
+                        .presentationCompactAdaptation(.popover)
                 }
                 Button {
                     if let url = URL(string: "https://forms.gle/VbHG5VJrMXGQuFV3A") {

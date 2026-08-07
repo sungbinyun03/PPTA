@@ -24,6 +24,7 @@ struct FriendsView: View {
     @State private var isContactsImportPresented = false
     @State private var showContactsPermissionAlert = false
     @State private var profileTarget: FriendProfileTarget? = nil
+    @State private var showFriendsInfo = false
 
     private let primaryColor = Color("primaryColor")
 
@@ -134,18 +135,44 @@ struct FriendsView: View {
                         }
 
                         // MARK: Friends
-                        sectionBlock(title: "Friends") {
-                            if vm.friends.isEmpty {
-                                Text("No friends yet")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding(.vertical, 20)
-                            } else {
-                                ForEach(vm.friends, id: \.id) { friend in
-                                    friendRow(friend: friend)
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 6) {
+                                Text("Friends")
+                                    .font(.custom("SatoshiVariable-Bold_Light", size: 20))
+                                if vm.friends.isEmpty {
+                                    Button { showFriendsInfo = true } label: {
+                                        Image(systemName: "exclamationmark.circle.fill")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.orange)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .popover(isPresented: $showFriendsInfo) {
+                                        Text("Add a friend to get started. Friends can become your coaches or trainees.")
+                                            .font(.subheadline)
+                                            .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .padding(16)
+                                            .frame(width: 260)
+                                            .presentationCompactAdaptation(.popover)
+                                    }
                                 }
                             }
+                            .padding(.horizontal, 20)
+
+                            VStack(spacing: 8) {
+                                if vm.friends.isEmpty {
+                                    Text("No friends yet")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.vertical, 20)
+                                } else {
+                                    ForEach(vm.friends, id: \.id) { friend in
+                                        friendRow(friend: friend)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
                         }
                     }
                     .padding(.bottom, 32)

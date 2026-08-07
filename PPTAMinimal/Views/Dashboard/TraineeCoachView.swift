@@ -21,12 +21,12 @@ struct TraineeCoachView: View {
                 if viewModel.trainees.isEmpty {
                     Button { showTraineesInfo = true } label: {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: 18))
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showTraineesInfo) {
-                        Text("Add a friend, then request they become your Trainee to start holding each other accountable.")
+                        Text("Add a friend, then tap their profile to request them as your Trainee so you can start holding them accountable.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -40,13 +40,15 @@ struct TraineeCoachView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
                     ForEach(viewModel.trainees) { trainee in
+                        let status = trainee.traineeStatus ?? .noStatus
                         Button {
                             selectedPerson = trainee
                         } label: {
                             TraineeCircleView(
-                                status: trainee.traineeStatus ?? .noStatus,
+                                status: status,
                                 name: trainee.name,
-                                profilePicUrl: trainee.profileImageURL?.absoluteString
+                                profilePicUrl: trainee.profileImageURL?.absoluteString,
+                                showSetupWarning: status == .noStatus || trainee.timeLimitMinutes == 0
                             )
                         }
                         .buttonStyle(.plain)
@@ -62,12 +64,12 @@ struct TraineeCoachView: View {
                 if viewModel.coaches.isEmpty {
                     Button { showCoachesInfo = true } label: {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: 18))
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showCoachesInfo) {
-                        Text("Add a friend, then request they become your Coach to help you stay on track.")
+                        Text("Add a friend, then tap their profile to request them as your Coach so they can help keep you on track.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)

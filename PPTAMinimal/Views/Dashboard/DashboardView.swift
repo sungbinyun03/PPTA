@@ -9,8 +9,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
+    @StateObject private var friendsVm = FriendsViewModel()
     @ObservedObject private var settingsMgr = UserSettingsManager.shared
-    @State private var showSettingsWarning = false
 
     private var peersYouWatchCount: Int {
         if !settingsMgr.userSettings.traineeIds.isEmpty { return settingsMgr.userSettings.traineeIds.count }
@@ -22,50 +22,74 @@ struct DashboardView: View {
         return settingsMgr.userSettings.coaches.count
     }
 
-    private var settingsWarnings: [String] {
-        var msgs: [String] = []
-        if !settingsMgr.userSettings.hasViableAppLimits {
-            msgs.append("No app limits set — go to Settings → App Limits to choose apps and set your daily limit.")
+    private var missingItems: [String] {
+        var items: [String] = []
+        if !settingsMgr.userSettings.hasViableAppLimits { items.append("App Limits") }
+        if settingsMgr.userSettings.pressureLevel == .off { items.append("Pressure Level") }
+        if friendsVm.friends.isEmpty { items.append("Friends") }
+        if settingsMgr.userSettings.traineeIds.isEmpty && settingsMgr.userSettings.trainees.isEmpty {
+            items.append("Trainees")
         }
-        if settingsMgr.userSettings.pressureLevel == .off {
-            msgs.append("Pressure level is Off — go to Settings → Pressure Level to enable accountability.")
+        if settingsMgr.userSettings.coachIds.isEmpty && settingsMgr.userSettings.coaches.isEmpty {
+            items.append("Coaches")
         }
-        return msgs
+        return items
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            if !missingItems.isEmpty {
+                setupCard
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Stats")
                     .font(.custom("SatoshiVariable-Bold_Light", size: 20))
-                if !settingsWarnings.isEmpty {
-                    Button { showSettingsWarning = true } label: {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.orange)
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showSettingsWarning) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(settingsWarnings, id: \.self) { msg in
-                                Text(msg).font(.subheadline)
-                            }
-                        }
-                        .padding(16)
-                        .frame(maxWidth: 280)
-                        .presentationCompactAdaptation(.popover)
+
+                MarqueeStatsView(items: [
+                    ("DAILY LIMIT", "\(viewModel.limitHours)h \(viewModel.limitMinutes)m"),
+                    ("STREAK", viewModel.streakDays.map { "\($0) \($0 == 1 ? "day" : "days")" } ?? "—"),
+                    ("WATCHING", "\(peersYouWatchCount)"),
+                    ("COACHES", "\(coachesWatchingYouCount)"),
+                ])
+            }
+        }
+        .padding(.horizontal, 24)
+        .task { await friendsVm.refresh() }
+    }
+
+    private var setupCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.orange)
+                Text("Setup incomplete")
+                    .font(.custom("BambiBold", size: 15))
+                    .foregroundColor(.orange)
+            }
+
+            Text("Follow the warning icons to set up the following:")
+                .font(.custom("Satoshi-Variable", size: 13))
+                .foregroundColor(.secondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(missingItems, id: \.self) { item in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 5, height: 5)
+                        Text(item)
+                            .font(.custom("Satoshi-Variable", size: 13))
+                            .foregroundColor(.primary)
                     }
                 }
             }
-
-            MarqueeStatsView(items: [
-                ("DAILY LIMIT", "\(viewModel.limitHours)h \(viewModel.limitMinutes)m"),
-                ("STREAK", viewModel.streakDays.map { "\($0) \($0 == 1 ? "day" : "days")" } ?? "—"),
-                ("WATCHING", "\(peersYouWatchCount)"),
-                ("COACHES", "\(coachesWatchingYouCount)"),
-            ])
         }
-        .padding(.horizontal, 24)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

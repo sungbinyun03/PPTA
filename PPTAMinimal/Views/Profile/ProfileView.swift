@@ -19,6 +19,10 @@ struct ProfileView: View {
         self.subHeader = subHeader
     }
 
+    private var settingsNeedAttention: Bool {
+        !settingsMgr.userSettings.hasViableAppLimits || settingsMgr.userSettings.pressureLevel == .off
+    }
+
     var body: some View {
         if let user = viewModel.currentUser {
             VStack(alignment: .leading, spacing: 4) {
@@ -40,12 +44,21 @@ struct ProfileView: View {
                             }
                         }
                         .overlay(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 20, height: 20)
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.gray)
+                            if settingsNeedAttention {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.orange)
+                                    .background(Circle().fill(Color.white).padding(-2))
+                            } else {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 20, height: 20)
+                                    Image(systemName: "gearshape.fill")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.gray)
+                                }
+                            }
                         }
                     }
                     .buttonStyle(.plain)

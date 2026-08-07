@@ -10,6 +10,7 @@ import SwiftUI
 struct TabNavigator: View {
     @State private var selected = 0
     @StateObject private var roleInbox = RoleRequestsInboxViewModel()
+    @StateObject private var friendsBadgeVm = FriendsViewModel()
     @ObservedObject private var notifications = NotificationManager.shared
     
     private let previewMode: Bool
@@ -50,7 +51,12 @@ struct TabNavigator: View {
                 .tag(0)
             FriendsView()
                 .tabItem {
-                    Image(systemName: "figure.2")
+                    if friendsBadgeVm.friends.isEmpty {
+                        Image(uiImage: (UIImage(systemName: "exclamationmark.circle.fill") ?? UIImage())
+                            .withTintColor(.orange, renderingMode: .alwaysOriginal))
+                    } else {
+                        Image(systemName: "figure.2")
+                    }
                     Text("Friends")
                 }
                 .tag(1)
@@ -67,9 +73,12 @@ struct TabNavigator: View {
         .task {
             await roleInbox.refreshOnce()
             roleInbox.startListening()
+            await friendsBadgeVm.refresh()
+            friendsBadgeVm.startListening()
         }
         .onDisappear {
             roleInbox.stopListening()
+            friendsBadgeVm.stopListening()
         }
     }
 }
