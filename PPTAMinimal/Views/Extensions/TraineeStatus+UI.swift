@@ -10,10 +10,11 @@ import SwiftUI
 extension TraineeStatus {
     var ringColor: Color? {
         switch self {
-        case .allClear: return .green
+        case .allClear:        return .green
         case .attentionNeeded: return .red
-        case .cutOff: return Color(white: 0.25) // dark gray
-        case .noStatus: return nil
+        case .cutOff:          return Color(white: 0.25)
+        case .snoozedLock:     return Color(red: 1.0, green: 0.7, blue: 0.0) // amber — temporarily unlocked
+        case .noStatus:        return nil
         }
     }
 }

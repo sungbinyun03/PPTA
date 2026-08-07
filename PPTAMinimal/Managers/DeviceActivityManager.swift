@@ -137,11 +137,11 @@ class DeviceActivityManager {
                 : "Be Mindful of Your Screentime!"
         )
 
-        // Sync in-memory state so the main app reflects the new status immediately,
-        // and notify the backend that the user is back to allClear.
+        // Sync in-memory state so the main app reflects the snooze immediately,
+        // and notify coaches via the backend that the trainee is temporarily unlocked.
         if settings.isTracking {
-            UserSettingsManager.shared.update { $0.traineeStatus = .allClear }
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .allClear)
+            UserSettingsManager.shared.update { $0.traineeStatus = .snoozedLock }
+            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .snoozedLock)
             startUnlockGracePeriod(settings: settings)
         }
     }

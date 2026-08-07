@@ -149,19 +149,21 @@ struct FriendProfileView: View {
                         }
 
                         if let onUnlock {
+                            let isSnoozed = traineeStatus == .snoozedLock
                             Button { onUnlock() } label: {
                                 HStack {
-                                    Text("Release")
+                                    Text("Snooze Lock for 10 Min")
                                         .font(.system(size: 15, weight: .semibold))
                                     Spacer()
                                     Image(systemName: "lock.open")
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(isSnoozed ? .gray : .white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 13)
-                                .background(primaryColor)
+                                .background(isSnoozed ? Color(.systemGray5) : primaryColor)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
+                            .disabled(isSnoozed)
                             .padding(.horizontal, 20)
                         }
 
@@ -181,7 +183,7 @@ struct FriendProfileView: View {
                             statRow(label: "Pressure", value: pressureLevel.rawValue)
                             statRow(label: "Streak", value: "\(streakDays) days")
 
-                            if let locker = lockedByName, traineeStatus == .cutOff {
+                            if let locker = lockedByName, traineeStatus == .cutOff || traineeStatus == .snoozedLock {
                                 Divider().opacity(0.3)
                                 statRow(label: "Locked by", value: locker)
                             }
@@ -253,6 +255,7 @@ struct FriendProfileView: View {
             case .allClear:        return ("All clear", .green)
             case .attentionNeeded: return ("Attention needed", .orange)
             case .cutOff:          return ("Cut off", Color(white: 0.35))
+            case .snoozedLock:     return ("Snoozed Lock", Color(red: 1.0, green: 0.7, blue: 0.0))
             case .noStatus:        return ("No status", .secondary)
             }
         }()

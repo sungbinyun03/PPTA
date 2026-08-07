@@ -36,7 +36,7 @@ struct TraineeCellView: View {
         HStack {
             InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 65)
                 .overlay(alignment: .bottomTrailing) {
-                    if status == .cutOff, let locker = lockedByName {
+                    if (status == .cutOff || status == .snoozedLock), let locker = lockedByName {
                         let parts = locker.split(separator: " ")
                         let initials = parts.prefix(2)
                             .compactMap { $0.first }
@@ -101,10 +101,11 @@ struct TraineeCellView: View {
     // MARK: - Status mapping
     private var statusDotColor: Color {
         switch status {
-        case .allClear: return .green
+        case .allClear:        return .green
         case .attentionNeeded: return .orange
-        case .cutOff: return .red
-        case .noStatus: return .clear
+        case .cutOff:          return .red
+        case .snoozedLock:     return Color(red: 1.0, green: 0.7, blue: 0.0) // amber
+        case .noStatus:        return .clear
         }
     }
 

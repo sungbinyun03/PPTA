@@ -26,26 +26,20 @@ struct HomeView: View {
                 ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                 ScrollView {
                     VStack(spacing: 12) {
-                        if userSettingsManager.userSettings.traineeStatus == .cutOff
-                            && userSettingsManager.userSettings.pressureLevel == .hardcore {
-                            HStack(spacing: 12) {
-                                Image(systemName: "lock.fill")
-                                    .foregroundColor(.white)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Apps Locked")
-                                        .font(.custom("BambiBold", size: 15))
-                                        .foregroundColor(.white)
-                                    Text("You've hit your Hardcore limit for today.")
-                                        .font(.custom("Satoshi-Variable", size: 13))
-                                        .foregroundColor(.white.opacity(0.85))
-                                }
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .background(Color.red.opacity(0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .padding(.horizontal, 24)
+                        if userSettingsManager.userSettings.traineeStatus == .cutOff {
+                            statusBanner(
+                                icon: "lock.fill",
+                                title: "Apps Locked",
+                                message: "Get one of your coaches to give you 10 more minutes!",
+                                color: .red
+                            )
+                        } else if userSettingsManager.userSettings.traineeStatus == .snoozedLock {
+                            statusBanner(
+                                icon: "clock",
+                                title: "Snooze Active",
+                                message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
+                                color: Color(red: 1.0, green: 0.7, blue: 0.0)
+                            )
                         }
                         DashboardView()
                         StreakBannerView()
@@ -97,6 +91,29 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - Status Banner
+
+    private func statusBanner(icon: String, title: String, message: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(.white)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.custom("BambiBold", size: 15))
+                    .foregroundColor(.white)
+                Text(message)
+                    .font(.custom("Satoshi-Variable", size: 13))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(color.opacity(0.85))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 24)
+    }
+
     private func seedPreviewData() {
         // Minimal fake user for AuthViewModel
         if viewModel.currentUser == nil {

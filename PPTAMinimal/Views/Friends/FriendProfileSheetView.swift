@@ -99,7 +99,8 @@ struct FriendProfileSheetView: View {
     private func makeUnlockActionIfNeeded() -> (() -> Void)? {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isTrainee else { return nil }
-        guard vm.traineeStatus == .cutOff else { return nil }
+        // Show the button for both cutOff (active) and snoozedLock (greyed-out/disabled in FriendProfileView).
+        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         guard let url = UnlockService.makeUnlockURL(childUID: otherUserId, coachUID: coachUID) else { return nil }
         return { Task { await vm.performUnlock(url: url) } }

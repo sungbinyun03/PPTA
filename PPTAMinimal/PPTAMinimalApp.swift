@@ -137,6 +137,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler(.noData)
     }
     
+    /// Called when a local notification fires while the app is in the foreground.
+    /// We use this to sync any pending status the DeviceActivity extension wrote
+    /// (e.g. grace period expired while the user was already looking at HomeView).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        Task { @MainActor in
+            await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+        }
+        completionHandler([.banner, .sound])
+    }
+
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
             guard let token = fcmToken else { return }
             print("FCM Token: \(token)")

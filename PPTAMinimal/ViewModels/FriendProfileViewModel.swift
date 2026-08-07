@@ -164,14 +164,45 @@ final class FriendProfileViewModel: ObservableObject {
     // MARK: - Lock / Unlock actions
 
     func performLock(url: URL) async {
-        await performLockUnlockAction(url: url)
+        guard await performLockUnlockAction(url: url) else { return }
+        // Optimistic update: show the coach the expected state immediately while
+        // the FCM travels to the trainee's device. After 15s we verify against
+        // Firestore — if the FCM was lost, the real status reappears and the
+        // coach can try locking again.
+        traineeStatus = .cutOff
+        scheduleVerification(
+            expected: .cutOff,
+            failureTitle: "Lock may not have reached \(name)",
+            failureBody: "\(name) may still have access to their apps. Try locking them again."
+        )
     }
 
     func performUnlock(url: URL) async {
-        await performLockUnlockAction(url: url)
+        guard await performLockUnlockAction(url: url) else { return }
+        traineeStatus = .snoozedLock
+        scheduleVerification(
+            expected: .snoozedLock,
+            failureTitle: "Snooze may not have reached \(name)",
+            failureBody: "The snooze unlock didn't seem to go through. Try again."
+        )
     }
 
-    private func performLockUnlockAction(url: URL) async {
+    /// Verifies the action landed by re-fetching Firestore after a delay.
+    /// If the status didn't update to `expected`, reverts the UI and fires an iOS
+    /// system notification so the coach is alerted even if they've left the app.
+    private func scheduleVerification(expected: TraineeStatus, failureTitle: String, failureBody: String) {
+        Task {
+            try? await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
+            await refresh()
+            if traineeStatus != expected {
+                NotificationManager.shared.sendNotification(title: failureTitle, body: failureBody)
+            }
+        }
+    }
+
+    /// Calls the signed Cloud Run URL and returns `true` on HTTP 2xx.
+    @discardableResult
+    private func performLockUnlockAction(url: URL) async -> Bool {
         isPerformingLockUnlock = true
         lockUnlockError = nil
         defer { isPerformingLockUnlock = false }
@@ -182,11 +213,12 @@ final class FriendProfileViewModel: ObservableObject {
             let (_, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lockUnlockError = "Action failed — please try again."
-                return
+                return false
             }
-            await refresh()
+            return true
         } catch {
             lockUnlockError = error.localizedDescription
+            return false
         }
     }
 
