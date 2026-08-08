@@ -52,15 +52,16 @@ struct TotalActivityView: View {
                 .listRowSeparator(.hidden)
             }
 
-            if hasHourlyData {
-                Section {
-                    HourlyBarChart(buckets: activityReport.hourlyBuckets, primary: primary)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                } header: {
-                    ReportSectionHeader("HOURLY BREAKDOWN", primary: primary)
-                }
-            }
+            // Hourly breakdown — not needed right now but may be useful in the future
+            // if hasHourlyData {
+            //     Section {
+            //         HourlyBarChart(buckets: activityReport.hourlyBuckets, primary: primary)
+            //             .listRowBackground(Color.clear)
+            //             .listRowSeparator(.hidden)
+            //     } header: {
+            //         ReportSectionHeader("HOURLY BREAKDOWN", primary: primary)
+            //     }
+            // }
 
             if !sortedApps.isEmpty {
                 Section {
@@ -102,7 +103,7 @@ struct ProgressRingView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 18) {
             ZStack {
                 Circle()
                     .stroke(primary.opacity(0.12), lineWidth: 14)
@@ -127,11 +128,17 @@ struct ProgressRingView: View {
                 }
             }
 
-            Text("TODAY'S SCREEN TIME")
-                .font(.custom("Satoshi-Variable", size: 11))
-                .fontWeight(.semibold)
-                .tracking(1.2)
-                .foregroundColor(primary.opacity(0.6))
+            VStack(spacing: 3) {
+                Text("TODAY'S SCREEN TIME")
+                    .font(.custom("Satoshi-Variable", size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(primary.opacity(0.6))
+                Text("(total across your tracked apps)")
+                    .font(.custom("Satoshi-Variable", size: 11))
+                    .fontWeight(.medium)
+                    .foregroundColor(primary.opacity(0.4))
+            }
         }
     }
 }

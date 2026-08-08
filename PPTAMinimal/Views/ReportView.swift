@@ -73,12 +73,33 @@ struct ReportView: View {
         )
     }
 
+    private var streakDays: Int {
+        StreakCalculator.daysSince(
+            start: userSettingsManager.userSettings.startDailyStreakDate,
+            calendar: .current
+        )
+    }
+
+    private var streakHeader: some View {
+        Text("DAILY STREAK: \(streakDays) DAY\(streakDays == 1 ? "" : "S")")
+            .font(.custom("Satoshi-Variable", size: 11))
+            .fontWeight(.semibold)
+            .tracking(1.2)
+            .foregroundColor(Color("primaryColor").opacity(0.6))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
+    }
+
     var body: some View {
         Group {
             if authorizationStatus == .approved {
                 VStack(spacing: 0) {
-                    DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
-                        .frame(height: 140)
+                    streakHeader
+                    // Last 7 days chart — not needed right now but may be useful in the future
+                    // DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
+                    //     .frame(height: 140)
                     DeviceActivityReport(.init("Total Activity"), filter: currentFilter)
                         .frame(minHeight: 500)
                 }

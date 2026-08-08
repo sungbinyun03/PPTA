@@ -47,7 +47,6 @@ struct HomeView: View {
                             }
                         }
                         DashboardView()
-                        StreakBannerView()
                         reportSection
                         TraineeCoachView()
                     }
@@ -167,24 +166,33 @@ struct HomeView: View {
         )
     }
 
+    private var streakLabel: String {
+        let days = StreakCalculator.daysSince(
+            start: userSettingsManager.userSettings.startDailyStreakDate,
+            calendar: .current
+        )
+        guard userSettingsManager.userSettings.isTracking else { return "Daily Streak: Paused" }
+        return "Daily Streak: \(days) day\(days == 1 ? "" : "s")"
+    }
+
     private var reportSection: some View {
         Button(action: { isReportViewPresented.toggle() }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("SCREEN TIME")
-                        .font(.custom("Satoshi-Variable", size: 11))
-                        .fontWeight(.semibold)
-                        .tracking(1.2)
-                        .foregroundColor(Color("primaryColor").opacity(0.6))
+                    Text("Daily Screen Time")
+                        .font(.custom("BambiBold", size: 22))
+                        .foregroundColor(Color("primaryColor"))
                     Spacer()
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(Color("primaryColor").opacity(0.5))
                 }
 
-                Text("Daily Screen Time")
-                    .font(.custom("BambiBold", size: 22))
-                    .foregroundColor(Color("primaryColor"))
+                Text(streakLabel.uppercased())
+                    .font(.custom("Satoshi-Variable", size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(Color("primaryColor").opacity(0.6))
 
                 Group {
                     if !previewMode {
@@ -195,7 +203,7 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 170)
+                .frame(height: 215)
 
                 HStack {
                     Spacer()
@@ -272,54 +280,6 @@ struct HomeView: View {
                 print("Error starting monitoring: \(error)")
             }
         }
-    }
-}
-
-// MARK: - Streak Banner
-
-struct StreakBannerView: View {
-    @ObservedObject private var settingsMgr = UserSettingsManager.shared
-    
-    private var streakDays: Int {
-        StreakCalculator.daysSince(
-            start: settingsMgr.userSettings.startDailyStreakDate,
-            calendar: .current
-        )
-    }
-    
-    private var isTracking: Bool {
-        settingsMgr.userSettings.isTracking
-    }
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Daily Streak")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                
-                if !isTracking {
-                    Text("Tracking is paused")
-                        .font(.headline)
-                } else if streakDays > 0 {
-                    Text("\(streakDays) day\(streakDays == 1 ? "" : "s") strong")
-                        .font(.headline)
-                } else {
-                    Text("Streak starts today")
-                        .font(.headline)
-                }
-            }
-            
-            Spacer()
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color("primaryButtonColor").opacity(0.15))
-        )
-        .padding(.horizontal, 24)
     }
 }
 
