@@ -46,7 +46,8 @@ struct HomeView: View {
                                 )
                             }
                         }
-                        DashboardView()
+                        // Stats section (rotating ticker) — not needed right now, info is available elsewhere
+                        // DashboardView()
                         reportSection
                         TraineeCoachView()
                     }
