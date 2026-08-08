@@ -30,7 +30,7 @@ struct TraineeCircleView: View {
                         .inset(by: -5)
                         .stroke(status.ringColor ?? .clear, lineWidth: 15)
                     Circle()
-                        .stroke((status == .noStatus) ? .clear : .white, lineWidth: 5)
+                        .stroke((status == .noStatus) ? .clear : Color(.systemBackground), lineWidth: 5)
                 }
                 .overlay(alignment: .bottom) {
                     if showSetupWarning {

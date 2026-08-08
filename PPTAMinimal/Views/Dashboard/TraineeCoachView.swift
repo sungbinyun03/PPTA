@@ -11,6 +11,7 @@ struct TraineeCoachView: View {
     @EnvironmentObject private var viewModel: StatusCenterViewModel
     @State private var selectedPerson: StatusCenterPerson? = nil
     @State private var showTraineesInfo = false
+    @State private var showAttentionInfo = false
     @State private var showCoachesInfo = false
 
     var body: some View {
@@ -27,6 +28,22 @@ struct TraineeCoachView: View {
                     .buttonStyle(.plain)
                     .popover(isPresented: $showTraineesInfo) {
                         Text("Add a friend, then tap their profile to request them as your Trainee so you can start holding them accountable.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(16)
+                            .frame(width: 260)
+                            .presentationCompactAdaptation(.popover)
+                    }
+                } else if viewModel.trainees.contains(where: { $0.traineeStatus == .attentionNeeded }) {
+                    Button { showAttentionInfo = true } label: {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showAttentionInfo) {
+                        Text("Your trainee(s) has hit their screen time limit (red ring) — open their profile and cut them off!")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
