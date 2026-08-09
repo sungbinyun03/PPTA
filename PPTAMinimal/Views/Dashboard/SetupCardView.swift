@@ -1,5 +1,5 @@
 //
-//  DashboardView.swift
+//  SetupCardView.swift
 //  PPTAMinimal
 //
 //  Created by Damien Koh on 9/9/25.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct DashboardView: View {
+struct SetupCardView: View {
     @StateObject private var friendsVm = FriendsViewModel()
     @ObservedObject private var settingsMgr = UserSettingsManager.shared
 
@@ -70,5 +70,5 @@ struct DashboardView: View {
 
 
 #Preview {
-    DashboardView()
+    SetupCardView()
 }

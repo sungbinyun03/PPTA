@@ -27,27 +27,8 @@ struct HomeView: View {
                 ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                 ScrollView {
                     VStack(spacing: 12) {
-                        // Only show status banners when tracking is active.
-                        // Pressure level Off leaves traineeStatus in Firestore as-is
-                        // (stale), so we must guard on isTracking to avoid false alerts.
-                        if userSettingsManager.userSettings.isTracking {
-                            if userSettingsManager.userSettings.traineeStatus == .cutOff {
-                                statusBanner(
-                                    icon: "lock.fill",
-                                    title: "Apps Locked",
-                                    message: "Get one of your coaches to give you 10 more minutes!",
-                                    color: .red
-                                )
-                            } else if userSettingsManager.userSettings.traineeStatus == .snoozedLock {
-                                statusBanner(
-                                    icon: "clock",
-                                    title: "Snooze Active",
-                                    message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
-                                    color: TraineeStatus.snoozedLock.ringColor ?? .blue
-                                )
-                            }
-                        }
-                        DashboardView()
+                        SetupCardView()
+                        statusCard
                         reportSection
                         TraineeCoachView()
                     }
@@ -98,17 +79,71 @@ struct HomeView: View {
     
     // MARK: - Status Banner
 
-    private func statusBanner(icon: String, title: String, message: String, color: Color) -> some View {
+    @ViewBuilder
+    private var statusCard: some View {
+        let settings = userSettingsManager.userSettings
+        if !settings.isTracking || !settings.hasViableAppLimits {
+            let message = !settings.isTracking && !settings.hasViableAppLimits
+                ? "Pressure Level is off and App Limits aren't set up. Head to Settings to get started."
+                : !settings.isTracking
+                    ? "Pressure Level is off. Enable Standard or Hardcore in Settings to start tracking."
+                    : "App Limits aren't set up. Go to Settings → App Limits to pick apps and set a daily time limit."
+            statusBanner(
+                icon: "exclamationmark.triangle.fill",
+                title: "Not Tracking",
+                message: message,
+                color: Color(.systemGray5),
+                textColor: Color(.label)
+            )
+        } else {
+            switch settings.traineeStatus {
+            case .allClear:
+                statusBanner(
+                    icon: "checkmark.circle.fill",
+                    title: "All Clear",
+                    message: "You're within your limit and tracking properly.",
+                    color: TraineeStatus.allClear.ringColor ?? .green
+                )
+            case .attentionNeeded:
+                statusBanner(
+                    icon: "exclamationmark.circle.fill",
+                    title: "Limits Exceeded",
+                    message: "You've hit your screen time limit. Your coaches have been notified and can lock your apps.",
+                    color: TraineeStatus.attentionNeeded.ringColor ?? .red
+                )
+            case .cutOff:
+                statusBanner(
+                    icon: "lock.fill",
+                    title: "Apps Locked",
+                    message: settings.pressureLevel == .hardcore
+                        ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
+                        : "A coach locked your apps. If you want more time, have a coach snooze the lock for you.",
+                    color: TraineeStatus.cutOff.ringColor ?? Color(white: 0.25)
+                )
+            case .snoozedLock:
+                statusBanner(
+                    icon: "clock",
+                    title: "Snooze Active",
+                    message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
+                    color: TraineeStatus.snoozedLock.ringColor ?? .blue
+                )
+            case .noStatus:
+                EmptyView()
+            }
+        }
+    }
+
+    private func statusBanner(icon: String, title: String, message: String, color: Color, textColor: Color = .white) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(.white)
+                .foregroundColor(textColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.custom("BambiBold", size: 15))
-                    .foregroundColor(.white)
+                    .foregroundColor(textColor)
                 Text(message)
                     .font(.custom("Satoshi-Variable", size: 13))
-                    .foregroundColor(.white.opacity(0.85))
+                    .foregroundColor(textColor.opacity(0.85))
             }
             Spacer()
         }
