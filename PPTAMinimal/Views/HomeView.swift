@@ -42,7 +42,7 @@ struct HomeView: View {
                                     icon: "clock",
                                     title: "Snooze Active",
                                     message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
-                                    color: Color(red: 1.0, green: 0.7, blue: 0.0)
+                                    color: TraineeStatus.snoozedLock.ringColor ?? .blue
                                 )
                             }
                         }

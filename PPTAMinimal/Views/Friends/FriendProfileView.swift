@@ -250,15 +250,16 @@ struct FriendProfileView: View {
     }
 
     private var statusPill: some View {
-        let (text, color): (String, Color) = {
+        let text: String = {
             switch traineeStatus {
-            case .allClear:        return ("All clear", .green)
-            case .attentionNeeded: return ("Attention needed", .orange)
-            case .cutOff:          return ("Cut off", Color(white: 0.35))
-            case .snoozedLock:     return ("Snoozed Lock", Color(red: 1.0, green: 0.7, blue: 0.0))
-            case .noStatus:        return ("No status", .secondary)
+            case .allClear:        return "All clear"
+            case .attentionNeeded: return "Attention needed"
+            case .cutOff:          return "Cut off"
+            case .snoozedLock:     return "Snoozed Lock"
+            case .noStatus:        return "No status"
             }
         }()
+        let color = traineeStatus.ringColor ?? Color.secondary
         return Text(text)
             .font(.system(size: 12, weight: .semibold))
             .foregroundColor(color)

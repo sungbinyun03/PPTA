@@ -108,13 +108,7 @@ struct TraineeCellView: View {
 
     // MARK: - Status mapping
     private var statusDotColor: Color {
-        switch status {
-        case .allClear:        return .green
-        case .attentionNeeded: return .orange
-        case .cutOff:          return .red
-        case .snoozedLock:     return Color(red: 1.0, green: 0.7, blue: 0.0) // amber
-        case .noStatus:        return .clear
-        }
+        status.ringColor ?? .clear
     }
 
     // MARK: - Buttons state and appearance

@@ -13,7 +13,7 @@ extension TraineeStatus {
         case .allClear:        return .green
         case .attentionNeeded: return .red
         case .cutOff:          return Color(white: 0.25)
-        case .snoozedLock:     return Color(red: 1.0, green: 0.7, blue: 0.0) // amber — temporarily unlocked
+        case .snoozedLock:     return Color(red: 0.2, green: 0.55, blue: 0.95) // blue — temporary grace period
         case .noStatus:        return nil
         }
     }
