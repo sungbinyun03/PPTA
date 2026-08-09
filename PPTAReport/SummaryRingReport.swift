@@ -32,19 +32,27 @@ struct SummaryRingReport: DeviceActivityReportScene {
         struct PartialSettings: Decodable {
             var thresholdHour: Int?
             var thresholdMinutes: Int?
+            var traineeStatus: String?
+            var selectedMode: String?   // CodingKey for pressureLevel
         }
         var limitMinutes = 0
+        var traineeStatus = "noStatus"
+        var isTracking = false
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
            let settingsData = suite.data(forKey: "UserSettings"),
            let partial = try? JSONDecoder().decode(PartialSettings.self, from: settingsData) {
             limitMinutes = ((partial.thresholdHour ?? 0) * 60) + (partial.thresholdMinutes ?? 0)
+            traineeStatus = partial.traineeStatus ?? "noStatus"
+            isTracking = (partial.selectedMode ?? "Off") != "Off"
         }
 
         return ActivityReport(
             totalDuration: totalDuration,
             limitMinutes: limitMinutes,
             apps: [],
-            hourlyBuckets: []
+            hourlyBuckets: [],
+            traineeStatus: traineeStatus,
+            isTracking: isTracking
         )
     }
 }
@@ -57,7 +65,9 @@ struct SummaryRingView: View {
         ProgressRingView(
             totalDuration: activityReport.totalDuration,
             limitMinutes: activityReport.limitMinutes,
-            primary: .appPrimary(colorScheme)
+            primary: .appPrimary(colorScheme),
+            traineeStatus: activityReport.traineeStatus,
+            isTracking: activityReport.isTracking
         )
         .frame(maxWidth: .infinity)
     }

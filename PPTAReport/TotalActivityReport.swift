@@ -75,15 +75,21 @@ struct TotalActivityReport: DeviceActivityReportScene {
             var applications: FamilyActivitySelection
             var thresholdHour: Int?
             var thresholdMinutes: Int?
+            var traineeStatus: String?
+            var selectedMode: String?   // CodingKey for pressureLevel
         }
 
         var limitMinutes = 0
+        var traineeStatus = "noStatus"
+        var isTracking = false
 
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
            let settingsData = suite.data(forKey: "UserSettings"),
            let partial = try? JSONDecoder().decode(PartialSettings.self, from: settingsData) {
 
             limitMinutes = ((partial.thresholdHour ?? 0) * 60) + (partial.thresholdMinutes ?? 0)
+            traineeStatus = partial.traineeStatus ?? "noStatus"
+            isTracking = (partial.selectedMode ?? "Off") != "Off"
 
             let seenTokens = Set(list.compactMap { $0.token })
             for token in partial.applications.applicationTokens where !seenTokens.contains(token) {
@@ -104,7 +110,9 @@ struct TotalActivityReport: DeviceActivityReportScene {
             totalDuration: totalDuration,
             limitMinutes: limitMinutes,
             apps: list,
-            hourlyBuckets: hourlyBuckets
+            hourlyBuckets: hourlyBuckets,
+            traineeStatus: traineeStatus,
+            isTracking: isTracking
         )
     }
 }

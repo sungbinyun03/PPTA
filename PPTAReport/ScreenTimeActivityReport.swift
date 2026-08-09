@@ -13,6 +13,8 @@ struct ActivityReport {
     let limitMinutes: Int
     let apps: [AppDeviceActivity]
     let hourlyBuckets: [HourlyBucket]
+    let traineeStatus: String   // TraineeStatus raw value: "allClear", "attentionNeeded", "cutOff", "snoozedLock", "noStatus"
+    let isTracking: Bool        // pressureLevel != "Off"
 }
 
 struct AppDeviceActivity: Identifiable {

@@ -44,7 +44,9 @@ struct TotalActivityView: View {
                 ProgressRingView(
                     totalDuration: activityReport.totalDuration,
                     limitMinutes: activityReport.limitMinutes,
-                    primary: primary
+                    primary: primary,
+                    traineeStatus: activityReport.traineeStatus,
+                    isTracking: activityReport.isTracking
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -88,17 +90,23 @@ struct ProgressRingView: View {
     let totalDuration: TimeInterval
     let limitMinutes: Int
     let primary: Color
+    let traineeStatus: String
+    let isTracking: Bool
+
+    private var isConfigured: Bool { limitMinutes > 0 && isTracking }
 
     private var progress: Double {
         guard limitMinutes > 0 else { return 0 }
         return min(totalDuration / (Double(limitMinutes) * 60.0), 1.0)
     }
 
-    private var ringColor: Color {
-        switch progress {
-        case ..<0.7: return primary
-        case ..<0.9: return .orange
-        default: return Color(red: 0.85, green: 0.2, blue: 0.2)
+    private var statusColor: Color {
+        switch traineeStatus {
+        case "allClear":        return .green
+        case "attentionNeeded": return .red
+        case "cutOff":          return Color(white: 0.25)
+        case "snoozedLock":     return Color(red: 0.2, green: 0.55, blue: 0.95)
+        default:                return primary
         }
     }
 
@@ -109,21 +117,27 @@ struct ProgressRingView: View {
                     .stroke(primary.opacity(0.12), lineWidth: 14)
                     .frame(width: 130, height: 130)
 
-                Circle()
-                    .trim(from: 0, to: CGFloat(progress))
-                    .stroke(ringColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
-                    .frame(width: 130, height: 130)
-                    .rotationEffect(.degrees(-90))
+                if isConfigured {
+                    Circle()
+                        .trim(from: 0, to: CGFloat(progress))
+                        .stroke(statusColor, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                        .frame(width: 130, height: 130)
+                        .rotationEffect(.degrees(-90))
+                }
 
                 VStack(spacing: 3) {
-                    Text(totalDuration.toShortString())
-                        .font(.custom("BambiBold", size: 26))
-                        .foregroundColor(ringColor)
-                    if limitMinutes > 0 {
+                    if isConfigured {
+                        Text(totalDuration.toShortString())
+                            .font(.custom("BambiBold", size: 26))
+                            .foregroundColor(statusColor)
                         Text("of \(TimeInterval(Double(limitMinutes) * 60).toShortString())")
                             .font(.custom("Satoshi-Variable", size: 12))
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
+                    } else {
+                        Text("–")
+                            .font(.custom("BambiBold", size: 26))
+                            .foregroundColor(primary.opacity(0.3))
                     }
                 }
             }
