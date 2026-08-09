@@ -4,6 +4,7 @@
 //
 
 import DeviceActivity
+import FamilyControls
 import SwiftUI
 
 extension DeviceActivityReport.Context {
@@ -34,16 +35,22 @@ struct SummaryRingReport: DeviceActivityReportScene {
             var thresholdMinutes: Int?
             var traineeStatus: String?
             var selectedMode: String?   // CodingKey for pressureLevel
+            var applications: FamilyActivitySelection?
         }
         var limitMinutes = 0
         var traineeStatus = "noStatus"
         var isTracking = false
+        var hasViableAppLimits = false
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
            let settingsData = suite.data(forKey: "UserSettings"),
            let partial = try? JSONDecoder().decode(PartialSettings.self, from: settingsData) {
             limitMinutes = ((partial.thresholdHour ?? 0) * 60) + (partial.thresholdMinutes ?? 0)
             traineeStatus = partial.traineeStatus ?? "noStatus"
             isTracking = (partial.selectedMode ?? "Off") != "Off"
+            if let apps = partial.applications {
+                hasViableAppLimits = limitMinutes > 0 &&
+                    (!apps.applicationTokens.isEmpty || !apps.categoryTokens.isEmpty)
+            }
         }
 
         return ActivityReport(
@@ -52,7 +59,8 @@ struct SummaryRingReport: DeviceActivityReportScene {
             apps: [],
             hourlyBuckets: [],
             traineeStatus: traineeStatus,
-            isTracking: isTracking
+            isTracking: isTracking,
+            hasViableAppLimits: hasViableAppLimits
         )
     }
 }
@@ -67,7 +75,8 @@ struct SummaryRingView: View {
             limitMinutes: activityReport.limitMinutes,
             primary: .appPrimary(colorScheme),
             traineeStatus: activityReport.traineeStatus,
-            isTracking: activityReport.isTracking
+            isTracking: activityReport.isTracking,
+            hasViableAppLimits: activityReport.hasViableAppLimits
         )
         .frame(maxWidth: .infinity)
     }

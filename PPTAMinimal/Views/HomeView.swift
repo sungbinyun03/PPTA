@@ -14,6 +14,7 @@ struct HomeView: View {
     @EnvironmentObject var viewModel: AuthViewModel
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     @State private var isReportViewPresented = false
+    @State private var showPressureLevelInfo = false
     private let previewMode: Bool
     
     init(previewMode: Bool = false) {
@@ -46,8 +47,7 @@ struct HomeView: View {
                                 )
                             }
                         }
-                        // Stats section (rotating ticker) — not needed right now, info is available elsewhere
-                        // DashboardView()
+                        DashboardView()
                         reportSection
                         TraineeCoachView()
                     }
@@ -189,11 +189,30 @@ struct HomeView: View {
                         .foregroundColor(Color("primaryColor").opacity(0.5))
                 }
 
-                Text(streakLabel.uppercased())
-                    .font(.custom("Satoshi-Variable", size: 11))
-                    .fontWeight(.semibold)
-                    .tracking(1.2)
-                    .foregroundColor(Color("primaryColor").opacity(0.6))
+                HStack(spacing: 6) {
+                    Text(streakLabel.uppercased())
+                        .font(.custom("Satoshi-Variable", size: 11))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
+                        .foregroundColor(Color("primaryColor").opacity(0.6))
+                    if !userSettingsManager.userSettings.isTracking {
+                        Button { showPressureLevelInfo = true } label: {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.orange)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showPressureLevelInfo) {
+                            Text("Go to Settings → Pressure Level to activate tracking. Without it, your status and streak won't update.")
+                                .font(.subheadline)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(16)
+                                .frame(width: 260)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                    }
+                }
 
                 Group {
                     if !previewMode {

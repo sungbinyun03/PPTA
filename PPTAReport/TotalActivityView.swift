@@ -46,7 +46,8 @@ struct TotalActivityView: View {
                     limitMinutes: activityReport.limitMinutes,
                     primary: primary,
                     traineeStatus: activityReport.traineeStatus,
-                    isTracking: activityReport.isTracking
+                    isTracking: activityReport.isTracking,
+                    hasViableAppLimits: activityReport.hasViableAppLimits
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -92,6 +93,8 @@ struct ProgressRingView: View {
     let primary: Color
     let traineeStatus: String
     let isTracking: Bool
+    let hasViableAppLimits: Bool
+    @State private var showAppLimitsInfo = false
 
     private var isConfigured: Bool { limitMinutes > 0 && isTracking }
 
@@ -143,13 +146,32 @@ struct ProgressRingView: View {
             }
 
             VStack(spacing: 3) {
-                Text("TODAY'S SCREEN TIME")
-                    .font(.custom("Satoshi-Variable", size: 11))
-                    .fontWeight(.semibold)
-                    .tracking(1.2)
-                    .foregroundColor(primary.opacity(0.6))
+                HStack(spacing: 5) {
+                    Text("TODAY'S SCREEN TIME")
+                        .font(.custom("Satoshi-Variable", size: 13))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
+                        .foregroundColor(primary.opacity(0.6))
+                    if !hasViableAppLimits {
+                        Button { showAppLimitsInfo = true } label: {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.orange)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showAppLimitsInfo) {
+                            Text("Go to Settings → App Limits to choose which apps count toward your daily screen time.")
+                                .font(.subheadline)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(16)
+                                .frame(width: 260)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                    }
+                }
                 Text("(total across your tracked apps)")
-                    .font(.custom("Satoshi-Variable", size: 11))
+                    .font(.custom("Satoshi-Variable", size: 13))
                     .fontWeight(.medium)
                     .foregroundColor(primary.opacity(0.4))
             }
@@ -226,13 +248,13 @@ struct AppActivityRow: View {
                 }
                 if !app.displayName.isEmpty {
                     Text(app.displayName)
-                        .font(.custom("Satoshi-Variable", size: 15))
+                        .font(.custom("Satoshi-Variable", size: 17))
                         .fontWeight(.medium)
                         .lineLimit(1)
                 }
                 Spacer()
                 Text(app.duration.toString())
-                    .font(.custom("Satoshi-Variable", size: 15))
+                    .font(.custom("Satoshi-Variable", size: 17))
                     .fontWeight(.semibold)
                     .monospacedDigit()
                     .foregroundColor(primary)
@@ -264,7 +286,7 @@ struct AppActivityRow: View {
                         }
                     }
                 }
-                .font(.custom("Satoshi-Variable", size: 11))
+                .font(.custom("Satoshi-Variable", size: 13))
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
             }
@@ -285,7 +307,7 @@ struct ReportSectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.custom("Satoshi-Variable", size: 11))
+            .font(.custom("Satoshi-Variable", size: 13))
             .fontWeight(.semibold)
             .tracking(1.2)
             .foregroundColor(primary.opacity(0.6))

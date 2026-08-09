@@ -82,6 +82,7 @@ struct TotalActivityReport: DeviceActivityReportScene {
         var limitMinutes = 0
         var traineeStatus = "noStatus"
         var isTracking = false
+        var hasViableAppLimits = false
 
         if let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev"),
            let settingsData = suite.data(forKey: "UserSettings"),
@@ -90,6 +91,8 @@ struct TotalActivityReport: DeviceActivityReportScene {
             limitMinutes = ((partial.thresholdHour ?? 0) * 60) + (partial.thresholdMinutes ?? 0)
             traineeStatus = partial.traineeStatus ?? "noStatus"
             isTracking = (partial.selectedMode ?? "Off") != "Off"
+            hasViableAppLimits = limitMinutes > 0 &&
+                (!partial.applications.applicationTokens.isEmpty || !partial.applications.categoryTokens.isEmpty)
 
             let seenTokens = Set(list.compactMap { $0.token })
             for token in partial.applications.applicationTokens where !seenTokens.contains(token) {
@@ -112,7 +115,8 @@ struct TotalActivityReport: DeviceActivityReportScene {
             apps: list,
             hourlyBuckets: hourlyBuckets,
             traineeStatus: traineeStatus,
-            isTracking: isTracking
+            isTracking: isTracking,
+            hasViableAppLimits: hasViableAppLimits
         )
     }
 }

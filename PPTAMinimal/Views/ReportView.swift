@@ -13,6 +13,7 @@ struct ReportView: View {
     @ObservedObject private var userSettingsManager = UserSettingsManager.shared
     @State private var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     @State private var isRequestingPermission = false
+    @State private var showPressureLevelInfo = false
 
     private func requestScreenTimePermission() async {
         let center = AuthorizationCenter.shared
@@ -81,15 +82,38 @@ struct ReportView: View {
     }
 
     private var streakHeader: some View {
-        Text("DAILY STREAK: \(streakDays) DAY\(streakDays == 1 ? "" : "S")")
-            .font(.custom("Satoshi-Variable", size: 11))
-            .fontWeight(.semibold)
-            .tracking(1.2)
-            .foregroundColor(Color("primaryColor").opacity(0.6))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+        let isTracking = userSettingsManager.userSettings.isTracking
+        let label = isTracking
+            ? "DAILY STREAK: \(streakDays) DAY\(streakDays == 1 ? "" : "S")"
+            : "DAILY STREAK: PAUSED"
+        return HStack(spacing: 6) {
+            Text(label)
+                .font(.custom("Satoshi-Variable", size: 13))
+                .fontWeight(.semibold)
+                .tracking(1.2)
+                .foregroundColor(Color("primaryColor").opacity(0.6))
+            if !isTracking {
+                Button { showPressureLevelInfo = true } label: {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.orange)
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showPressureLevelInfo) {
+                    Text("Go to Settings → Pressure Level to activate tracking. Without it, your status and streak won't update.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(16)
+                        .frame(width: 260)
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
     }
 
     var body: some View {

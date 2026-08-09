@@ -46,9 +46,10 @@ struct ProfileView: View {
                         .overlay(alignment: .bottomTrailing) {
                             if settingsNeedAttention {
                                 Image(systemName: "exclamationmark.circle.fill")
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(Color(.systemBackground), .orange)
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.orange)
-                                    .background(Circle().fill(Color.white).padding(-2))
+                                    .background(Circle().fill(Color(.systemBackground)).padding(-2))
                             } else {
                                 ZStack {
                                     Circle()
