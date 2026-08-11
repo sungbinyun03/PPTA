@@ -76,7 +76,30 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 return
             }
 
-            // Minimal: one threshold event => treat it as "daily limit reached".
+            // Tiered warnings are informational nudges for the trainee only: send the local
+            // notification and stop. No status change, no shield, no backend call — coaches
+            // care about the limit being hit, not the countdown toward it.
+            if event == LimitEvent.halfway {
+                scheduleLocalNotification(
+                    title: "Halfway there",
+                    body: "You've used half of your daily screen time."
+                )
+                return
+            } else if event == LimitEvent.fiveMinutes {
+                scheduleLocalNotification(
+                    title: "5 minutes left",
+                    body: "You have 5 minutes of screen time left today."
+                )
+                return
+            } else if event == LimitEvent.twoMinutes {
+                scheduleLocalNotification(
+                    title: "2 minutes left",
+                    body: "You have 2 minutes of screen time left today."
+                )
+                return
+            }
+
+            // Otherwise this is the daily limit itself (LimitEvent.reached).
             // Mode behavior:
             // - Off: no shielding (just status updates)
             // - Standard / Hardcore: shield selected apps
@@ -107,15 +130,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     override func eventWillReachThresholdWarning(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
             super.eventWillReachThresholdWarning(event, activity: activity)
-            // Defensive: the grace schedule sets no warningTime, but a warning here would
-            // wrongly flag a released trainee as attentionNeeded.
-            guard activity != UnlockGrace.activityName else { return }
-            let settings = LocalSettingsStore.load()
-            guard settings.isTracking else { return }
-            
-            // Mark approaching limit (local + backend).
-            LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
+            // Intentionally a no-op. Approaching-limit warnings are now delivered as explicit
+            // threshold events (LimitEvent.halfway / .fiveMinutes / .twoMinutes), handled in
+            // eventDidReachThreshold. This callback depends on the schedule's `warningTime`
+            // (which we don't set), fired unreliably, and previously flipped the trainee to
+            // `.attentionNeeded` prematurely — telling coaches they were in trouble before the
+            // limit was actually reached. Status now changes only when the limit truly fires.
         }
     
     // MARK: - Local notification

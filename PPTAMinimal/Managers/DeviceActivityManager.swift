@@ -24,6 +24,48 @@ enum UnlockGrace {
     static let durationMinutes = 10
 }
 
+/// Names for the daily-limit threshold events, plus the tiered-warning logic.
+///
+/// The app registers these in `startDeviceActivityMonitoring`; the AppMonitor extension
+/// handles them in `eventDidReachThreshold`. Both targets compile this file, so the names
+/// stay in sync automatically (same arrangement as `UnlockGrace`).
+///
+/// Warnings are delivered as *explicit threshold events* rather than via the schedule's
+/// `warningTime` callback (`eventWillReachThresholdWarning`): `warningTime` exists only on
+/// `DeviceActivitySchedule`, is a single value, and fired unreliably — it cannot produce the
+/// three independent warning tiers below. Explicit events fire deterministically at a set
+/// amount of cumulative usage and run in the extension even when the app is force-quit.
+enum LimitEvent {
+    static let halfway     = DeviceActivityEvent.Name("limitHalfwayWarning")
+    static let fiveMinutes = DeviceActivityEvent.Name("limitFiveMinuteWarning")
+    static let twoMinutes  = DeviceActivityEvent.Name("limitTwoMinuteWarning")
+    static let reached     = DeviceActivityEvent.Name("timeLimitReached")
+
+    /// Warning thresholds (in minutes of cumulative usage) to arm for a given daily `limit`,
+    /// keyed by event name. The limit-reached event is registered separately by the caller.
+    ///
+    /// Tiers:
+    /// - `< 2`   : no warnings
+    /// - `2...4` : 2-minute warning only
+    /// - `5...10`: halfway + 2-minute
+    /// - `> 10`  : halfway + 5-minute + 2-minute
+    ///
+    /// A tier is only emitted when its threshold lands in `1 ..< limit` — this keeps events off
+    /// 0 minutes (which would fire instantly) and strictly before the limit itself.
+    static func warningThresholds(forLimitMinutes limit: Int) -> [DeviceActivityEvent.Name: Int] {
+        guard limit >= 2 else { return [:] }
+        var result: [DeviceActivityEvent.Name: Int] = [:]
+        func arm(_ name: DeviceActivityEvent.Name, at minutes: Int) {
+            guard minutes >= 1, minutes < limit else { return }
+            result[name] = minutes
+        }
+        arm(twoMinutes, at: limit - 2)
+        if limit >= 5 { arm(halfway, at: limit / 2) }
+        if limit > 10 { arm(fiveMinutes, at: limit - 5) }
+        return result
+    }
+}
+
 class DeviceActivityManager {
     static let shared = DeviceActivityManager()
     private init() {}
@@ -46,8 +88,8 @@ class DeviceActivityManager {
         minute: Int,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
-        let thresholdComponents = DateComponents(hour: hour, minute: minute)
-        
+        let limitMinutes = hour * 60 + minute
+
         // Monitor from midnight to 23:59:59, repeating daily
         let schedule = DeviceActivitySchedule(
             intervalStart: DateComponents(hour: 0, minute: 0),
@@ -55,27 +97,36 @@ class DeviceActivityManager {
             repeats: true
         )
 
-        let event = DeviceActivityEvent(
-            applications: appTokens.applicationTokens,
-            categories: appTokens.categoryTokens,
-            webDomains: [],
-            threshold: thresholdComponents
-        )
-        
+        func event(atMinutes minutes: Int) -> DeviceActivityEvent {
+            DeviceActivityEvent(
+                applications: appTokens.applicationTokens,
+                categories: appTokens.categoryTokens,
+                webDomains: [],
+                threshold: DateComponents(minute: minutes)
+            )
+        }
+
+        // The limit itself always fires; which warning tiers arm depends on the limit length.
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
+            LimitEvent.reached: event(atMinutes: limitMinutes)
+        ]
+        for (name, minutes) in LimitEvent.warningThresholds(forLimitMinutes: limitMinutes) {
+            events[name] = event(atMinutes: minutes)
+        }
+
         let activityName = Self.dailyActivityName
-        let eventName = DeviceActivityEvent.Name("timeLimitReached")
 
         do {
             try deviceActivityCenter.startMonitoring(
                 activityName,
                 during: schedule,
-                events: [eventName: event]
+                events: events
             )
             print("Monitoring started. Activity: \(activityName.rawValue)")
             print("Schedule: \(schedule)")
-            print("Event: \(eventName) => threshold \(thresholdComponents)")
+            print("Limit: \(limitMinutes) min. Events: \(events.keys.map(\.rawValue).sorted())")
             print("Apps: \(appTokens.applicationTokens)")
-                        
+
             completion(.success(()))
         } catch {
             completion(.failure(error))
