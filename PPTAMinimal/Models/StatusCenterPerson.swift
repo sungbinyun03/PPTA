@@ -34,6 +34,10 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let pressureLevel: PressureLevel
     let lockedByName: String?
 
+    /// Apps this person is monitoring, if they opted into sharing them. Defaulted so existing
+    /// construction sites are unaffected; empty means "not shared" or "none learned yet".
+    var monitoredAppNames: [String] = []
+
     /// Data this list entry already has in memory, handed to `FriendProfileSheetView`
     /// so it renders immediately instead of showing a blank loading screen.
     var profileSnapshot: FriendProfileViewModel.Snapshot {
@@ -46,7 +50,8 @@ struct StatusCenterPerson: Identifiable, Equatable {
             streakDays: streakDays,
             timeLimitMinutes: timeLimitMinutes,
             pressureLevel: pressureLevel,
-            lockedByName: lockedByName
+            lockedByName: lockedByName,
+            monitoredAppNames: monitoredAppNames
         )
     }
 }

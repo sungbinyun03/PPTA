@@ -77,6 +77,15 @@ final class UserSettings: Codable {
     /// Display name of the coach who last remotely locked this user (nil when unlocked).
     var lockedByName: String? = nil
 
+    /// Opt-in: whether this user's monitored app names are visible to their coaches.
+    /// Uploading someone's app list is a real privacy decision, so it is off by default and
+    /// `monitoredAppNames` stays empty until the user turns it on.
+    var shareAppNamesWithCoaches: Bool = false
+
+    /// App names harvested by the shield extension (see `AppNameStore`), mirrored here so
+    /// coaches can read them. Partial by nature: only apps the user has hit a lock screen for.
+    var monitoredAppNames: [String] = []
+
     private enum CodingKeys: String, CodingKey {
         case applications, thresholdHour, thresholdMinutes,
              pressureLevel = "selectedMode",
@@ -86,7 +95,8 @@ final class UserSettings: Codable {
              coachIds, traineeIds,
              startDailyStreakDate,
              isTracking, traineeStatus,
-             lockedByUID, lockedByName
+             lockedByUID, lockedByName,
+             shareAppNamesWithCoaches, monitoredAppNames
     }
 
     /// Single definition of “viable” limits (used by Home, save validation, etc.).
@@ -179,6 +189,8 @@ final class UserSettings: Codable {
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
         lockedByUID = try? container.decode(String.self, forKey: .lockedByUID)
         lockedByName = try? container.decode(String.self, forKey: .lockedByName)
+        shareAppNamesWithCoaches = (try? container.decode(Bool.self, forKey: .shareAppNamesWithCoaches)) ?? false
+        monitoredAppNames = (try? container.decode([String].self, forKey: .monitoredAppNames)) ?? []
     }
     
     func encode(to encoder: Encoder) throws {
@@ -199,6 +211,8 @@ final class UserSettings: Codable {
         try container.encode(traineeStatus, forKey: .traineeStatus)
         try container.encodeIfPresent(lockedByUID, forKey: .lockedByUID)
         try container.encodeIfPresent(lockedByName, forKey: .lockedByName)
+        try container.encode(shareAppNamesWithCoaches, forKey: .shareAppNamesWithCoaches)
+        try container.encode(monitoredAppNames, forKey: .monitoredAppNames)
     }
     
     

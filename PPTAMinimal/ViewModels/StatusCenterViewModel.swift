@@ -91,7 +91,8 @@ final class StatusCenterViewModel: ObservableObject {
                     streakDays: p.streakDays,
                     timeLimitMinutes: p.timeLimitMinutes,
                     pressureLevel: p.pressureLevel,
-                    lockedByName: p.lockedByName
+                    lockedByName: p.lockedByName,
+                    monitoredAppNames: p.monitoredAppNames
                 )
             }
 
@@ -208,7 +209,8 @@ final class StatusCenterViewModel: ObservableObject {
                         streakDays: streakDays,
                         timeLimitMinutes: timeLimitMinutes,
                         pressureLevel: settings?.pressureLevel ?? .off,
-                        lockedByName: settings?.lockedByName
+                        lockedByName: settings?.lockedByName,
+                        monitoredAppNames: settings?.monitoredAppNames ?? []
                     )
                 }
             }

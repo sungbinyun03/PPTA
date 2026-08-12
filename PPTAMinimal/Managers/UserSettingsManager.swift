@@ -42,6 +42,12 @@ final class UserSettingsManager : ObservableObject{
             settings.traineeStatus = .allClear
         }
         
+        // Only mirror app names to Firestore while the user has opted in; turning the toggle
+        // off clears what was already uploaded rather than merely hiding it.
+        settings.monitoredAppNames = settings.shareAppNamesWithCoaches
+            ? Self.resolvedAppNames(for: settings)
+            : []
+
         print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
         LocalSettingsStore.saveCurrentUserId(userID)
                 
@@ -55,12 +61,14 @@ final class UserSettingsManager : ObservableObject{
         
         let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
             do {
-                let data = try JSONEncoder().encode(settings)          
+                let data = try JSONEncoder().encode(settings)
                 suite?.set(data, forKey: "UserSettings")
             } catch {
                 print("❌ Failed to encode & persist UserSettings:", error)
             }
-        
+
+        Self.syncShieldContext(from: settings)
+
         DispatchQueue.main.async {
                    self.userSettings = settings
                    print("@@@@ User settings saved successfully")
@@ -68,6 +76,48 @@ final class UserSettingsManager : ObservableObject{
       
     }
     
+    /// App names the shield extension has learned for the user's current selection.
+    /// Partial by design — unlearned tokens are simply absent.
+    private static func resolvedAppNames(for settings: UserSettings) -> [String] {
+        var names: [String] = []
+        for token in settings.applications.applicationTokens {
+            if let name = AppNameStore.name(for: token) { names.append(name) }
+        }
+        for token in settings.applications.categoryTokens {
+            if let name = AppNameStore.name(for: token) { names.append(name) }
+        }
+        return names.sorted()
+    }
+
+    /// Pushes newly learned names to coaches. Names accumulate in the App Group as the user
+    /// hits lock screens, which can happen long after their last save, so this runs on
+    /// foreground and only writes when the list actually changed.
+    @MainActor
+    func refreshSharedAppNamesIfNeeded() {
+        let current = userSettings
+        guard current.shareAppNamesWithCoaches else { return }
+        let latest = Self.resolvedAppNames(for: current)
+        guard latest != current.monitoredAppNames else { return }
+        update { $0.monitoredAppNames = latest }
+    }
+
+    /// Mirrors the slice of state the shield extension needs into the App Group, so the lock
+    /// screen can name the coach and the streak instead of showing generic copy.
+    ///
+    /// `lockedByName` is only passed through while the user is actually cut off — otherwise a
+    /// leftover name from a previous coach lock would get attributed to a later auto-lock.
+    /// Static so the escaping Firestore closures don't have to capture `self`.
+    private static func syncShieldContext(from settings: UserSettings) {
+        ShieldContext.save(
+            ShieldContext(
+                lockedByName: settings.traineeStatus == .cutOff ? settings.lockedByName : nil,
+                isHardcore: settings.pressureLevel == .hardcore,
+                streakStart: settings.startDailyStreakDate,
+                hasCoaches: !settings.coachIds.isEmpty
+            )
+        )
+    }
+
     func loadSettings(completion: @escaping (UserSettings) -> Void) {
         guard let userID = userID else {
             print("ERROR: No user is logged in. Cannot load settings.")
@@ -83,7 +133,8 @@ final class UserSettingsManager : ObservableObject{
                 // the latest selection/mode/tracking flags even if the user didn't press Save.
                 LocalSettingsStore.saveCurrentUserId(userID)
                 LocalSettingsStore.save(settings)
-                
+                UserSettingsManager.syncShieldContext(from: settings)
+
                 completion(settings)
             } else if let error = error {
                 print("Failed to load user settings from Firestore: \(error.localizedDescription)")

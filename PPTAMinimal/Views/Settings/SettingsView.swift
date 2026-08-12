@@ -320,6 +320,15 @@ struct SettingsView: View {
                         .frame(width: 260)
                         .presentationCompactAdaptation(.popover)
                 }
+                NavigationLink(destination: ShareLimitsView()) {
+                    settingsRow(
+                        icon: Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(Color("primaryColor")),
+                        text: "Share My Limits",
+                        iconScale: 1.1
+                    )
+                }
+
                 Button {
                     if let url = URL(string: "https://forms.gle/VbHG5VJrMXGQuFV3A") {
                         openURL(url)
@@ -431,6 +440,7 @@ private struct DeleteAccountRow: View {
                 try await viewModel.deleteAccount()
                 // Success: root view switches to LoginView automatically.
             } catch {
+                print("DEBUG: deleteAccount failed: \(error)")
                 errorMessage = AuthViewModel.userFacingMessage(for: error)
                 isDeleting = false
             }

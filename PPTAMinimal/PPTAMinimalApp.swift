@@ -122,6 +122,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
 
+        // Silent: someone unfriended this user or ended a coach/trainee relationship. No alert —
+        // just reload settings so the stale entry disappears from their coach/trainee lists.
+        if let type = notification["type"] as? String, type == "relationshipsChanged" {
+            UserSettingsManager.shared.loadSettings { loadedSettings in
+                DispatchQueue.main.async {
+                    UserSettingsManager.shared.userSettings = loadedSettings
+                    completionHandler(.newData)
+                }
+            }
+            return
+        }
+
         if let type = notification["type"] as? String, type == "roleRequestAccepted" {
             let name = notification["acceptorName"] as? String ?? "Your friend"
             let role = notification["role"] as? String ?? "coach"
@@ -202,6 +214,12 @@ struct PPTAMinimalApp: App {
             guard newPhase == .active, viewModel.userSession != nil else { return }
             Task { @MainActor in
                 await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+                // Files any "ask my coach" request raised from the shield while the app
+                // was closed — the extension can't reach Firestore itself.
+                await MercyRequestService.filePendingRequestIfNeeded()
+                // Names accrue in the App Group whenever a shield is drawn, which can be
+                // long after the user's last save.
+                UserSettingsManager.shared.refreshSharedAppNamesIfNeeded()
             }
         }
     }

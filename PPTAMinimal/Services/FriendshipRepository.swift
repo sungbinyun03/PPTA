@@ -12,7 +12,13 @@ final class FriendshipRepository {
     private let db = Firestore.firestore()
     private let collection = "friendships"
     private let usersCollection = "users"
-    
+
+    /// Unfriending has to write the *other* user's `userSettings` (to strip this user from
+    /// their `coachIds`/`traineeIds`), which no client can do — so it goes through the same
+    /// Cloud Run relationships service that owns `removeRoleRelationship`.
+    private let http = CloudRunHTTPClient(baseURL: CloudRunConfig.roleRequestsBaseURL)
+
+
     func sendFriendRequest(from requesterId: String, to requesteeId: String) async throws {
         let doc = db.collection(collection).document()
         let friendship = Friendship(
@@ -76,6 +82,19 @@ final class FriendshipRepository {
         for doc in asRequester.documents + asRequestee.documents {
             try await doc.reference.delete()
         }
+    }
+
+    /// Ends the friendship between the caller and `otherId`, and everything hanging off it:
+    /// every friendship document between the pair (both directions, any status), any coach or
+    /// trainee relationship in either direction, and the `roleRequests` documents that created
+    /// them — leaving those behind would make `createRoleRequest` reject the pair with
+    /// `ALREADY_ACCEPTED` if they ever became friends again.
+    ///
+    /// Succeeds even when there is nothing left to delete, so a half-broken pair can always be
+    /// cleaned up. Throws with a user-facing message if the caller is currently shielded and
+    /// `otherId` is one of their coaches.
+    func unfriend(otherId: String) async throws {
+        try await http.postJSON("", body: ["action": "unfriend", "otherId": otherId])
     }
 
     /// Returns true if `a` and `b` have an accepted friendship in either direction.

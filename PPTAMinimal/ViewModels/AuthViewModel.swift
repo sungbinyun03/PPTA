@@ -353,6 +353,12 @@ class AuthViewModel: ObservableObject {
 
     /// Returns a short, user-friendly error message (no codes or technical jargon).
     static func userFacingMessage(for error: Error) -> String {
+        // Cloud Run handlers return already-user-facing text in `{"error": "..."}`.
+        if let clientError = error as? CloudRunHTTPClient.ClientError,
+           let message = clientError.serverMessage {
+            return message
+        }
+
         let ns = error as NSError
         if ns.domain == "Auth", let msg = ns.userInfo[NSLocalizedDescriptionKey] as? String, !msg.isEmpty {
             return msg

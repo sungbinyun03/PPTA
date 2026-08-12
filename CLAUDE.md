@@ -357,9 +357,11 @@ SwiftUI Views (auto re-render)
 
 ### DeviceActivityManager (singleton)
 - `startDeviceActivityMonitoring(appTokens:hour:minute:completion:)`
-- `stopMonitoring()`
-- `handleRemoteLock(from:)` — sets `ManagedSettingsStore().shield.applications`
-- `handleRemoteUnlock(from:)` — clears shield
+- `stopMonitoring()` — stops the daily `AppUsageMonitoring` activity **only**; any unlock grace period survives
+- `stopAllMonitoring()` — stops everything including the grace period (teardown + pressure level Off)
+- `handleRemoteLock(from:)` — sets `ManagedSettingsStore().shield.applications`, cancels any grace period
+- `handleRemoteUnlock(from:)` — clears shield, arms the 10-minute unlock grace period
+- `cancelUnlockGracePeriod()` — stops the grace activity only, leaving daily monitoring running
 
 ### NotificationManager (singleton)
 - `showInAppMessage(title:body:dismissAfter:)` — updates `@Published inAppBanner`
@@ -413,6 +415,30 @@ SwiftUI Views (auto re-render)
 - Shielding: `ManagedSettingsStore().shield.applications`
 - `isMonitoringActive` flag is cross-checked with `DeviceActivityCenter().activities` on every start attempt so a device restart or OS suspension doesn't permanently block monitoring restarts
 
+### Unlock grace period
+When a coach releases a trainee, `handleRemoteUnlock` clears the shield and arms a **second**
+DeviceActivity activity (`UnlockGracePeriod`) with a `graceExpired` event whose threshold is
+10 minutes. The threshold measures **monitored-app usage, not wall clock** — the grace only
+burns down while the trainee is actually in the shielded apps. On expiry the extension
+re-shields in every mode and sets `.cutOff`, so the trainee reappears in front of their
+coaches with Release enabled again — the coach can release repeatedly, 10 minutes at a time.
+
+Constants live in `enum UnlockGrace` (`DeviceActivityManager.swift`), which is compiled into
+both the app and the AppMonitor target.
+
+Three non-obvious constraints, all easy to reintroduce as bugs:
+- **`stopMonitoring()` must never stop the grace activity.** A trainee mid-grace reads as
+  `.allClear`, so `AppLimitsView`/`PressureLevelView`'s `guard !isLocked` lets their save
+  through; if that save stopped every activity, tapping Save would cancel their own re-lock
+  and leave them unlocked all day. Use `stopAllMonitoring()` only for teardown and for Off.
+- The grace schedule **must start at `now`**, not midnight. Thresholds count usage from the
+  interval's start, so a midnight-anchored interval is already past 10 minutes and fires
+  instantly. The interval ends one minute *before* it starts, wrapping around midnight to a
+  ~24h window that clears the system's minimum interval length (undocumented, ~15 min).
+- Every `intervalDidStart` / `intervalDidEnd` / `eventWillReachThresholdWarning` override must
+  ignore `UnlockGrace.activityName`. Otherwise the grace activity's own interval boundaries
+  clear the shield or fire spurious allClear/attentionNeeded status updates.
+
 ### Extension event handlers (AppMonitor/DeviceActivityMonitorExtension.swift)
 | Event | Off | Standard | Hardcore |
 |---|---|---|---|
@@ -420,6 +446,7 @@ SwiftUI Views (auto re-render)
 | `intervalDidEnd` | clear shield, reset status | same | same |
 | `eventWillReachThreshold` | no-op | status → attentionNeeded | status → attentionNeeded |
 | `eventDidReachThreshold` | status → allClear | status → attentionNeeded | shield apps, status → cutOff, reset streak |
+| `eventDidReachThreshold` (`graceExpired`) | n/a — not armed when Off | re-shield, status → cutOff, streak untouched | same as Standard |
 
 ### App group bridge (LocalSettingsStore)
 - App group ID: `group.com.sungbinyun.com.PPTADev`
@@ -474,7 +501,8 @@ Presented with `.sheet()` from their parent views — not pushed on NavigationSt
 // Pressure levels (stored as String in Firestore key "selectedMode")
 "Off"       // No monitoring, status = noStatus
 "Standard"  // Coaches see status, can lock remotely
-"Hardcore"  // Auto-lock at threshold, coaches cannot unlock
+"Hardcore"  // Auto-lock at threshold. Coaches CAN unlock — autolock is the only
+            // difference from Standard (plus the app-limit edit lock while cut off).
 
 // TraineeStatus
 .allClear           // Within limit

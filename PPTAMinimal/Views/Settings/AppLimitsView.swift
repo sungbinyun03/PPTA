@@ -148,7 +148,7 @@ struct AppLimitsView: View {
         .appAlert(
             isPresented: $showSavedAlert,
             title: "Settings Saved!",
-            message: "Make sure to screenshot and share them with your coaches so they know what your goals are!"
+            message: "Share them from Settings → Share My Limits so your coaches know what your goals are."
         )
         .appAlert(
             isPresented: $showPressureOffRequiredAlert,

@@ -32,6 +32,9 @@ struct FriendProfileView: View {
     let onLock: (() -> Void)?
     let onUnlock: (() -> Void)?
     let lockedByName: String?
+    /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
+    var monitoredAppNames: [String] = []
+    var hasPendingMercyRequest: Bool = false
 
     // MARK: - Role request / relationship actions
     let coachAction: FriendProfileViewModel.ActionConfig
@@ -40,6 +43,8 @@ struct FriendProfileView: View {
     let onCoachSecondary: () -> Void
     let onTraineePrimary: () -> Void
     let onTraineeSecondary: () -> Void
+    /// Nil hides the row entirely — it only makes sense for an existing friend.
+    var onUnfriend: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -179,6 +184,19 @@ struct FriendProfileView: View {
 
                             Divider().opacity(0.3)
 
+                            if hasPendingMercyRequest {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "hand.raised.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Asking you for more time")
+                                        .font(.custom("Satoshi-Variable", size: 13))
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                                Divider().opacity(0.3)
+                            }
+
                             statRow(label: "Daily limit", value: "\(timeLimitMinutes) min")
                             statRow(label: "Pressure", value: pressureLevel.rawValue)
                             statRow(label: "Streak", value: "\(streakDays) days")
@@ -186,6 +204,16 @@ struct FriendProfileView: View {
                             if let locker = lockedByName, traineeStatus == .cutOff || traineeStatus == .snoozedLock {
                                 Divider().opacity(0.3)
                                 statRow(label: "Locked by", value: locker)
+                            }
+
+                            // Shown only when they opted into sharing. Partial by nature —
+                            // names are learned as they hit lock screens.
+                            if !monitoredAppNames.isEmpty {
+                                Divider().opacity(0.3)
+                                statRow(
+                                    label: "Monitoring",
+                                    value: monitoredAppNames.joined(separator: ", ")
+                                )
                             }
                         }
                         .padding(.horizontal, 16)
@@ -226,6 +254,16 @@ struct FriendProfileView: View {
                                     enabled: friendshipStatus == .isFriend && traineeAction.secondaryEnabled,
                                     action: onTraineeSecondary
                                 )
+                            }
+
+                            if let onUnfriend, friendshipStatus == .isFriend {
+                                actionButton(
+                                    title: "Remove Friend",
+                                    isDestructive: true,
+                                    enabled: true,
+                                    action: onUnfriend
+                                )
+                                .padding(.top, 8)
                             }
                         }
                         .padding(.horizontal, 20)

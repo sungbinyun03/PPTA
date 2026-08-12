@@ -167,7 +167,13 @@ class DeviceActivityManager {
         )
 
         // Sync in-memory state so the main app reflects the new status immediately.
-        UserSettingsManager.shared.update { $0.traineeStatus = .cutOff }
+        // `lockedByName` is also what the shield reads to say "Alex locked this" rather than
+        // falling back to daily-limit copy. The Cloud Function writes it to Firestore, but not
+        // in time for the shield that appears seconds from now, so set it locally too.
+        UserSettingsManager.shared.update {
+            $0.traineeStatus = .cutOff
+            $0.lockedByName = coach
+        }
 
         // Best-effort: notify backend that user is now cut off.
         sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
@@ -191,7 +197,12 @@ class DeviceActivityManager {
         // Sync in-memory state so the main app reflects the snooze immediately,
         // and notify coaches via the backend that the trainee is temporarily unlocked.
         if settings.isTracking {
-            UserSettingsManager.shared.update { $0.traineeStatus = .snoozedLock }
+            // Clear the locking coach: the shield's next appearance is a grace expiry, not
+            // this coach's lock, and a stale name would misattribute it.
+            UserSettingsManager.shared.update {
+                $0.traineeStatus = .snoozedLock
+                $0.lockedByName = nil
+            }
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .snoozedLock)
             startUnlockGracePeriod(settings: settings)
         }
@@ -249,10 +260,29 @@ class DeviceActivityManager {
     }
 
     private func sendStatusUpdate(uid: String?, status: TraineeStatus) {
+        postToStatusUpdate(uid: uid, status: status, type: nil)
+    }
+
+    /// Asks this user's coaches for more time, raised from the shield's secondary button.
+    ///
+    /// Rides the existing `statusUpdate` endpoint rather than a new service: it already
+    /// resolves `coachIds` and fans out FCM. The server does **not** write any status for
+    /// this type — a trainee asking is not a trainee deciding — it only notifies.
+    func sendMercyRequest(uid: String?) {
+        postToStatusUpdate(uid: uid, status: .cutOff, type: "mercyRequest")
+    }
+
+    /// - Parameter type: `nil` for a plain status update, which keeps the original signed
+    ///   message `uid|status|ts` so the server verifies older clients unchanged. A non-nil
+    ///   type is appended to the signed message, so a captured signature can't be replayed
+    ///   with the type swapped.
+    private func postToStatusUpdate(uid: String?, status: TraineeStatus, type: String?) {
         guard let uid, !uid.isEmpty else { return }
 
         let ts = Int(Date().timeIntervalSince1970)
-        let msg = "\(uid)|\(status.rawValue)|\(ts)"
+        var msg = "\(uid)|\(status.rawValue)|\(ts)"
+        if let type { msg += "|\(type)" }
+
         let key = SymmetricKey(data: Data(Self.sharedSecret.utf8))
         let sig = HMAC<SHA256>
             .authenticationCode(for: msg.data(using: .utf8)!, using: key)
@@ -262,14 +292,15 @@ class DeviceActivityManager {
         var req = URLRequest(url: Self.statusUpdateURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "uid": uid,
             "status": status.rawValue,
             "ts": ts,
             "sig": sig
         ]
+        if let type { body["type"] = type }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
+
         URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()
     }
 }

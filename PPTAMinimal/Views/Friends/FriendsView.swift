@@ -186,7 +186,9 @@ struct FriendsView: View {
         .sheet(isPresented: $isContactsImportPresented) {
             FriendsContactsImportView()
         }
-        .sheet(item: $profileTarget) { target in
+        // The listener only watches *pending incoming* requests, so changes the sheet makes to
+        // an accepted friendship (unfriending, role changes) need an explicit refresh.
+        .sheet(item: $profileTarget, onDismiss: { Task { await vm.refresh() } }) { target in
             FriendProfileSheetView(
                 otherUserId: target.id,
                 snapshot: .init(name: target.name, profilePicUrl: target.profilePicUrl?.absoluteString)

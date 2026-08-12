@@ -62,7 +62,19 @@ struct StatusCenterView: View {
                                         onRelease: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
                                             guard let link = UnlockService.makeUnlockURL(childUID: user.id, coachUID: coachUID) else { return }
-                                            Task { await vm.performAction(url: link, traineeId: user.id) }
+                                            Task {
+                                                await vm.performAction(url: link, traineeId: user.id)
+                                                // Releasing answers any open "more time" request.
+                                                // Gated on success — `performAction` reports
+                                                // failure via `errorMessage` — so a failed
+                                                // release leaves the request outstanding.
+                                                if vm.errorMessage == nil {
+                                                    await MercyRequestService.resolveRequests(
+                                                        traineeId: user.id,
+                                                        coachId: coachUID
+                                                    )
+                                                }
+                                            }
                                         },
                                         onLock: {
                                             guard let coachUID = Auth.auth().currentUser?.uid else { return }
@@ -136,7 +148,7 @@ struct StatusCenterView: View {
                 }
             }
             .animation(.easeInOut, value: vm.errorMessage)
-            .sheet(item: $selectedPerson) { person in
+            .sheet(item: $selectedPerson, onDismiss: { Task { await vm.refresh() } }) { person in
                 FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot)
             }
         }

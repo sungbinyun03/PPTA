@@ -22,12 +22,26 @@ final class CloudRunHTTPClient {
             case .invalidURL: return "Invalid server URL."
             case .nonHTTPResponse: return "Invalid server response."
             case .serverError(let status, let body):
+                if let serverMessage { return serverMessage }
                 if let body, !body.isEmpty {
                     return "Server error (\(status)): \(body)"
                 }
                 return "Server error (\(status))."
             case .decodeError: return "Malformed server response."
             }
+        }
+
+        /// The `{"error": "..."}` string a Cloud Run handler returned, when there is one.
+        /// These are written to be shown to users (e.g. "You can't remove a coach while
+        /// your apps are locked."), so callers can surface them directly.
+        var serverMessage: String? {
+            guard case .serverError(_, let body) = self,
+                  let data = body?.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let message = obj["error"] as? String,
+                  !message.isEmpty
+            else { return nil }
+            return message
         }
     }
 
@@ -39,8 +53,9 @@ final class CloudRunHTTPClient {
         self.session = session
     }
 
-    /// POST JSON with `Authorization: Bearer <Firebase ID token>`.
-    func postJSON<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
+    /// POST JSON with `Authorization: Bearer <Firebase ID token>` and return the raw 2xx body.
+    @discardableResult
+    private func post(_ path: String, body: [String: Any]) async throws -> Data {
         guard let user = Auth.auth().currentUser else { throw ClientError.notSignedIn }
         let token = try await user.getIDToken()
 
@@ -59,7 +74,12 @@ final class CloudRunHTTPClient {
             let raw = String(data: data, encoding: .utf8)
             throw ClientError.serverError(status: http.statusCode, body: raw)
         }
+        return data
+    }
 
+    /// POST JSON and decode the response body.
+    func postJSON<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
+        let data = try await post(path, body: body)
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
@@ -67,10 +87,13 @@ final class CloudRunHTTPClient {
         }
     }
 
-    /// POST JSON and ignore response body (expects 2xx).
+    /// POST JSON and ignore the response body (expects 2xx).
+    ///
+    /// Deliberately does **not** decode: endpoints like `deleteAccount` answer 2xx with an empty
+    /// or non-object body, and decoding it would turn a successful call into a thrown error after
+    /// the server has already committed the work.
     func postJSON(_ path: String, body: [String: Any]) async throws {
-        struct Empty: Decodable {}
-        _ = try await postJSON(path, body: body) as Empty
+        try await post(path, body: body)
     }
 }
 

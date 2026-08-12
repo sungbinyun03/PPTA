@@ -9,7 +9,7 @@
 PPTAMinimal.xcodeproj/
 xcuserdata/
 
-# Ignore specific file types in a folder
+# Ignore specific file types in a folderiu
 logs/*.txt
 
 # Ignore specific folders or files

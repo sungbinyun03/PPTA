@@ -31,6 +31,22 @@ final class FriendProfileViewModel: ObservableObject {
         var timeLimitMinutes: Int? = nil
         var pressureLevel: PressureLevel? = nil
         var lockedByName: String? = nil
+        var monitoredAppNames: [String]? = nil
+    }
+
+    /// Apps this person shares with their coaches. Empty when they haven't opted in, or when
+    /// the shield hasn't learned any names yet.
+    @Published var monitoredAppNames: [String] = []
+
+    /// True when this trainee has an open "give me more time" request addressed to me.
+    @Published var hasPendingMercyRequest = false
+
+    /// Closes the trainee's open requests. Call after acting on one (e.g. releasing them),
+    /// so it stops showing as outstanding.
+    func resolveMercyRequest() async {
+        guard let uid = myUid else { return }
+        await MercyRequestService.resolveRequests(traineeId: otherUserId, coachId: uid)
+        hasPendingMercyRequest = false
     }
 
     @Published var isLoading = false
@@ -59,6 +75,10 @@ final class FriendProfileViewModel: ObservableObject {
     @Published var lockUnlockError: String?
     @Published var lockedByName: String? = nil
 
+    @Published var isUnfriending = false
+    /// Flips to true once the unfriend call succeeds, so the sheet can dismiss itself.
+    @Published var didUnfriend = false
+
     private let otherUserId: String
 
     private let usersRepo = UserRepository()
@@ -84,6 +104,7 @@ final class FriendProfileViewModel: ObservableObject {
         if let timeLimitMinutes = snapshot.timeLimitMinutes { self.timeLimitMinutes = timeLimitMinutes }
         if let pressureLevel = snapshot.pressureLevel { self.pressureLevel = pressureLevel }
         self.lockedByName = snapshot.lockedByName
+        if let monitoredAppNames = snapshot.monitoredAppNames { self.monitoredAppNames = monitoredAppNames }
     }
 
     /// Fetches everything the sheet needs. All six reads are independent of each other,
@@ -127,6 +148,18 @@ final class FriendProfileViewModel: ObservableObject {
             }
 
             lockedByName = otherSettings?.lockedByName
+            monitoredAppNames = otherSettings?.monitoredAppNames ?? []
+
+            // Only meaningful when I coach them — a request is addressed to their coaches.
+            if mySettings.coachIds.contains(otherUserId) == false,
+               mySettings.traineeIds.contains(otherUserId) {
+                hasPendingMercyRequest = await MercyRequestService.hasPendingRequest(
+                    traineeId: otherUserId,
+                    coachId: uid
+                )
+            } else {
+                hasPendingMercyRequest = false
+            }
 
             // Friends-only policy (client-side gating; server enforces too)
             friendshipStatus = friends ? .isFriend : .notFriend
@@ -289,6 +322,22 @@ final class FriendProfileViewModel: ObservableObject {
                 try await roleRequests.cancel(id: outgoingId)
             }
             await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Ends the friendship and every coach/trainee tie that hangs off it. The server does the
+    /// cascade; on success the sheet dismisses rather than refreshing, since there is no longer
+    /// a relationship to show.
+    func unfriend() async {
+        guard myUid != nil else { return }
+        isUnfriending = true
+        defer { isUnfriending = false }
+        errorMessage = nil
+        do {
+            try await friendships.unfriend(otherId: otherUserId)
+            didUnfriend = true
         } catch {
             errorMessage = error.localizedDescription
         }

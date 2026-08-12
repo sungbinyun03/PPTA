@@ -12,6 +12,8 @@ struct FriendProfileSheetView: View {
     let otherUserId: String
 
     @StateObject private var vm: FriendProfileViewModel
+    @State private var showUnfriendConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init()) {
         self.otherUserId = otherUserId
@@ -57,12 +59,15 @@ struct FriendProfileSheetView: View {
                     onLock: makeLockActionIfNeeded(),
                     onUnlock: makeUnlockActionIfNeeded(),
                     lockedByName: vm.lockedByName,
+                    monitoredAppNames: vm.monitoredAppNames,
+                    hasPendingMercyRequest: vm.hasPendingMercyRequest,
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
                     onCoachPrimary: { Task { await vm.performCoachPrimary() } },
                     onCoachSecondary: { Task { await vm.performCoachSecondary() } },
                     onTraineePrimary: { Task { await vm.performTraineePrimary() } },
-                    onTraineeSecondary: { Task { await vm.performTraineeSecondary() } }
+                    onTraineeSecondary: { Task { await vm.performTraineeSecondary() } },
+                    onUnfriend: { showUnfriendConfirm = true }
                 )
             }
 
@@ -74,7 +79,7 @@ struct FriendProfileSheetView: View {
             }
         }
             .overlay {
-                if vm.isPerformingLockUnlock {
+                if vm.isPerformingLockUnlock || vm.isUnfriending {
                     ZStack {
                         Color.black.opacity(0.15).ignoresSafeArea()
                         ProgressView()
@@ -82,6 +87,17 @@ struct FriendProfileSheetView: View {
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
+            }
+            .alert("Remove Friend?", isPresented: $showUnfriendConfirm) {
+                Button("Remove", role: .destructive) { Task { await vm.unfriend() } }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This removes \(vm.name) as a friend and ends any coach or trainee relationship between you. You can add them again later.")
+            }
+            // Nothing left to display once the relationship is gone, so close the sheet.
+            // FriendsView refreshes on dismiss, which drops them from the list.
+            .onChange(of: vm.didUnfriend) { _, didUnfriend in
+                if didUnfriend { dismiss() }
             }
             .task { await vm.refresh() }
         }
