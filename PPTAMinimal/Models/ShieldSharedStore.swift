@@ -68,37 +68,40 @@ enum AppNameStore {
     ///
     /// Approximate: iOS does not guarantee the shield data source is re-invoked on every
     /// presentation, so treat these as a ranking, not an exact tally.
+    /// How long block history is kept. Older days are dropped on write.
+    static let retentionDays = 30
+
+    /// Whole days since epoch. Coarser than a calendar date and ignores time-zone shifts,
+    /// which is fine for "how many times in the last 30 days" and avoids a date formatter
+    /// in a memory-capped extension.
+    private static var todayIndex: Int { Int(Date().timeIntervalSince1970 / 86_400) }
+
+    /// Counts are bucketed per day rather than kept as one running total, so a 30-day figure
+    /// can expire gracefully instead of being wiped whenever a window rolls over.
     static func noteBlockAttempt<T>(for token: Token<T>) {
         guard let key = storageKey(for: token), let suite else { return }
-        rollWindowIfNeeded(suite)
-        let counterKey = attemptPrefix + key
-        suite.set(suite.integer(forKey: counterKey) + 1, forKey: counterKey)
+        let bucketKey = attemptPrefix + key
+
+        var counts = (suite.dictionary(forKey: bucketKey) as? [String: Int]) ?? [:]
+        counts[String(todayIndex), default: 0] += 1
+
+        let cutoff = todayIndex - retentionDays
+        counts = counts.filter { (Int($0.key) ?? 0) > cutoff }
+
+        suite.set(counts, forKey: bucketKey)
     }
 
-    static func blockAttempts<T>(for token: Token<T>) -> Int {
-        guard let key = storageKey(for: token) else { return 0 }
-        return suite?.integer(forKey: attemptPrefix + key) ?? 0
-    }
+    /// Total blocks for this token over the trailing `days`.
+    static func blocks<T>(for token: Token<T>, inLastDays days: Int = retentionDays) -> Int {
+        guard let key = storageKey(for: token),
+              let counts = suite?.dictionary(forKey: attemptPrefix + key) as? [String: Int]
+        else { return 0 }
 
-    /// Attempts are reported over a rolling window rather than all-time, so a shared report
-    /// says "this week" instead of quietly accumulating since install.
-    private static let windowStartKey = "shield.attemptsWindowStart"
-    private static let windowLength: TimeInterval = 7 * 24 * 60 * 60
-
-    static var windowStart: Date? { suite?.object(forKey: windowStartKey) as? Date }
-
-    private static func rollWindowIfNeeded(_ suite: UserDefaults) {
-        let now = Date()
-        guard let start = suite.object(forKey: windowStartKey) as? Date else {
-            suite.set(now, forKey: windowStartKey)
-            return
-        }
-        guard now.timeIntervalSince(start) > windowLength else { return }
-
-        for key in suite.dictionaryRepresentation().keys where key.hasPrefix(attemptPrefix) {
-            suite.removeObject(forKey: key)
-        }
-        suite.set(now, forKey: windowStartKey)
+        let cutoff = todayIndex - days
+        return counts
+            .filter { (Int($0.key) ?? 0) > cutoff }
+            .values
+            .reduce(0, +)
     }
 }
 

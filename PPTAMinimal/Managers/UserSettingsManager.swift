@@ -28,6 +28,11 @@ final class UserSettingsManager : ObservableObject{
             return
         }
 
+        // Snapshot the last-persisted state before anything overwrites it. Diffing against
+        // `userSettings` would not work: UserSettings is a class and callers routinely mutate
+        // the shared instance before calling save, so both sides would already be equal.
+        let previous = LocalSettingsStore.load()
+
         // Keep in sync with pressure level: Off means not participating in tracking.
         settings.isTracking = settings.pressureLevel.isTracking
 
@@ -42,11 +47,9 @@ final class UserSettingsManager : ObservableObject{
             settings.traineeStatus = .allClear
         }
         
-        // Only mirror app names to Firestore while the user has opted in; turning the toggle
-        // off clears what was already uploaded rather than merely hiding it.
-        settings.monitoredAppNames = settings.shareAppNamesWithCoaches
-            ? Self.resolvedAppNames(for: settings)
-            : []
+        let stats = Self.resolvedAppStats(for: settings)
+        settings.monitoredAppStats = stats
+        settings.monitoredAppNames = stats.map(\.name)
 
         print("UserSettingsManager.saveSettings: will save Firestore userSettings/\(userID).")
         LocalSettingsStore.saveCurrentUserId(userID)
@@ -68,6 +71,7 @@ final class UserSettingsManager : ObservableObject{
             }
 
         Self.syncShieldContext(from: settings)
+        Self.notifyCoachesIfSetupChanged(previous: previous, settings: settings, uid: userID)
 
         DispatchQueue.main.async {
                    self.userSettings = settings
@@ -76,29 +80,62 @@ final class UserSettingsManager : ObservableObject{
       
     }
     
-    /// App names the shield extension has learned for the user's current selection.
-    /// Partial by design — unlearned tokens are simply absent.
-    private static func resolvedAppNames(for settings: UserSettings) -> [String] {
-        var names: [String] = []
-        for token in settings.applications.applicationTokens {
-            if let name = AppNameStore.name(for: token) { names.append(name) }
-        }
-        for token in settings.applications.categoryTokens {
-            if let name = AppNameStore.name(for: token) { names.append(name) }
-        }
-        return names.sorted()
+    /// Notifies coaches when a trainee changes what they're being held to.
+    ///
+    /// Skipped on first-time setup — `previous` having no viable limits means there was
+    /// nothing to change yet, and "changed their app limits" would be wrong for a trainee who
+    /// just finished onboarding.
+    private static func notifyCoachesIfSetupChanged(
+        previous: UserSettings,
+        settings: UserSettings,
+        uid: String
+    ) {
+        guard !settings.coachIds.isEmpty, previous.hasViableAppLimits else { return }
+
+        let limitsChanged =
+            previous.thresholdHour != settings.thresholdHour ||
+            previous.thresholdMinutes != settings.thresholdMinutes ||
+            previous.applications.applicationTokens != settings.applications.applicationTokens ||
+            previous.applications.categoryTokens != settings.applications.categoryTokens
+        let pressureChanged = previous.pressureLevel != settings.pressureLevel
+
+        guard limitsChanged || pressureChanged else { return }
+
+        let change: DeviceActivityManager.SettingsChange =
+            limitsChanged && pressureChanged ? .both : (limitsChanged ? .appLimits : .pressureLevel)
+        DeviceActivityManager.shared.sendSettingsChanged(uid: uid, change: change)
     }
 
-    /// Pushes newly learned names to coaches. Names accumulate in the App Group as the user
-    /// hits lock screens, which can happen long after their last save, so this runs on
-    /// foreground and only writes when the list actually changed.
+    /// Names + 30-day block counts for the user's current selection, from what the shield
+    /// extension has learned. Partial by design — unlearned tokens are simply absent.
+    /// Sorted by blocks descending so the most-hit app leads wherever this is shown.
+    private static func resolvedAppStats(for settings: UserSettings) -> [MonitoredAppStat] {
+        var stats: [MonitoredAppStat] = []
+        for token in settings.applications.applicationTokens {
+            guard let name = AppNameStore.name(for: token) else { continue }
+            stats.append(MonitoredAppStat(name: name, blocks30d: AppNameStore.blocks(for: token)))
+        }
+        for token in settings.applications.categoryTokens {
+            guard let name = AppNameStore.name(for: token) else { continue }
+            stats.append(MonitoredAppStat(name: name, blocks30d: AppNameStore.blocks(for: token)))
+        }
+        return stats.sorted {
+            $0.blocks30d == $1.blocks30d ? $0.name < $1.name : $0.blocks30d > $1.blocks30d
+        }
+    }
+
+    /// Pushes newly learned names and counts to coaches. Both accumulate in the App Group as
+    /// the user hits lock screens, long after their last save, so this runs on foreground and
+    /// only writes when something actually changed.
     @MainActor
-    func refreshSharedAppNamesIfNeeded() {
+    func refreshSharedAppStatsIfNeeded() {
         let current = userSettings
-        guard current.shareAppNamesWithCoaches else { return }
-        let latest = Self.resolvedAppNames(for: current)
-        guard latest != current.monitoredAppNames else { return }
-        update { $0.monitoredAppNames = latest }
+        let latest = Self.resolvedAppStats(for: current)
+        guard latest != current.monitoredAppStats else { return }
+        update {
+            $0.monitoredAppStats = latest
+            $0.monitoredAppNames = latest.map(\.name)
+        }
     }
 
     /// Mirrors the slice of state the shield extension needs into the App Group, so the lock

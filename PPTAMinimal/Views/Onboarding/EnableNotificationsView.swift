@@ -4,6 +4,7 @@ import UserNotifications
 struct EnableNotificationsView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
     @State private var permissionGranted = false
+    @State private var wasAsked = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,12 +41,17 @@ struct EnableNotificationsView: View {
                 }
                 .padding(.horizontal, 24)
 
-                Button {
-                    coordinator.advance()
-                } label: {
-                    Text("I'll do this later")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                // Unlike Screen Time, the app still functions without notifications — it just
+                // can't reach the user. Kept advanceable, but only after they've been asked,
+                // so it isn't a one-tap bypass of the step.
+                if wasAsked {
+                    Button {
+                        coordinator.advance()
+                    } label: {
+                        Text("Continue without notifications")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 PageIndicator(page: 3, length: 5)
@@ -63,13 +69,17 @@ struct EnableNotificationsView: View {
     }
 
     private func requestNotificationPermission() async {
-        await withCheckedContinuation { continuation in
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, error in
-                if let error { print("Notification permission error: \(error)") }
-                continuation.resume()
-            }
+        // Reflect what the user actually chose. This previously set `true` regardless, so a
+        // denial auto-advanced and reported "Enabled ✓" for notifications that never arrive.
+        let granted: Bool = await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if let error { print("Notification permission error: \(error)") }
+                    continuation.resume(returning: granted)
+                }
         }
-        permissionGranted = true
+        permissionGranted = granted
+        wasAsked = true
     }
 }
 

@@ -272,11 +272,34 @@ class DeviceActivityManager {
         postToStatusUpdate(uid: uid, status: .cutOff, type: "mercyRequest")
     }
 
+    /// What changed in a trainee's setup, for the coach-facing push copy.
+    enum SettingsChange: String {
+        case appLimits
+        case pressureLevel
+        case both
+    }
+
+    /// Tells this user's coaches that they changed their app limits or pressure level.
+    /// Notification only — the client has already persisted the change itself.
+    func sendSettingsChanged(uid: String?, change: SettingsChange) {
+        postToStatusUpdate(
+            uid: uid,
+            status: .allClear,
+            type: "settingsChanged",
+            extra: ["change": change.rawValue]
+        )
+    }
+
     /// - Parameter type: `nil` for a plain status update, which keeps the original signed
     ///   message `uid|status|ts` so the server verifies older clients unchanged. A non-nil
     ///   type is appended to the signed message, so a captured signature can't be replayed
     ///   with the type swapped.
-    private func postToStatusUpdate(uid: String?, status: TraineeStatus, type: String?) {
+    private func postToStatusUpdate(
+        uid: String?,
+        status: TraineeStatus,
+        type: String?,
+        extra: [String: String] = [:]
+    ) {
         guard let uid, !uid.isEmpty else { return }
 
         let ts = Int(Date().timeIntervalSince1970)
@@ -299,6 +322,7 @@ class DeviceActivityManager {
             "sig": sig
         ]
         if let type { body["type"] = type }
+        for (key, value) in extra { body[key] = value }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()

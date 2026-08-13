@@ -46,15 +46,9 @@ struct OnboardingContainerView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if coordinator.currentStep != .completed {
-                        Button("Skip") {
-                            authViewModel.markOnboardingComplete()
-                            coordinator.skipToMainApp()
-                        }
-                        .foregroundColor(Color("primaryColor"))
-                    }
-                }
+                // No global Skip: it marked onboarding complete without granting Screen Time,
+                // picking apps, or setting a limit, producing an account that looks set up
+                // but can't monitor anything.
             }
         }
         .onAppear {

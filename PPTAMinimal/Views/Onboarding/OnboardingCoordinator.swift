@@ -55,11 +55,10 @@ class OnboardingCoordinator: ObservableObject {
         }
     }
 
+    /// Only ever called from the end of `.findFriends`. There is deliberately no way to reach
+    /// this early: an abandoned run leaves the per-uid flag unset, so the next launch restarts
+    /// onboarding from `.welcome` rather than dropping the user into a half-configured app.
     private func completeOnboarding() {
         onboardingComplete = true
-    }
-
-    func skipToMainApp() {
-        completeOnboarding()
     }
 }

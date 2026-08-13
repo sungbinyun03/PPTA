@@ -34,6 +34,7 @@ struct FriendProfileView: View {
     let lockedByName: String?
     /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
     var monitoredAppNames: [String] = []
+    var monitoredAppStats: [MonitoredAppStat] = []
     var hasPendingMercyRequest: Bool = false
 
     // MARK: - Role request / relationship actions
@@ -108,32 +109,76 @@ struct FriendProfileView: View {
                 ScrollView {
                     VStack(spacing: 24) {
 
-                        // MARK: Avatar + name + role
-                        VStack(spacing: 10) {
-                            if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image.resizable().aspectRatio(contentMode: .fill)
-                                    default:
-                                        avatarFallback
+                        // MARK: Hero — avatar ringed in the person's live status
+                        VStack(spacing: 12) {
+                            ZStack {
+                                // The ring carries the status at a glance, so it reads before
+                                // any text does.
+                                Circle()
+                                    .stroke(heroRingColor, lineWidth: 3)
+                                    .frame(width: 94, height: 94)
+
+                                if let profilePicUrl, let url = URL(string: profilePicUrl) {
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image.resizable().aspectRatio(contentMode: .fill)
+                                        default:
+                                            avatarFallback
+                                        }
                                     }
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(Circle())
+                                } else {
+                                    avatarFallback
                                 }
-                                .frame(width: 80, height: 80)
-                                .clipShape(Circle())
-                            } else {
-                                avatarFallback
                             }
 
-                            Text(name)
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(.primary)
+                            VStack(spacing: 8) {
+                                Text(name)
+                                    .font(.custom("BambiBold", size: 26))
+                                    .foregroundColor(.primary)
+                                    .multilineTextAlignment(.center)
 
-                            Text(role)
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                HStack(spacing: 6) {
+                                    Text(role.uppercased())
+                                        .font(.custom("Satoshi-Variable", size: 10))
+                                        .fontWeight(.semibold)
+                                        .tracking(1.1)
+                                        .foregroundColor(primaryColor)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(primaryColor.opacity(0.12))
+                                        .clipShape(Capsule())
+
+                                    statusPill
+                                }
+                            }
                         }
                         .padding(.top, 4)
+
+                        // Urgent and time-sensitive, so it sits above everything rather than
+                        // as a row buried inside the stats card.
+                        if hasPendingMercyRequest {
+                            HStack(spacing: 10) {
+                                Image(systemName: "hand.raised.fill")
+                                    .foregroundColor(.white)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Asking you for more time")
+                                        .font(.custom("BambiBold", size: 15))
+                                        .foregroundColor(.white)
+                                    Text("Snooze their lock to give them 10 minutes.")
+                                        .font(.custom("Satoshi-Variable", size: 12))
+                                        .foregroundColor(.white.opacity(0.9))
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 13)
+                            .background(Color.orange)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .padding(.horizontal, 20)
+                        }
 
                         // MARK: Lock / Unlock CTAs (coach actions)
                         if let onLock {
@@ -172,55 +217,71 @@ struct FriendProfileView: View {
                             .padding(.horizontal, 20)
                         }
 
-                        // MARK: Stats card
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Status")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                statusPill
-                            }
-
-                            Divider().opacity(0.3)
-
-                            if hasPendingMercyRequest {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "hand.raised.fill")
-                                        .foregroundColor(.orange)
-                                    Text("Asking you for more time")
-                                        .font(.custom("Satoshi-Variable", size: 13))
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                }
-                                Divider().opacity(0.3)
-                            }
-
-                            statRow(label: "Daily limit", value: "\(timeLimitMinutes) min")
-                            statRow(label: "Pressure", value: pressureLevel.rawValue)
-                            statRow(label: "Streak", value: "\(streakDays) days")
-
-                            if let locker = lockedByName, traineeStatus == .cutOff || traineeStatus == .snoozedLock {
-                                Divider().opacity(0.3)
-                                statRow(label: "Locked by", value: locker)
-                            }
-
-                            // Shown only when they opted into sharing. Partial by nature —
-                            // names are learned as they hit lock screens.
-                            if !monitoredAppNames.isEmpty {
-                                Divider().opacity(0.3)
-                                statRow(
-                                    label: "Monitoring",
-                                    value: monitoredAppNames.joined(separator: ", ")
-                                )
-                            }
+                        // MARK: Headline stats
+                        HStack(spacing: 8) {
+                            heroTile(
+                                label: "Streak",
+                                value: "\(streakDays)",
+                                caption: streakDays == 1 ? "day" : "days"
+                            )
+                            heroTile(
+                                label: "Daily limit",
+                                value: limitValueText,
+                                caption: limitCaptionText
+                            )
+                            heroTile(
+                                label: "Pressure",
+                                value: pressureLevel.rawValue,
+                                caption: nil,
+                                tint: pressureTint
+                            )
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(primaryColor.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .padding(.horizontal, 20)
+
+                        if let locker = lockedByName,
+                           traineeStatus == .cutOff || traineeStatus == .snoozedLock {
+                            HStack(spacing: 8) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 12))
+                                Text("Locked by \(locker)")
+                                    .font(.custom("Satoshi-Variable", size: 13))
+                                    .fontWeight(.medium)
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundColor(primaryColor)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(primaryColor.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.horizontal, 20)
+                        }
+
+                        // Names and counts are learned as the trainee hits lock screens, so
+                        // this stands in until they've actually been blocked for something.
+                        if !monitoredAppNames.isEmpty, blockedApps.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("MONITORING")
+                                    .font(.custom("Satoshi-Variable", size: 11))
+                                    .fontWeight(.semibold)
+                                    .tracking(1.2)
+                                    .foregroundColor(primaryColor.opacity(0.6))
+                                Text(monitoredAppNames.joined(separator: " · "))
+                                    .font(.custom("Satoshi-Variable", size: 14))
+                                    .foregroundColor(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .background(primaryColor.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .padding(.horizontal, 20)
+                        }
+
+                        if !blockedApps.isEmpty {
+                            blockedAppsCard
+                                .padding(.horizontal, 20)
+                        }
 
                         // MARK: Action buttons
                         VStack(spacing: 10) {
@@ -274,6 +335,145 @@ struct FriendProfileView: View {
         }
     }
 
+    // MARK: - Hero helpers
+
+    /// Ring color mirrors the status rings used elsewhere, so the same colour always means
+    /// the same thing. Falls back to a neutral ring when there's no trainee status to show.
+    private var heroRingColor: Color {
+        traineeStatus.ringColor ?? primaryColor.opacity(0.25)
+    }
+
+    /// Matches PressureLevelView's colour per tier.
+    private var pressureTint: Color {
+        switch pressureLevel {
+        case .off:      return .secondary
+        case .standard: return Color("primaryButtonColor")
+        case .hardcore: return primaryColor
+        }
+    }
+
+    /// Split so the tile can show a big number with a small unit beneath it rather than
+    /// cramming "90 min" into one line that has to shrink.
+    private var limitValueText: String {
+        let hours = timeLimitMinutes / 60
+        let minutes = timeLimitMinutes % 60
+        if timeLimitMinutes == 0 { return "—" }
+        if hours > 0 && minutes > 0 { return "\(hours)h \(minutes)m" }
+        if hours > 0 { return "\(hours)" }
+        return "\(minutes)"
+    }
+
+    private var limitCaptionText: String? {
+        let hours = timeLimitMinutes / 60
+        let minutes = timeLimitMinutes % 60
+        if timeLimitMinutes == 0 { return "not set" }
+        if hours > 0 && minutes > 0 { return "per day" }
+        return hours > 0 ? (hours == 1 ? "hour" : "hours") : "min"
+    }
+
+    private func heroTile(
+        label: String,
+        value: String,
+        caption: String?,
+        tint: Color? = nil
+    ) -> some View {
+        VStack(spacing: 4) {
+            Text(label.uppercased())
+                .font(.custom("Satoshi-Variable", size: 9.5))
+                .fontWeight(.semibold)
+                .tracking(0.8)
+                .foregroundColor(primaryColor.opacity(0.6))
+                .lineLimit(1)
+
+            Text(value)
+                .font(.custom("BambiBold", size: 22))
+                .foregroundColor(tint ?? .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+
+            Text(caption ?? " ")
+                .font(.custom("Satoshi-Variable", size: 10))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 4)
+        .background(primaryColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    // MARK: - Blocked apps
+
+    /// Apps that actually blocked them at least once. Apps at zero are omitted: a row of
+    /// empty bars reads as "no data" and buries the ones that matter.
+    private var blockedApps: [MonitoredAppStat] {
+        monitoredAppStats.filter { $0.blocks30d > 0 }
+    }
+
+    private var totalBlocks: Int { blockedApps.reduce(0) { $0 + $1.blocks30d } }
+
+    /// Bars are scaled against the top app rather than the total, so the leader always fills
+    /// the row and the comparison between apps stays legible even when one dominates.
+    private var maxBlocks: Int { blockedApps.map(\.blocks30d).max() ?? 1 }
+
+    private var blockedAppsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("BLOCKED · LAST 30 DAYS")
+                    .font(.custom("Satoshi-Variable", size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(primaryColor.opacity(0.6))
+                Spacer()
+                Text("\(totalBlocks)")
+                    .font(.custom("BambiBold", size: 20))
+                    .foregroundColor(primaryColor)
+            }
+
+            VStack(spacing: 12) {
+                ForEach(blockedApps.prefix(5)) { app in
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 8) {
+                            Text(app.name)
+                                .font(.custom("Satoshi-Variable", size: 14))
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text("\(app.blocks30d)")
+                                .font(.custom("BambiBold", size: 14))
+                                .foregroundColor(primaryColor)
+                        }
+                        blockBar(fraction: CGFloat(app.blocks30d) / CGFloat(maxBlocks))
+                    }
+                }
+            }
+
+            Text("Times \(name.components(separatedBy: " ").first ?? name) opened an app after being locked out.")
+                .font(.custom("Satoshi-Variable", size: 11))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(primaryColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func blockBar(fraction: CGFloat) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(primaryColor.opacity(0.15))
+                Capsule()
+                    .fill(primaryColor)
+                    // Floor the width so a single block is still a visible mark.
+                    .frame(width: max(6, geo.size.width * min(max(fraction, 0), 1)))
+            }
+        }
+        .frame(height: 6)
+    }
+
     // MARK: - Sub-views
 
     private var avatarFallback: some View {
@@ -305,19 +505,6 @@ struct FriendProfileView: View {
             .padding(.vertical, 5)
             .background(color.opacity(0.1))
             .clipShape(Capsule())
-    }
-
-    @ViewBuilder
-    private func statRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.primary)
-        }
     }
 
     @ViewBuilder

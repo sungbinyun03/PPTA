@@ -60,6 +60,7 @@ struct FriendProfileSheetView: View {
                     onUnlock: makeUnlockActionIfNeeded(),
                     lockedByName: vm.lockedByName,
                     monitoredAppNames: vm.monitoredAppNames,
+                    monitoredAppStats: vm.monitoredAppStats,
                     hasPendingMercyRequest: vm.hasPendingMercyRequest,
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,

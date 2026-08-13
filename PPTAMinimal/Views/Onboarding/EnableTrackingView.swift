@@ -1,9 +1,12 @@
 import SwiftUI
+import UIKit
 import FamilyControls
 
 struct EnableTrackingView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
     @State private var permissionGranted = false
+    @State private var wasDenied = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,12 +42,20 @@ struct EnableTrackingView: View {
                 }
                 .padding(.horizontal, 24)
 
-                Button {
-                    coordinator.advance()
-                } label: {
-                    Text("I'll do this later")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                // No skip: without Screen Time authorization the app cannot monitor, shield,
+                // or report anything, so letting someone past here produces an account that
+                // silently does nothing.
+                if wasDenied {
+                    VStack(spacing: 6) {
+                        Text("Screen Time is required for PPTA to work.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Open Settings") { openSettings() }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(Color("primaryColor"))
+                    }
+                    .padding(.horizontal, 32)
                 }
 
                 PageIndicator(page: 2, length: 5)
@@ -70,7 +81,16 @@ struct EnableTrackingView: View {
                 print("Failed to request screen time auth: \(error)")
             }
         }
-        permissionGranted = true
+        // Reflect the real authorization status rather than the fact that we asked. This
+        // previously set `true` unconditionally, so a denial still advanced onboarding and
+        // left the user marked complete with no authorization.
+        permissionGranted = center.authorizationStatus == .approved
+        wasDenied = !permissionGranted
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
     }
 }
 

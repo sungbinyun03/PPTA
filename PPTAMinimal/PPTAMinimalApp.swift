@@ -219,7 +219,7 @@ struct PPTAMinimalApp: App {
                 await MercyRequestService.filePendingRequestIfNeeded()
                 // Names accrue in the App Group whenever a shield is drawn, which can be
                 // long after the user's last save.
-                UserSettingsManager.shared.refreshSharedAppNamesIfNeeded()
+                UserSettingsManager.shared.refreshSharedAppStatsIfNeeded()
             }
         }
     }

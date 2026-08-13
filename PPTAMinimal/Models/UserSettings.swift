@@ -34,6 +34,16 @@ enum PressureLevel: String, Codable, CaseIterable, Equatable, Sendable {
     }
 }
 
+/// How often one monitored app blocked this user recently, mirrored to Firestore so their
+/// coaches can see it. Counts come from the shield extension (see `AppNameStore`) and are
+/// approximate — iOS does not guarantee the shield is rebuilt on every presentation.
+struct MonitoredAppStat: Codable, Hashable, Identifiable {
+    let name: String
+    let blocks30d: Int
+
+    var id: String { name }
+}
+
 // This struct is the same as Friend
 struct PeerCoach: Codable, Identifiable {
     let id = UUID()
@@ -77,14 +87,12 @@ final class UserSettings: Codable {
     /// Display name of the coach who last remotely locked this user (nil when unlocked).
     var lockedByName: String? = nil
 
-    /// Opt-in: whether this user's monitored app names are visible to their coaches.
-    /// Uploading someone's app list is a real privacy decision, so it is off by default and
-    /// `monitoredAppNames` stays empty until the user turns it on.
-    var shareAppNamesWithCoaches: Bool = false
-
     /// App names harvested by the shield extension (see `AppNameStore`), mirrored here so
     /// coaches can read them. Partial by nature: only apps the user has hit a lock screen for.
     var monitoredAppNames: [String] = []
+
+    /// Per-app block counts over the trailing 30 days, shown to coaches on the profile sheet.
+    var monitoredAppStats: [MonitoredAppStat] = []
 
     private enum CodingKeys: String, CodingKey {
         case applications, thresholdHour, thresholdMinutes,
@@ -96,7 +104,7 @@ final class UserSettings: Codable {
              startDailyStreakDate,
              isTracking, traineeStatus,
              lockedByUID, lockedByName,
-             shareAppNamesWithCoaches, monitoredAppNames
+             monitoredAppNames, monitoredAppStats
     }
 
     /// Single definition of “viable” limits (used by Home, save validation, etc.).
@@ -189,8 +197,8 @@ final class UserSettings: Codable {
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
         lockedByUID = try? container.decode(String.self, forKey: .lockedByUID)
         lockedByName = try? container.decode(String.self, forKey: .lockedByName)
-        shareAppNamesWithCoaches = (try? container.decode(Bool.self, forKey: .shareAppNamesWithCoaches)) ?? false
         monitoredAppNames = (try? container.decode([String].self, forKey: .monitoredAppNames)) ?? []
+        monitoredAppStats = (try? container.decode([MonitoredAppStat].self, forKey: .monitoredAppStats)) ?? []
     }
     
     func encode(to encoder: Encoder) throws {
@@ -211,8 +219,8 @@ final class UserSettings: Codable {
         try container.encode(traineeStatus, forKey: .traineeStatus)
         try container.encodeIfPresent(lockedByUID, forKey: .lockedByUID)
         try container.encodeIfPresent(lockedByName, forKey: .lockedByName)
-        try container.encode(shareAppNamesWithCoaches, forKey: .shareAppNamesWithCoaches)
         try container.encode(monitoredAppNames, forKey: .monitoredAppNames)
+        try container.encode(monitoredAppStats, forKey: .monitoredAppStats)
     }
     
     

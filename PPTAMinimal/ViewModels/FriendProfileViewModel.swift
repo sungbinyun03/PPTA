@@ -34,9 +34,11 @@ final class FriendProfileViewModel: ObservableObject {
         var monitoredAppNames: [String]? = nil
     }
 
-    /// Apps this person shares with their coaches. Empty when they haven't opted in, or when
-    /// the shield hasn't learned any names yet.
+    /// Apps this person is monitoring. Empty when the shield hasn't learned any names yet.
     @Published var monitoredAppNames: [String] = []
+
+    /// Per-app block counts over the trailing 30 days, sorted most-blocked first.
+    @Published var monitoredAppStats: [MonitoredAppStat] = []
 
     /// True when this trainee has an open "give me more time" request addressed to me.
     @Published var hasPendingMercyRequest = false
@@ -149,6 +151,7 @@ final class FriendProfileViewModel: ObservableObject {
 
             lockedByName = otherSettings?.lockedByName
             monitoredAppNames = otherSettings?.monitoredAppNames ?? []
+            monitoredAppStats = otherSettings?.monitoredAppStats ?? []
 
             // Only meaningful when I coach them — a request is addressed to their coaches.
             if mySettings.coachIds.contains(otherUserId) == false,
