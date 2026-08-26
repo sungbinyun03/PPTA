@@ -208,8 +208,8 @@ final class FriendProfileViewModel: ObservableObject {
         traineeStatus = .cutOff
         scheduleVerification(
             expected: .cutOff,
-            failureTitle: "Lock may not have reached \(name)",
-            failureBody: "\(name) may still have access to their apps. Try locking them again."
+            failureTitle: "Lock may not have reached \(name.firstNameOnly) ⚠️",
+            failureBody: "\(name.firstNameOnly) may still have access to their apps. Try locking them again."
         )
     }
 
@@ -218,7 +218,7 @@ final class FriendProfileViewModel: ObservableObject {
         traineeStatus = .snoozedLock
         scheduleVerification(
             expected: .snoozedLock,
-            failureTitle: "Snooze may not have reached \(name)",
+            failureTitle: "Snooze may not have reached \(name.firstNameOnly) ⚠️",
             failureBody: "The snooze unlock didn't seem to go through. Try again."
         )
     }

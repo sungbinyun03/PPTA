@@ -67,7 +67,7 @@ class ShieldActionExtension: ShieldActionDelegate {
     /// this notification is doing real work, not just confirming.
     private func postHandoffNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "Tap to ask your coach"
+        content.title = "Tap to ask your coach 🙏"
         content.body = "Open PPTA to send your request for more time."
         content.sound = .default
 

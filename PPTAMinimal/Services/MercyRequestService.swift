@@ -95,16 +95,16 @@ enum MercyRequestService {
                 "status": "pending",
                 "createdAt": Timestamp(date: requestedAt)
             ])
-            NotificationManager.shared.showInAppMessage(
-                title: "Request sent",
+            NotificationManager.shared.sendNotification(
+                title: "Request sent! 🙏",
                 body: coachIds.count == 1
                     ? "Your coach has been asked for more time."
                     : "Your coaches have been asked for more time."
             )
         } catch {
             print("MercyRequestService: failed to file request: \(error)")
-            NotificationManager.shared.showInAppMessage(
-                title: "Couldn't send request",
+            NotificationManager.shared.sendNotification(
+                title: "Couldn't send request 😕",
                 body: "Try again from your lock screen."
             )
         }

@@ -66,6 +66,18 @@ enum LimitEvent {
     }
 }
 
+/// Why a `cutOff`/`snoozedLock` happened, sent to the backend so a coach's push can say the right
+/// thing (a coach locking them vs. a Hardcore auto-lock vs. a snooze timer running out).
+///
+/// Single source of truth for these strings — mirrored server-side as `LOCK_CAUSE` in the
+/// `statusUpdate` Cloud Function. Compiled into both the app and the AppMonitor extension (same
+/// arrangement as `LimitEvent`/`UnlockGrace`), so the raw values stay in sync across processes.
+enum LockCause: String {
+    case hardcoreLimit   // Hardcore mode auto-locked at the daily limit (no coach involved)
+    case coach           // a coach locked them (Standard) or snoozed their lock — `by` names them
+    case snoozeEnded     // the post-unlock grace timer ran out and re-locked them
+}
+
 class DeviceActivityManager {
     static let shared = DeviceActivityManager()
     private init() {}
@@ -152,7 +164,7 @@ class DeviceActivityManager {
     }
     
     @MainActor
-    func handleRemoteLock(from coach: String) {
+    func handleRemoteLock(from coach: String, coachUID: String?) {
         let settings = LocalSettingsStore.load()
         guard settings.isTracking else { return }
 
@@ -162,8 +174,8 @@ class DeviceActivityManager {
         store.shield.applications = settings.applications.applicationTokens
 
         NotificationManager.shared.sendNotification(
-            title: "Locked by \(coach)",
-            body: "Your coach locked your monitored apps."
+            title: "Locked by \(coach) 🔒",
+            body: "Head to a coach's profile to ask them to snooze the lock."
         )
 
         // Sync in-memory state so the main app reflects the new status immediately.
@@ -175,37 +187,49 @@ class DeviceActivityManager {
             $0.lockedByName = coach
         }
 
-        // Best-effort: notify backend that user is now cut off.
-        sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+        // Best-effort: notify backend that user is now cut off. `cause: .coach` + the acting coach's
+        // UID let the fan-out tell every coach who did it (and say "You…" to the actor).
+        postToStatusUpdate(
+            uid: LocalSettingsStore.loadCurrentUserId(),
+            status: .cutOff,
+            type: nil,
+            cause: .coach,
+            by: coachUID
+        )
     }
 
     @MainActor
-    func handleRemoteUnlock(from coach: String) {
+    func handleRemoteUnlock(from coach: String, coachUID: String?) {
         let settings = LocalSettingsStore.load()
 
+        // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
+        // don't notify or arm grace in that case: you can only be unlocked if you were locked, and
+        // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
         store.shield.applications = nil
 
-        // Only promise the countdown when tracking — in Off mode no grace is armed and
-        // nothing will re-lock, so the 10-minute wording would be a lie.
+        guard settings.isTracking else { return }
+
         NotificationManager.shared.sendNotification(
-            title: "Unlocked by \(coach)",
-            body: settings.isTracking
-                ? "You have \(UnlockGrace.durationMinutes) minutes in your apps before they lock again."
-                : "Be Mindful of Your Screentime!"
+            title: "Lock snoozed by \(coach)! ⏳",
+            body: "You've got \(UnlockGrace.durationMinutes) minutes before your apps lock again — make them count!"
         )
 
-        // Sync in-memory state so the main app reflects the snooze immediately,
-        // and notify coaches via the backend that the trainee is temporarily unlocked.
-        if settings.isTracking {
-            // Clear the locking coach: the shield's next appearance is a grace expiry, not
-            // this coach's lock, and a stale name would misattribute it.
-            UserSettingsManager.shared.update {
-                $0.traineeStatus = .snoozedLock
-                $0.lockedByName = nil
-            }
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .snoozedLock)
-            startUnlockGracePeriod(settings: settings)
+        // Sync in-memory state so the main app reflects the snooze immediately, and notify all
+        // coaches (including the snoozer) that this coach snoozed the lock.
+        // Clear the locking coach: the shield's next appearance is a grace expiry, not this
+        // coach's lock, and a stale name would misattribute it.
+        UserSettingsManager.shared.update {
+            $0.traineeStatus = .snoozedLock
+            $0.lockedByName = nil
         }
+        postToStatusUpdate(
+            uid: LocalSettingsStore.loadCurrentUserId(),
+            status: .snoozedLock,
+            type: nil,
+            cause: .coach,
+            by: coachUID
+        )
+        startUnlockGracePeriod(settings: settings)
     }
 
     // MARK: - Unlock grace period
@@ -294,10 +318,20 @@ class DeviceActivityManager {
     ///   message `uid|status|ts` so the server verifies older clients unchanged. A non-nil
     ///   type is appended to the signed message, so a captured signature can't be replayed
     ///   with the type swapped.
+    /// - Parameters:
+    ///   - type: `nil` for a plain status update, which keeps the original signed message
+    ///     `uid|status|ts`. A non-nil type is appended so a captured signature can't be replayed
+    ///     with the type swapped.
+    ///   - cause / by: lock attribution (see `LockCause`). When present they are appended to the
+    ///     signed message — order `uid|status|ts|type|cause|by`, omitting absent fields — matching
+    ///     the server's reconstruction exactly. `by` is the acting coach's UID; the server resolves
+    ///     the display name from it.
     private func postToStatusUpdate(
         uid: String?,
         status: TraineeStatus,
         type: String?,
+        cause: LockCause? = nil,
+        by: String? = nil,
         extra: [String: String] = [:]
     ) {
         guard let uid, !uid.isEmpty else { return }
@@ -305,6 +339,8 @@ class DeviceActivityManager {
         let ts = Int(Date().timeIntervalSince1970)
         var msg = "\(uid)|\(status.rawValue)|\(ts)"
         if let type { msg += "|\(type)" }
+        if let cause { msg += "|\(cause.rawValue)" }
+        if let by, !by.isEmpty { msg += "|\(by)" }
 
         let key = SymmetricKey(data: Data(Self.sharedSecret.utf8))
         let sig = HMAC<SHA256>
@@ -322,6 +358,8 @@ class DeviceActivityManager {
             "sig": sig
         ]
         if let type { body["type"] = type }
+        if let cause { body["cause"] = cause.rawValue }
+        if let by, !by.isEmpty { body["by"] = by }
         for (key, value) in extra { body[key] = value }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

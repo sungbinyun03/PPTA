@@ -27,6 +27,10 @@ final class FriendsViewModel: ObservableObject {
     private var incomingListener: ListenerRegistration?
     private var primedIncoming = false
     private var seenIncomingFriendshipIds = Set<String>()
+
+    private var acceptedListener: ListenerRegistration?
+    private var primedAccepted = false
+    private var seenAcceptedFriendshipIds = Set<String>()
     
     var currentUserId: String? {
         Auth.auth().currentUser?.uid
@@ -98,6 +102,8 @@ final class FriendsViewModel: ObservableObject {
 
         primedIncoming = false
         seenIncomingFriendshipIds = []
+        primedAccepted = false
+        seenAcceptedFriendshipIds = []
 
         incomingListener = db.collection("friendships")
             .whereField("requesteeId", isEqualTo: uid)
@@ -135,10 +141,55 @@ final class FriendsViewModel: ObservableObject {
                     for fr in newFriendships.prefix(3) {
                         Task {
                             let user = try? await self.users.fetchUser(by: fr.requesterId)
-                            let name = user?.name ?? "Someone"
-                            NotificationManager.shared.showInAppMessage(
-                                title: "New friend request",
+                            let name = user?.name.firstNameOnly ?? "Someone"
+                            NotificationManager.shared.sendNotification(
+                                title: "New friend request! 👋",
                                 body: "\(name) sent you a friend request."
+                            )
+                        }
+                    }
+                }
+
+                Task { @MainActor in await self.refresh() }
+            }
+
+        // Someone accepted a request THIS user sent → outgoing friendship flips to `accepted`.
+        acceptedListener = db.collection("friendships")
+            .whereField("requesterId", isEqualTo: uid)
+            .whereField("status", isEqualTo: FriendshipStatus.accepted.rawValue)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                if let error {
+                    print("FriendsViewModel.startListening: accepted snapshot error:", error)
+                    return
+                }
+                guard let snapshot else { return }
+
+                let friendships: [Friendship] = snapshot.documents.compactMap { doc in
+                    try? doc.data(as: Friendship.self)
+                }
+                let currentIds = Set(friendships.compactMap { $0.id })
+
+                // Prime on first snapshot so we don't notify for the existing backlog.
+                if !self.primedAccepted {
+                    self.primedAccepted = true
+                    self.seenAcceptedFriendshipIds = currentIds
+                    return
+                }
+
+                let newIds = currentIds.subtracting(self.seenAcceptedFriendshipIds)
+                self.seenAcceptedFriendshipIds = currentIds
+
+                if !newIds.isEmpty {
+                    // The acceptor is the requestee (the person this user had requested).
+                    let newlyAccepted = friendships.filter { newIds.contains($0.id) }
+                    for fr in newlyAccepted.prefix(3) {
+                        Task {
+                            let user = try? await self.users.fetchUser(by: fr.requesteeId)
+                            let name = user?.name.firstNameOnly ?? "Your friend"
+                            NotificationManager.shared.sendNotification(
+                                title: "Friend request accepted! 🎉",
+                                body: "\(name) accepted your friend request."
                             )
                         }
                     }
@@ -153,6 +204,10 @@ final class FriendsViewModel: ObservableObject {
         incomingListener = nil
         primedIncoming = false
         seenIncomingFriendshipIds = []
+        acceptedListener?.remove()
+        acceptedListener = nil
+        primedAccepted = false
+        seenAcceptedFriendshipIds = []
     }
     
     @MainActor

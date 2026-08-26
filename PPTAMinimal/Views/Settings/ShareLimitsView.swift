@@ -317,12 +317,6 @@ struct ShareLimitsView: View {
             }
             .padding()
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.userDidTakeScreenshotNotification)) { _ in
-            NotificationManager.shared.showInAppMessage(
-                title: "Screenshot saved",
-                body: "Send it to your coaches so they know your rules."
-            )
-        }
     }
 
     private var screenshotTip: some View {

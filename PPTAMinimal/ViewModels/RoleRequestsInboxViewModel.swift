@@ -126,9 +126,8 @@ final class RoleRequestsInboxViewModel: ObservableObject {
 
         if didPrimeListener, let firstNewId = newlyAdded.first,
            let pair = pairs.first(where: { $0.id == firstNewId }) {
-            let title = "New role request"
+            let title = "New role request! 🤝"
             let body = roleRequestMessage(from: pair.user.name, role: pair.request.role)
-            NotificationManager.shared.showInAppMessage(title: title, body: body, dismissAfter: 4)
             NotificationManager.shared.sendNotification(title: title, body: body)
         }
 
@@ -138,11 +137,12 @@ final class RoleRequestsInboxViewModel: ObservableObject {
     }
 
     private func roleRequestMessage(from name: String, role: RoleRequestRole) -> String {
+        let first = name.firstNameOnly
         switch role {
         case .coach:
-            return "\(name) wants to be your coach."
+            return "\(first) wants to be your coach."
         case .trainee:
-            return "\(name) wants to be your trainee."
+            return "\(first) wants to be your trainee."
         }
     }
 }

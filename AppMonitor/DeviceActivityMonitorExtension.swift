@@ -68,9 +68,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 store.shield.applications = settings.applications.applicationTokens
                 DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
                 LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
-                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .snoozeEnded)
                 scheduleLocalNotification(
-                    title: "Time's up",
+                    title: "Snoozed Lock Ended! 🔒",
                     body: "Your \(UnlockGrace.durationMinutes) minutes are up — your apps are locked again."
                 )
                 return
@@ -81,20 +81,20 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // care about the limit being hit, not the countdown toward it.
             if event == LimitEvent.halfway {
                 scheduleLocalNotification(
-                    title: "Halfway there",
-                    body: "You've used half of your daily screen time."
+                    title: "Halfway there! ⏳",
+                    body: "You've used half your daily screen time — pace yourself!"
                 )
                 return
             } else if event == LimitEvent.fiveMinutes {
                 scheduleLocalNotification(
-                    title: "5 minutes left",
-                    body: "You have 5 minutes of screen time left today."
+                    title: "5 minutes left! ⏳",
+                    body: "Just 5 minutes of screen time left today."
                 )
                 return
             } else if event == LimitEvent.twoMinutes {
                 scheduleLocalNotification(
-                    title: "2 minutes left",
-                    body: "You have 2 minutes of screen time left today."
+                    title: "2 minutes left! ⏳",
+                    body: "Only 2 minutes of screen time left today — wrap it up!"
                 )
                 return
             }
@@ -111,8 +111,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
                 sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
                 scheduleLocalNotification(
-                    title: "Time's up",
-                    body: "You've reached your daily limit. Your coaches have been notified."
+                    title: "Time's up! ⏰",
+                    body: "You've hit your daily limit — your coaches have been notified."
                 )
                 return
             case .hardcore:
@@ -121,10 +121,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
             // Persist locally for the app to pick up (streak reset), AND notify backend immediately.
             LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: Date())
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff)
+            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .hardcoreLimit)
             scheduleLocalNotification(
-                title: "Time's up",
-                body: "Your apps are locked for the rest of the day."
+                title: "Time's up, you're cut off! 🔒",
+                body: "Head to a coach's profile to ask them to snooze the lock."
             )
         }
     
@@ -157,11 +157,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     /// Sends a signed status update to Cloud Run so coaches can see changes almost immediately.
     /// \n- Important: This function must be resilient; failures should not block shielding.
-    private func sendStatusUpdate(uid: String?, status: TraineeStatus) {
+    /// - Parameter cause: optional lock attribution (see `LockCause`). When present it's appended to
+    ///   the signed message as `uid|status|ts|cause`, matching the server's reconstruction. The
+    ///   extension never has a `by` (no coach acts from here), so only `cause` is carried.
+    private func sendStatusUpdate(uid: String?, status: TraineeStatus, cause: LockCause? = nil) {
         guard let uid, !uid.isEmpty else { return }
-        
+
         let ts = Int(Date().timeIntervalSince1970)
-        let msg = "\(uid)|\(status.rawValue)|\(ts)"
+        var msg = "\(uid)|\(status.rawValue)|\(ts)"
+        if let cause { msg += "|\(cause.rawValue)" }
         let key = SymmetricKey(data: Data(Self.sharedSecret.utf8))
         let sig = HMAC<SHA256>
             .authenticationCode(for: msg.data(using: .utf8)!, using: key)
@@ -171,12 +175,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         var req = URLRequest(url: Self.statusUpdateURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "uid": uid,
             "status": status.rawValue,
             "ts": ts,
             "sig": sig
         ]
+        if let cause { body["cause"] = cause.rawValue }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         // Fire-and-forget. Do not block DeviceActivity callbacks.

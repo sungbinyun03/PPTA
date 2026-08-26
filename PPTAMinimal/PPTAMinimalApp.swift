@@ -63,10 +63,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             notification["by"] as? String != nil
         {
             // Prefer resolved display name; fall back to UID if server didn't include it.
-            let coachName = (notification["byName"] as? String) ?? "Your coach"
+            let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
+            let coachUID = notification["by"] as? String
             print("!!!! Unlock notification received. Coach: \(coachName)")
             Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteUnlock(from: coachName)
+                DeviceActivityManager.shared.handleRemoteUnlock(from: coachName, coachUID: coachUID)
                 completionHandler(.newData)
             }
             return
@@ -76,10 +77,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let type = notification["type"] as? String, type == "lock",
             notification["by"] as? String != nil
         {
-            let coachName = (notification["byName"] as? String) ?? "Your coach"
+            let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
+            let coachUID = notification["by"] as? String
             print("!!!! Lock notification received. Coach: \(coachName)")
             Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteLock(from: coachName)
+                DeviceActivityManager.shared.handleRemoteLock(from: coachName, coachUID: coachUID)
                 completionHandler(.newData)
             }
             return
@@ -89,33 +91,56 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let type = notification["type"] as? String, type == "traineeStatus",
             let status = notification["status"] as? String
         {
-            let traineeName = notification["traineeName"] as? String ?? "Your trainee"
-            let body: String = {
+            // First names only — the server sends full display names, but "Damien Koh's lock has
+            // been snoozed!" runs long in a title.
+            let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
+            let cause = notification["cause"] as? String
+            let byUID = notification["by"] as? String
+            let byName = (notification["byName"] as? String)?.firstNameOnly ?? "A coach"
+            // The fan-out reaches every coach, including the one who acted. Show them "You…".
+            let actedBySelf = byUID != nil && byUID == Auth.auth().currentUser?.uid
+
+            // Title = "{trainee} <short event>"; body elaborates (who/why). `nil` → no notification
+            // (allClear is the silent daily reset — the coach's Status Center refreshes from Firestore).
+            let content: (title: String, body: String)? = {
                 switch status {
                 case TraineeStatus.attentionNeeded.rawValue:
-                    return "\(traineeName) is approaching their screen time limit."
+                    // Standard-only: hitting the limit in Hardcore goes straight to cutOff.
+                    return ("\(traineeName) hit their time limit! 👀", "Go ahead and cut them off!")
                 case TraineeStatus.cutOff.rawValue:
-                    return "\(traineeName) has hit their screen time limit."
+                    switch cause {
+                    case LockCause.hardcoreLimit.rawValue:
+                        return ("\(traineeName) has been locked! 🔒", "They hit their limit — their apps locked automatically.")
+                    case LockCause.coach.rawValue:
+                        return ("\(traineeName) has been locked! 🔒",
+                                actedBySelf ? "You cut off their apps." : "\(byName) cut off their apps.")
+                    case LockCause.snoozeEnded.rawValue:
+                        return ("\(traineeName) has been locked! 🔒", "Their snooze ran out — they're locked again.")
+                    default:
+                        return ("\(traineeName) has been locked! 🔒", "Their apps are now locked.")
+                    }
+                case TraineeStatus.snoozedLock.rawValue:
+                    return ("\(traineeName)'s lock has been snoozed! ⏳",
+                            actedBySelf ? "You gave them 10 more minutes." : "\(byName) gave them 10 more minutes.")
                 case TraineeStatus.allClear.rawValue:
-                    return "\(traineeName) is back on track."
+                    return nil
                 default:
-                    return "\(traineeName) has a status update."
+                    return ("Accountability update", "\(traineeName) has a status update.")
                 }
             }()
-            NotificationManager.shared.sendNotification(
-                title: "Accountability update",
-                body: body
-            )
+            if let content {
+                NotificationManager.shared.sendNotification(title: content.title, body: content.body)
+            }
             completionHandler(.newData)
             return
         }
 
         if let type = notification["type"] as? String, type == "roleRequestReceived" {
-            let name = notification["requesterName"] as? String ?? "Someone"
+            let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
             let role = notification["role"] as? String ?? "coach"
             let roleLabel = role == "trainee" ? "trainee" : "coach"
             NotificationManager.shared.sendNotification(
-                title: "New role request",
+                title: "New role request! 🤝",
                 body: "\(name) wants to be your \(roleLabel)."
             )
             completionHandler(.newData)
@@ -135,11 +160,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
 
         if let type = notification["type"] as? String, type == "roleRequestAccepted" {
-            let name = notification["acceptorName"] as? String ?? "Your friend"
+            let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
             let role = notification["role"] as? String ?? "coach"
             let roleLabel = role == "trainee" ? "trainee" : "coach"
             NotificationManager.shared.sendNotification(
-                title: "Request accepted",
+                title: "Request accepted! 🎉",
                 body: "\(name) accepted your \(roleLabel) request."
             )
             completionHandler(.newData)
