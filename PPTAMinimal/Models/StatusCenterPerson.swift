@@ -34,6 +34,10 @@ struct StatusCenterPerson: Identifiable, Equatable {
     let pressureLevel: PressureLevel
     let lockedByName: String?
 
+    /// True when this trainee, while cut off, has asked to have their lock snoozed. Only meaningful
+    /// alongside `traineeStatus == .cutOff` — callers gate on that. Defaulted for existing sites.
+    var isRequestingSnooze: Bool = false
+
     /// Apps this person is monitoring, if they opted into sharing them. Defaulted so existing
     /// construction sites are unaffected; empty means "not shared" or "none learned yet".
     var monitoredAppNames: [String] = []
@@ -51,6 +55,7 @@ struct StatusCenterPerson: Identifiable, Equatable {
             timeLimitMinutes: timeLimitMinutes,
             pressureLevel: pressureLevel,
             lockedByName: lockedByName,
+            isRequestingSnooze: isRequestingSnooze,
             monitoredAppNames: monitoredAppNames
         )
     }

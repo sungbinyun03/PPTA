@@ -35,7 +35,9 @@ struct FriendProfileView: View {
     /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
     var monitoredAppNames: [String] = []
     var monitoredAppStats: [MonitoredAppStat] = []
-    var hasPendingMercyRequest: Bool = false
+    /// True when this trainee is asking to have their lock snoozed. Only surfaced while
+    /// `traineeStatus == .cutOff` (see `isAskingForMoreTime`), so a stale flag never shows.
+    var isRequestingSnooze: Bool = false
 
     // MARK: - Role request / relationship actions
     let coachAction: FriendProfileViewModel.ActionConfig
@@ -52,6 +54,13 @@ struct FriendProfileView: View {
     private let primaryColor = Color("primaryColor")
 
     // MARK: - Computed
+
+    /// The snooze request only means anything while they're actually cut off — gate on it so a
+    /// stale flag (e.g. after they turn tracking off) can't linger, mirroring how `lockedByName`
+    /// is only shown during a lock.
+    private var isAskingForMoreTime: Bool {
+        isRequestingSnooze && traineeStatus == .cutOff
+    }
 
     private var potentialFriendEmoji: String {
         let emojis = ["🧐", "😎", "🥸", "🤓"]
@@ -153,32 +162,15 @@ struct FriendProfileView: View {
 
                                     statusPill
                                 }
+
+                                // A bubble alongside the status pills rather than a big banner —
+                                // shows only while they're cut off and actually asking.
+                                if isAskingForMoreTime {
+                                    moreTimePill
+                                }
                             }
                         }
                         .padding(.top, 4)
-
-                        // Urgent and time-sensitive, so it sits above everything rather than
-                        // as a row buried inside the stats card.
-                        if hasPendingMercyRequest {
-                            HStack(spacing: 10) {
-                                Image(systemName: "hand.raised.fill")
-                                    .foregroundColor(.white)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Asking you for more time")
-                                        .font(.custom("BambiBold", size: 15))
-                                        .foregroundColor(.white)
-                                    Text("Snooze their lock to give them 10 minutes.")
-                                        .font(.custom("Satoshi-Variable", size: 12))
-                                        .foregroundColor(.white.opacity(0.9))
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 13)
-                            .background(Color.orange)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .padding(.horizontal, 20)
-                        }
 
                         // MARK: Lock / Unlock CTAs (coach actions)
                         if let onLock {
@@ -505,6 +497,20 @@ struct FriendProfileView: View {
             .padding(.vertical, 5)
             .background(color.opacity(0.1))
             .clipShape(Capsule())
+    }
+
+    private var moreTimePill: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "hand.raised.fill")
+                .font(.system(size: 10, weight: .semibold))
+            Text("Asking for more time")
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundColor(.orange)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(Capsule())
     }
 
     @ViewBuilder

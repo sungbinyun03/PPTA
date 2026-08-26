@@ -87,6 +87,12 @@ final class UserSettings: Codable {
     /// Display name of the coach who last remotely locked this user (nil when unlocked).
     var lockedByName: String? = nil
 
+    /// True when this user, while cut off, has asked their coaches to snooze the lock.
+    /// Set by the `statusUpdate` server on a `mercyRequest`; cleared by the server on any
+    /// non-`cutOff` status (snooze, new-day allClear, etc.). Only meaningful while `.cutOff` —
+    /// the UI gates on that, mirroring how `lockedByName` is only shown during a lock.
+    var isRequestingSnooze: Bool = false
+
     /// App names harvested by the shield extension (see `AppNameStore`), mirrored here so
     /// coaches can read them. Partial by nature: only apps the user has hit a lock screen for.
     var monitoredAppNames: [String] = []
@@ -104,6 +110,7 @@ final class UserSettings: Codable {
              startDailyStreakDate,
              isTracking, traineeStatus,
              lockedByUID, lockedByName,
+             isRequestingSnooze,
              monitoredAppNames, monitoredAppStats
     }
 
@@ -197,6 +204,7 @@ final class UserSettings: Codable {
         traineeStatus = (try? container.decode(TraineeStatus.self, forKey: .traineeStatus)) ?? .allClear
         lockedByUID = try? container.decode(String.self, forKey: .lockedByUID)
         lockedByName = try? container.decode(String.self, forKey: .lockedByName)
+        isRequestingSnooze = (try? container.decode(Bool.self, forKey: .isRequestingSnooze)) ?? false
         monitoredAppNames = (try? container.decode([String].self, forKey: .monitoredAppNames)) ?? []
         monitoredAppStats = (try? container.decode([MonitoredAppStat].self, forKey: .monitoredAppStats)) ?? []
     }
@@ -219,6 +227,7 @@ final class UserSettings: Codable {
         try container.encode(traineeStatus, forKey: .traineeStatus)
         try container.encodeIfPresent(lockedByUID, forKey: .lockedByUID)
         try container.encodeIfPresent(lockedByName, forKey: .lockedByName)
+        try container.encode(isRequestingSnooze, forKey: .isRequestingSnooze)
         try container.encode(monitoredAppNames, forKey: .monitoredAppNames)
         try container.encode(monitoredAppStats, forKey: .monitoredAppStats)
     }

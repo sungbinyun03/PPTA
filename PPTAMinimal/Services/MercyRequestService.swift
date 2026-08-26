@@ -19,12 +19,14 @@ enum MercyRequestService {
     /// handoff notification yesterday doesn't want it sent when they open the app today.
     private static let maxAge: TimeInterval = 60 * 60
 
-    // MARK: - Coach side
+    // MARK: - Coach side (vestigial)
+    //
+    // The snooze request now lives as `UserSettings.isRequestingSnooze` (set/cleared by the
+    // `statusUpdate` server, read live by coaches) — see NOTIFICATIONS/mercy plan. The
+    // `mercyRequests` collection is no longer written, so these two query an empty collection
+    // and are effectively no-ops. Kept only so the dead-code `StatusCenterView` still compiles.
 
     /// Whether `traineeId` has an open request addressed to `coachId`.
-    ///
-    /// A push can be missed or disabled, so the Firestore record is what makes a request
-    /// durable — this is how a coach still finds it later.
     static func hasPendingRequest(traineeId: String, coachId: String) async -> Bool {
         do {
             let snapshot = try await Firestore.firestore()
@@ -82,31 +84,17 @@ enum MercyRequestService {
             return
         }
 
-        // Push first so the coach hears about it now. Best-effort and fire-and-forget: the
-        // Firestore record below is the durable copy, so a missed or disabled notification
-        // doesn't lose the request.
+        // The signed push to `statusUpdate` is the request: the server raises
+        // `UserSettings.isRequestingSnooze` on the trainee's doc, which the trainee's coaches read
+        // live (and which clears itself on any non-cutOff status). No separate Firestore record
+        // needed — the flag on their settings is the durable, self-clearing source of truth.
         DeviceActivityManager.shared.sendMercyRequest(uid: uid)
 
-        do {
-            try await Firestore.firestore().collection("mercyRequests").addDocument(data: [
-                "traineeId": uid,
-                "traineeName": Auth.auth().currentUser?.displayName ?? "",
-                "coachIds": coachIds,
-                "status": "pending",
-                "createdAt": Timestamp(date: requestedAt)
-            ])
-            NotificationManager.shared.sendNotification(
-                title: "Request sent! 🙏",
-                body: coachIds.count == 1
-                    ? "Your coach has been asked for more time."
-                    : "Your coaches have been asked for more time."
-            )
-        } catch {
-            print("MercyRequestService: failed to file request: \(error)")
-            NotificationManager.shared.sendNotification(
-                title: "Couldn't send request 😕",
-                body: "Try again from your lock screen."
-            )
-        }
+        NotificationManager.shared.sendNotification(
+            title: "Request sent! 🙏",
+            body: coachIds.count == 1
+                ? "Your coach has been asked for more time."
+                : "Your coaches have been asked for more time."
+        )
     }
 }

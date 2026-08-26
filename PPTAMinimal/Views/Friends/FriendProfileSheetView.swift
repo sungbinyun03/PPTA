@@ -61,7 +61,7 @@ struct FriendProfileSheetView: View {
                     lockedByName: vm.lockedByName,
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
-                    hasPendingMercyRequest: vm.hasPendingMercyRequest,
+                    isRequestingSnooze: vm.isRequestingSnooze,
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
                     onCoachPrimary: { Task { await vm.performCoachPrimary() } },

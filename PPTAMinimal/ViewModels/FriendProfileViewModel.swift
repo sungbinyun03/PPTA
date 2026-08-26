@@ -31,6 +31,7 @@ final class FriendProfileViewModel: ObservableObject {
         var timeLimitMinutes: Int? = nil
         var pressureLevel: PressureLevel? = nil
         var lockedByName: String? = nil
+        var isRequestingSnooze: Bool? = nil
         var monitoredAppNames: [String]? = nil
     }
 
@@ -40,16 +41,12 @@ final class FriendProfileViewModel: ObservableObject {
     /// Per-app block counts over the trailing 30 days, sorted most-blocked first.
     @Published var monitoredAppStats: [MonitoredAppStat] = []
 
-    /// True when this trainee has an open "give me more time" request addressed to me.
-    @Published var hasPendingMercyRequest = false
-
-    /// Closes the trainee's open requests. Call after acting on one (e.g. releasing them),
-    /// so it stops showing as outstanding.
-    func resolveMercyRequest() async {
-        guard let uid = myUid else { return }
-        await MercyRequestService.resolveRequests(traineeId: otherUserId, coachId: uid)
-        hasPendingMercyRequest = false
-    }
+    /// True when this trainee, while cut off, is asking to have their lock snoozed. Read live from
+    /// their `userSettings`; the UI additionally gates on `traineeStatus == .cutOff`, so a stale
+    /// flag (e.g. after they turn tracking off) never shows. Cleared server-side on any non-cutOff
+    /// status, so no explicit "resolve" call is needed — snoozing them flips their status and this
+    /// with it.
+    @Published var isRequestingSnooze = false
 
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -106,6 +103,7 @@ final class FriendProfileViewModel: ObservableObject {
         if let timeLimitMinutes = snapshot.timeLimitMinutes { self.timeLimitMinutes = timeLimitMinutes }
         if let pressureLevel = snapshot.pressureLevel { self.pressureLevel = pressureLevel }
         self.lockedByName = snapshot.lockedByName
+        if let isRequestingSnooze = snapshot.isRequestingSnooze { self.isRequestingSnooze = isRequestingSnooze }
         if let monitoredAppNames = snapshot.monitoredAppNames { self.monitoredAppNames = monitoredAppNames }
     }
 
@@ -153,15 +151,12 @@ final class FriendProfileViewModel: ObservableObject {
             monitoredAppNames = otherSettings?.monitoredAppNames ?? []
             monitoredAppStats = otherSettings?.monitoredAppStats ?? []
 
-            // Only meaningful when I coach them — a request is addressed to their coaches.
-            if mySettings.coachIds.contains(otherUserId) == false,
-               mySettings.traineeIds.contains(otherUserId) {
-                hasPendingMercyRequest = await MercyRequestService.hasPendingRequest(
-                    traineeId: otherUserId,
-                    coachId: uid
-                )
+            // Only meaningful when I coach them — the snooze request is addressed to their coaches.
+            // The view additionally gates on `traineeStatus == .cutOff`, so a stale flag never shows.
+            if mySettings.traineeIds.contains(otherUserId) {
+                isRequestingSnooze = otherSettings?.isRequestingSnooze ?? false
             } else {
-                hasPendingMercyRequest = false
+                isRequestingSnooze = false
             }
 
             // Friends-only policy (client-side gating; server enforces too)
