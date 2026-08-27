@@ -35,9 +35,14 @@ struct FriendProfileView: View {
     /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
     var monitoredAppNames: [String] = []
     var monitoredAppStats: [MonitoredAppStat] = []
-    /// True when this trainee is asking to have their lock snoozed. Only surfaced while
-    /// `traineeStatus == .cutOff` (see `isAskingForMoreTime`), so a stale flag never shows.
-    var isRequestingSnooze: Bool = false
+    /// (Coach viewing trainee) True when this trainee is asking **me** to snooze their lock. Only
+    /// surfaced while `traineeStatus == .cutOff` (see `isAskingForMoreTime`), so a stale flag never shows.
+    var isRequestingSnoozeFromMe: Bool = false
+
+    /// (Trainee viewing coach) Non-nil when I'm cut off and this person is my coach — shows the
+    /// "Request to snooze lock" button. `hasRequestedSnooze` drives its "Requested" disabled state.
+    var onRequestSnooze: (() -> Void)? = nil
+    var hasRequestedSnooze: Bool = false
 
     // MARK: - Role request / relationship actions
     let coachAction: FriendProfileViewModel.ActionConfig
@@ -59,7 +64,13 @@ struct FriendProfileView: View {
     /// stale flag (e.g. after they turn tracking off) can't linger, mirroring how `lockedByName`
     /// is only shown during a lock.
     private var isAskingForMoreTime: Bool {
-        isRequestingSnooze && traineeStatus == .cutOff
+        isRequestingSnoozeFromMe && traineeStatus == .cutOff
+    }
+
+    /// The snooze-lock status colour, reused for both the coach's Snooze button and the trainee's
+    /// Request button so "snooze" reads the same blue everywhere.
+    private var snoozeBlue: Color {
+        TraineeStatus.snoozedLock.ringColor ?? .blue
     }
 
     private var potentialFriendEmoji: String {
@@ -202,10 +213,29 @@ struct FriendProfileView: View {
                                 .foregroundColor(isSnoozed ? .gray : .white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 13)
-                                .background(isSnoozed ? Color(.systemGray5) : primaryColor)
+                                .background(isSnoozed ? Color(.systemGray5) : snoozeBlue)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }
                             .disabled(isSnoozed)
+                            .padding(.horizontal, 20)
+                        }
+
+                        // Trainee viewing their coach, while cut off: ask this specific coach to snooze.
+                        if let onRequestSnooze {
+                            Button { onRequestSnooze() } label: {
+                                HStack {
+                                    Text(hasRequestedSnooze ? "Snooze request sent" : "Request to Snooze Lock for 10 Min")
+                                        .font(.system(size: 15, weight: .semibold))
+                                    Spacer()
+                                    Image(systemName: hasRequestedSnooze ? "checkmark" : "hand.raised.fill")
+                                }
+                                .foregroundColor(hasRequestedSnooze ? .gray : .white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 13)
+                                .background(hasRequestedSnooze ? Color(.systemGray5) : snoozeBlue)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+                            .disabled(hasRequestedSnooze)
                             .padding(.horizontal, 20)
                         }
 

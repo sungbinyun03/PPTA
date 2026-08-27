@@ -292,8 +292,8 @@ class DeviceActivityManager {
     /// Rides the existing `statusUpdate` endpoint rather than a new service: it already
     /// resolves `coachIds` and fans out FCM. The server does **not** write any status for
     /// this type — a trainee asking is not a trainee deciding — it only notifies.
-    func sendMercyRequest(uid: String?) {
-        postToStatusUpdate(uid: uid, status: .cutOff, type: "mercyRequest")
+    func sendMercyRequest(uid: String?, targetCoach: String) {
+        postToStatusUpdate(uid: uid, status: .cutOff, type: "mercyRequest", targetCoach: targetCoach)
     }
 
     /// What changed in a trainee's setup, for the coach-facing push copy.
@@ -332,13 +332,17 @@ class DeviceActivityManager {
         type: String?,
         cause: LockCause? = nil,
         by: String? = nil,
+        targetCoach: String? = nil,
         extra: [String: String] = [:]
     ) {
         guard let uid, !uid.isEmpty else { return }
 
         let ts = Int(Date().timeIntervalSince1970)
         var msg = "\(uid)|\(status.rawValue)|\(ts)"
+        // Order must match the server's reconstruction: type, then targetCoach (mercy only), then
+        // cause/by (status only). Absent fields are omitted on both sides.
         if let type { msg += "|\(type)" }
+        if let targetCoach, !targetCoach.isEmpty { msg += "|\(targetCoach)" }
         if let cause { msg += "|\(cause.rawValue)" }
         if let by, !by.isEmpty { msg += "|\(by)" }
 
@@ -358,6 +362,7 @@ class DeviceActivityManager {
             "sig": sig
         ]
         if let type { body["type"] = type }
+        if let targetCoach, !targetCoach.isEmpty { body["targetCoach"] = targetCoach }
         if let cause { body["cause"] = cause.rawValue }
         if let by, !by.isEmpty { body["by"] = by }
         for (key, value) in extra { body[key] = value }

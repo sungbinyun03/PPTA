@@ -239,9 +239,6 @@ struct PPTAMinimalApp: App {
             guard newPhase == .active, viewModel.userSession != nil else { return }
             Task { @MainActor in
                 await UserSettingsManager.shared.applyPendingStatusIfNeeded()
-                // Files any "ask my coach" request raised from the shield while the app
-                // was closed — the extension can't reach Firestore itself.
-                await MercyRequestService.filePendingRequestIfNeeded()
                 // Names accrue in the App Group whenever a shield is drawn, which can be
                 // long after the user's last save.
                 UserSettingsManager.shared.refreshSharedAppStatsIfNeeded()

@@ -50,10 +50,11 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
 
         case .secondaryButtonPressed:
-            MercyRequestStore.record()
+            // A shield extension can't open the app or show UI. Post a notification whose tap opens
+            // PPTA to Home, where the app prompts the trainee to pick a coach and request a snooze.
+            // Nothing is sent from here — the request is made per-coach from that coach's profile.
             postHandoffNotification()
-            // `.defer` keeps the shield up: nothing has actually been unlocked, and only a
-            // coach can change that. Closing here would imply the request succeeded.
+            // `.defer` keeps the shield up: nothing has been unlocked, and only a coach can change that.
             completionHandler(.defer)
 
         @unknown default:
@@ -63,16 +64,16 @@ class ShieldActionExtension: ShieldActionDelegate {
         }
     }
 
-    /// The bridge back into the app. The request isn't filed until the user opens PPTA, so
-    /// this notification is doing real work, not just confirming.
+    /// The bridge back into the app: its tap opens PPTA (a shield extension can't launch the app
+    /// itself). The body tells the trainee where to go — open a coach's profile and request a snooze.
     private func postHandoffNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "Tap to ask your coach 🙏"
-        content.body = "Open PPTA to send your request for more time."
+        content.title = "Ask a coach for more time 🙏"
+        content.body = "Open a coach's profile to request a snoozed lock from them."
         content.sound = .default
 
         let request = UNNotificationRequest(
-            identifier: "pptaMercyRequest",
+            identifier: ShieldHandoff.askCoachIdentifier,
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 0.5, repeats: false)
         )

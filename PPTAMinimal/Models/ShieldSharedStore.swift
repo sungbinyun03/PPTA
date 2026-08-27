@@ -137,28 +137,15 @@ struct ShieldContext: Codable {
     }
 }
 
-// MARK: - Mercy requests
+// MARK: - Shield "Ask my coach" handoff
 
-/// A trainee's "give me more time" request, raised from the shield's secondary button.
-///
-/// The shield action extension can't reach Firestore, so it drops a marker here and posts a
-/// local notification. The main app picks it up on next foreground and actually files it.
-enum MercyRequestStore {
-    private static var suite: UserDefaults? { SharedDefaults.suite }
-
-    private static let key = "shield.pendingMercyRequest"
-
-    static func record(at date: Date = Date()) {
-        suite?.set(date, forKey: key)
-    }
-
-    /// Returns the pending request's timestamp and clears it, mirroring
-    /// `LocalSettingsStore.consumePendingStatus()`.
-    static func consume() -> Date? {
-        guard let date = suite?.object(forKey: key) as? Date else { return nil }
-        suite?.removeObject(forKey: key)
-        return date
-    }
+/// Identifier for the local notification the shield action extension posts when a trainee taps
+/// "Ask my coach for more time." A shield extension can't open the app itself, so the notification's
+/// *tap* is the bridge in; its body self-describes ("open a coach's profile to request a snooze"), so
+/// no in-app handling is needed. Defined here because both the app and the `PPTAShieldAction` target
+/// compile this file.
+enum ShieldHandoff {
+    static let askCoachIdentifier = "pptaAskCoach"
 }
 
 extension ShieldContext {

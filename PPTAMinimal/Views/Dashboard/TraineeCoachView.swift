@@ -13,6 +13,9 @@ struct TraineeCoachView: View {
     @State private var showTraineesInfo = false
     @State private var showAttentionInfo = false
     @State private var showCoachesInfo = false
+    @State private var showAskCoachInfo = false
+
+    private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -66,7 +69,7 @@ struct TraineeCoachView: View {
                                 name: trainee.name,
                                 profilePicUrl: trainee.profileImageURL?.absoluteString,
                                 showSetupWarning: status == .noStatus || trainee.timeLimitMinutes == 0,
-                                showSnoozeRequest: status == .cutOff && trainee.isRequestingSnooze
+                                showSnoozeRequest: status == .cutOff && trainee.isRequestingSnoozeFromMe
                             )
                         }
                         .buttonStyle(.plain)
@@ -88,6 +91,27 @@ struct TraineeCoachView: View {
                     .buttonStyle(.plain)
                     .popover(isPresented: $showCoachesInfo) {
                         Text("Add a friend, then tap their profile to request them as your Coach so they can help keep you on track.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(16)
+                            .frame(width: 260)
+                            .presentationCompactAdaptation(.popover)
+                    }
+                }
+                // While cut off, nudge the trainee to ask a coach for more time — shown even with no
+                // coaches (beside the "add a coach" warning above), where it points them to get one.
+                if viewModel.isCurrentUserCutOff {
+                    Button { showAskCoachInfo = true } label: {
+                        Image(systemName: "hand.raised.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 21, height: 21)
+                            .background(Circle().fill(snoozeBlue))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showAskCoachInfo) {
+                        Text("Open a coach's profile and tap Request to snooze your lock for 10 minutes.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)

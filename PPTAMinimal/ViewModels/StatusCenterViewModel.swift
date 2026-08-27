@@ -92,7 +92,7 @@ final class StatusCenterViewModel: ObservableObject {
                     timeLimitMinutes: p.timeLimitMinutes,
                     pressureLevel: p.pressureLevel,
                     lockedByName: p.lockedByName,
-                    isRequestingSnooze: p.isRequestingSnooze,
+                    isRequestingSnoozeFromMe: p.isRequestingSnoozeFromMe,
                     monitoredAppNames: p.monitoredAppNames
                 )
             }
@@ -122,7 +122,8 @@ final class StatusCenterViewModel: ObservableObject {
                     let isTracking = data["isTracking"] as? Bool ?? false
                     let effectiveStatus: TraineeStatus = isTracking ? newStatus : .noStatus
                     let lockedByName = data["lockedByName"] as? String
-                    let isRequestingSnooze = data["isRequestingSnooze"] as? Bool ?? false
+                    let requestedCoachIds = data["snoozeRequestedCoachIds"] as? [String] ?? []
+                    let isRequestingSnoozeFromMe = self.currentUserId.map(requestedCoachIds.contains) ?? false
 
                     // Update in-place without a full re-fetch.
                     if let idx = self.trainees.firstIndex(where: { $0.id == traineeId }) {
@@ -130,7 +131,7 @@ final class StatusCenterViewModel: ObservableObject {
                         let newLockedByName = lockedByName ?? existing.lockedByName
                         if existing.traineeStatus != effectiveStatus
                             || existing.lockedByName != newLockedByName
-                            || existing.isRequestingSnooze != isRequestingSnooze {
+                            || existing.isRequestingSnoozeFromMe != isRequestingSnoozeFromMe {
                             self.trainees[idx] = StatusCenterPerson(
                                 id: existing.id,
                                 name: existing.name,
@@ -142,7 +143,7 @@ final class StatusCenterViewModel: ObservableObject {
                                 timeLimitMinutes: existing.timeLimitMinutes,
                                 pressureLevel: existing.pressureLevel,
                                 lockedByName: newLockedByName,
-                                isRequestingSnooze: isRequestingSnooze
+                                isRequestingSnoozeFromMe: isRequestingSnoozeFromMe
                             )
                         }
                     }
@@ -215,7 +216,7 @@ final class StatusCenterViewModel: ObservableObject {
                         timeLimitMinutes: timeLimitMinutes,
                         pressureLevel: settings?.pressureLevel ?? .off,
                         lockedByName: settings?.lockedByName,
-                        isRequestingSnooze: settings?.isRequestingSnooze ?? false,
+                        isRequestingSnoozeFromMe: (settings?.snoozeRequestedCoachIds ?? []).contains(me),
                         monitoredAppNames: settings?.monitoredAppNames ?? []
                     )
                 }

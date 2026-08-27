@@ -61,7 +61,9 @@ struct FriendProfileSheetView: View {
                     lockedByName: vm.lockedByName,
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
-                    isRequestingSnooze: vm.isRequestingSnooze,
+                    isRequestingSnoozeFromMe: vm.isRequestingSnoozeFromMe,
+                    onRequestSnooze: makeRequestSnoozeActionIfNeeded(),
+                    hasRequestedSnooze: vm.iHaveRequestedSnoozeFromThem,
                     coachAction: vm.coachAction,
                     traineeAction: vm.traineeAction,
                     onCoachPrimary: { Task { await vm.performCoachPrimary() } },
@@ -111,6 +113,14 @@ struct FriendProfileSheetView: View {
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         guard let url = UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID) else { return nil }
         return { Task { await vm.performLock(url: url) } }
+    }
+
+    /// Trainee side: offer "Request to snooze" only when *I* am cut off and this person is my coach.
+    private func makeRequestSnoozeActionIfNeeded() -> (() -> Void)? {
+        guard vm.friendshipStatus == .isFriend else { return nil }
+        guard vm.isCoach else { return nil }   // other is my coach
+        guard vm.iAmCutOff else { return nil }
+        return { vm.requestSnooze() }
     }
 
     private func makeUnlockActionIfNeeded() -> (() -> Void)? {

@@ -31,7 +31,7 @@ final class FriendProfileViewModel: ObservableObject {
         var timeLimitMinutes: Int? = nil
         var pressureLevel: PressureLevel? = nil
         var lockedByName: String? = nil
-        var isRequestingSnooze: Bool? = nil
+        var isRequestingSnoozeFromMe: Bool? = nil
         var monitoredAppNames: [String]? = nil
     }
 
@@ -41,12 +41,29 @@ final class FriendProfileViewModel: ObservableObject {
     /// Per-app block counts over the trailing 30 days, sorted most-blocked first.
     @Published var monitoredAppStats: [MonitoredAppStat] = []
 
-    /// True when this trainee, while cut off, is asking to have their lock snoozed. Read live from
-    /// their `userSettings`; the UI additionally gates on `traineeStatus == .cutOff`, so a stale
-    /// flag (e.g. after they turn tracking off) never shows. Cleared server-side on any non-cutOff
-    /// status, so no explicit "resolve" call is needed — snoozing them flips their status and this
-    /// with it.
-    @Published var isRequestingSnooze = false
+    /// (Coach side) True when this trainee, while cut off, has asked **me** to snooze their lock —
+    /// my UID is in their `snoozeRequestedCoachIds`. The UI additionally gates on
+    /// `traineeStatus == .cutOff`. Cleared server-side on any non-cutOff status.
+    @Published var isRequestingSnoozeFromMe = false
+
+    /// (Trainee side) True when *I* am currently cut off — used to offer the "Request to snooze"
+    /// button on this person's profile when they're my coach.
+    @Published var iAmCutOff = false
+
+    /// (Trainee side) True when I've already asked **this** coach to snooze — my own
+    /// `snoozeRequestedCoachIds` contains their UID. Drives the button's "Requested" state.
+    @Published var iHaveRequestedSnoozeFromThem = false
+
+    /// Sends a per-coach snooze request to this person (my coach) and optimistically flips the
+    /// button to "Requested". The server arrayUnions this coach onto my settings and pushes only
+    /// to them; the next `refresh()` reads that back. We only flip the local `@Published` here —
+    /// no `UserSettingsManager` save, which would do a full-doc write and could clobber
+    /// server-set fields like `lockedByName`.
+    func requestSnooze() {
+        guard let uid = myUid, !iHaveRequestedSnoozeFromThem else { return }
+        DeviceActivityManager.shared.sendMercyRequest(uid: uid, targetCoach: otherUserId)
+        iHaveRequestedSnoozeFromThem = true
+    }
 
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -103,7 +120,7 @@ final class FriendProfileViewModel: ObservableObject {
         if let timeLimitMinutes = snapshot.timeLimitMinutes { self.timeLimitMinutes = timeLimitMinutes }
         if let pressureLevel = snapshot.pressureLevel { self.pressureLevel = pressureLevel }
         self.lockedByName = snapshot.lockedByName
-        if let isRequestingSnooze = snapshot.isRequestingSnooze { self.isRequestingSnooze = isRequestingSnooze }
+        if let isRequestingSnoozeFromMe = snapshot.isRequestingSnoozeFromMe { self.isRequestingSnoozeFromMe = isRequestingSnoozeFromMe }
         if let monitoredAppNames = snapshot.monitoredAppNames { self.monitoredAppNames = monitoredAppNames }
     }
 
@@ -151,13 +168,17 @@ final class FriendProfileViewModel: ObservableObject {
             monitoredAppNames = otherSettings?.monitoredAppNames ?? []
             monitoredAppStats = otherSettings?.monitoredAppStats ?? []
 
-            // Only meaningful when I coach them — the snooze request is addressed to their coaches.
-            // The view additionally gates on `traineeStatus == .cutOff`, so a stale flag never shows.
+            // Coach side: has this trainee asked *me* to snooze? Only when I coach them; the view
+            // also gates on `traineeStatus == .cutOff`, so a stale entry never shows.
             if mySettings.traineeIds.contains(otherUserId) {
-                isRequestingSnooze = otherSettings?.isRequestingSnooze ?? false
+                isRequestingSnoozeFromMe = (otherSettings?.snoozeRequestedCoachIds ?? []).contains(uid)
             } else {
-                isRequestingSnooze = false
+                isRequestingSnoozeFromMe = false
             }
+
+            // Trainee side: am I cut off, and have I already asked *this* coach (this person)?
+            iAmCutOff = mySettings.isTracking && mySettings.traineeStatus == .cutOff
+            iHaveRequestedSnoozeFromThem = mySettings.snoozeRequestedCoachIds.contains(otherUserId)
 
             // Friends-only policy (client-side gating; server enforces too)
             friendshipStatus = friends ? .isFriend : .notFriend

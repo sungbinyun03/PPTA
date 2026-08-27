@@ -87,7 +87,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             // Only offered when the user actually has coaches — PPTAShieldAction handles the
             // tap. Passing nil omits the button entirely.
             secondaryButtonLabel: context?.hasCoaches == true
-                ? ShieldConfiguration.Label(text: "Ask my coach for more time", color: .white)
+                ? ShieldConfiguration.Label(text: "Request a 10-minute snoozed lock", color: .white)
                 : nil
         )
     }
@@ -118,7 +118,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             lines.append("You're \(days) day\(days == 1 ? "" : "s") into your streak.")
         }
 
-        lines.append("Open PPTA to ask a coach for more time.")
+        lines.append("Open the app and open a coach's profile to request they snooze your lock for 10 minutes.")
         return lines.joined(separator: "\n")
     }
 
