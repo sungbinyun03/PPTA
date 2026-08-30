@@ -21,29 +21,32 @@ struct PressureLevelView: View {
                 .padding(.horizontal)
 
             VStack(spacing: 12) {
-                pressureCard(
+                PressureLevelCard(
                     level: PressureLevel.off,
                     title: "Off",
                     description: "No monitoring or pressure.\nTake a break :)",
                     backgroundColor: Color("primaryColor").opacity(0.08),
                     textColor: Color("primaryColor"),
-                    showStar: false
+                    showStar: false,
+                    selection: $draftPressureLevel
                 )
-                pressureCard(
+                PressureLevelCard(
                     level: PressureLevel.standard,
                     title: "Standard",
                     description: "Coaches can lock out\nTrainees when they exceed.",
                     backgroundColor: Color("primaryButtonColor"),
                     textColor: .white,
-                    showStar: true
+                    showStar: true,
+                    selection: $draftPressureLevel
                 )
-                pressureCard(
+                PressureLevelCard(
                     level: PressureLevel.hardcore,
                     title: "Hardcore",
                     description: "Trainees get locked\ninstantly when they exceed.",
                     backgroundColor: Color("primaryColor"),
                     textColor: .white,
-                    showStar: false
+                    showStar: false,
+                    selection: $draftPressureLevel
                 )
             }
             .padding(.horizontal)
@@ -68,55 +71,6 @@ struct PressureLevelView: View {
         .onAppear {
             loadFromUserSettings()
         }
-    }
-
-    @ViewBuilder
-    private func pressureCard(
-        level: PressureLevel,
-        title: String,
-        description: String,
-        backgroundColor: Color,
-        textColor: Color,
-        showStar: Bool
-    ) -> some View {
-        Button {
-            draftPressureLevel = level
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Circle()
-                    .stroke(Color.primary.opacity(textColor == .white ? 0.5 : 0.3), lineWidth: 2)
-                    .background(
-                        Circle()
-                            .fill(draftPressureLevel == level ? (textColor == .white ? Color.white : Color.primary) : Color.clear)
-                            .scaleEffect(draftPressureLevel == level ? 0.5 : 0)
-                    )
-                    .frame(width: 24, height: 24)
-                    .padding(.top, 2)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(textColor)
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundColor(textColor.opacity(0.9))
-                        .multilineTextAlignment(.leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if showStar {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                        .font(.title3)
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(backgroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
     }
 
     private func loadFromUserSettings() {

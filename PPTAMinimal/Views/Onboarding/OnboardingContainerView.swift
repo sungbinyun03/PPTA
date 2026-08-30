@@ -10,60 +10,56 @@ import SwiftUI
 struct OnboardingContainerView: View {
     @StateObject private var coordinator = OnboardingCoordinator()
     @EnvironmentObject var authViewModel: AuthViewModel
+
     @State private var showPhoneVerificationSheet = false
-    
+    @State private var didConfigure = false
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color(.systemBackground)
                     .ignoresSafeArea()
-                switch coordinator.currentStep {
-                case .welcome:
-                    WelcomeView(coordinator: coordinator)
-                case .createProfile:
-                    CreateProfileView(coordinator: coordinator)
-                case .enableTracking:
-                    EnableTrackingView(coordinator: coordinator)
-                case .enableNotifications:
-                    EnableNotificationsView(coordinator: coordinator)
-                case .findFriends:
-                    FindFriendsView(coordinator: coordinator)
-                case .completed:
-                    EmptyView()
-                }
+
+                step
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: coordinator.isGoingBack ? .leading : .trailing)
+                                .combined(with: .opacity),
+                            removal: .move(edge: coordinator.isGoingBack ? .trailing : .leading)
+                                .combined(with: .opacity)
+                        )
+                    )
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if coordinator.currentStep != .welcome && coordinator.currentStep != .completed {
-                        Button(action: {
+                    if coordinator.canGoBack {
+                        Button {
                             coordinator.goBack()
-                        }) {
+                        } label: {
                             Image(systemName: "chevron.left")
                                 .foregroundColor(Color("primaryColor"))
                         }
                     }
                 }
-                
+
                 // No global Skip: it marked onboarding complete without granting Screen Time,
-                // picking apps, or setting a limit, producing an account that looks set up
-                // but can't monitor anything.
+                // picking apps, or setting a limit, producing an account that looks set up but
+                // can't monitor anything. Only the final step is skippable, and it says so.
             }
         }
-        .onAppear {
-            // Only show phone sheet when we know the user has no phone (currentUser already loaded)
-            if authViewModel.userSession != nil,
-               let user = authViewModel.currentUser,
-               user.phoneNumber == nil {
-                showPhoneVerificationSheet = true
+        .onAppear(perform: configureIfPossible)
+        .onChange(of: authViewModel.currentUser) { _, _ in configureIfPossible() }
+        .onChange(of: coordinator.currentStep) { _, step in
+            if step == .completed {
+                authViewModel.markOnboardingComplete()
             }
-        }
-        .onChange(of: authViewModel.currentUser) { _, newUser in
-            guard authViewModel.userSession != nil else { return }
-            if newUser?.phoneNumber != nil {
-                showPhoneVerificationSheet = false
-            } else if newUser != nil {
+            // The phone number is what lets other people find this user by contact match, so it is
+            // asked for at the step where it matters. Previously this sheet could appear over any
+            // step — including Welcome — the moment `currentUser` loaded without a phone, with
+            // `interactiveDismissDisabled(true)` making it an unskippable wall.
+            if step == .findCoach, authViewModel.currentUser?.phoneNumber == nil {
                 showPhoneVerificationSheet = true
             }
         }
@@ -72,10 +68,41 @@ struct OnboardingContainerView: View {
                 .environmentObject(authViewModel)
                 .interactiveDismissDisabled(true)
         }
-        .onChange(of: coordinator.currentStep) { _, step in
-            if step == .completed {
-                authViewModel.markOnboardingComplete()
-            }
+    }
+
+    @ViewBuilder
+    private var step: some View {
+        switch coordinator.currentStep {
+        case .intro:
+            IntroKeyView(coordinator: coordinator)
+        case .profile:
+            CreateProfileView(coordinator: coordinator)
+        case .chooseApps:
+            ChooseAppsView(coordinator: coordinator)
+        case .yourRules:
+            YourRulesView(coordinator: coordinator)
+        case .findCoach:
+            FindCoachView(coordinator: coordinator)
+        case .completed:
+            EmptyView()
         }
     }
+
+    /// Decides whether the profile step is part of this run, and restores an abandoned run.
+    ///
+    /// Re-evaluated while still on the first screen because `currentUser` loads asynchronously —
+    /// a name arriving a moment after launch should still be able to drop the profile step. Once
+    /// past `.intro` the flow shape is fixed, so the page indicator can't change length mid-run.
+    private func configureIfPossible() {
+        guard !didConfigure || coordinator.currentStep == .intro else { return }
+        let name = authViewModel.currentUser?.name ?? ""
+        let hasDisplayName = !name.isEmpty && name != "Unknown"
+        didConfigure = authViewModel.currentUser != nil
+        coordinator.configure(hasDisplayName: hasDisplayName)
+    }
+}
+
+#Preview {
+    OnboardingContainerView()
+        .environmentObject(AuthViewModel())
 }

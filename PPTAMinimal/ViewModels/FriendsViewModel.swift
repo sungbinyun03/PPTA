@@ -89,6 +89,13 @@ final class FriendsViewModel: ObservableObject {
             self.friendProfileImageURLs = imageURLs
             self.incomingRequests = incomingPairs
             self.outgoingRequests = outgoingPairs
+
+            // Onboarding lets a user ask a not-yet-friend to coach them. The role request can't be
+            // sent until the friendship is accepted, so it waits in `PendingCoachRequestStore` —
+            // and this is the first place that knows the friendship landed. `acceptedListener`
+            // calls `refresh()` on exactly that transition, so the ask fires within a second or
+            // two of the other person tapping Accept.
+            await PendingCoachRequestStore.drain(acceptedFriendIds: Set(acceptedUserIds))
         } catch {
             self.errorMessage = error.localizedDescription
         }

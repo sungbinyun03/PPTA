@@ -242,6 +242,11 @@ struct PPTAMinimalApp: App {
                 // Names accrue in the App Group whenever a shield is drawn, which can be
                 // long after the user's last save.
                 UserSettingsManager.shared.refreshSharedAppStatsIfNeeded()
+                // Backstop for coach requests parked during onboarding. `FriendsViewModel` drains
+                // these too, but only while a view holding it is alive — a friendship accepted
+                // while the app was closed would otherwise sit unqueued until the user happened
+                // to open Friends.
+                await PendingCoachRequestStore.drainUsingCurrentFriendships()
             }
         }
     }

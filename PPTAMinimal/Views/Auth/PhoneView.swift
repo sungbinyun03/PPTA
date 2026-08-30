@@ -68,9 +68,10 @@ struct PhoneVerificationView: View {
             .padding(.top, 24)
 
             Image("onboarding-illustration-verify")
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .invertedForDarkMode()
+                .foregroundStyle(primaryColor)
                 .frame(maxHeight: 180)
                 .padding(.horizontal, 56)
 
