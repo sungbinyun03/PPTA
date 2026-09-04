@@ -14,6 +14,9 @@ struct ReportView: View {
     @State private var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     @State private var isRequestingPermission = false
     @State private var showPressureLevelInfo = false
+    /// Same key HomeView reads, so the expanded ring scopes to the same monitoring session as the
+    /// summary ring. Matches `DeviceActivityManager.sessionStartKey`.
+    @AppStorage("monitoringSessionStartTS") private var sessionStartTS: Double = 0
 
     private func requestScreenTimePermission() async {
         let center = AuthorizationCenter.shared
@@ -31,19 +34,24 @@ struct ReportView: View {
         authorizationStatus = center.authorizationStatus
     }
 
-    // Today with hourly segmentation — feeds the progress ring, per-app list, and hourly chart
+    // Today, full-day — feeds the progress ring and per-app list. The report extension scopes these
+    // figures to the current monitoring session via `RingSession` (baseline subtraction); a filter
+    // can't window sub-hour. **Must stay identical to `HomeView.summaryFilter`** so the two rings
+    // agree. `.daily` (one exact day bucket) rather than `.hourly`; if the hourly bar chart in
+    // `TotalActivityView` is ever re-enabled, switch both filters back to `.hourly` together.
+    // `.id(sessionStartTS)` below forces a fresh baseline-capture render when the session (re)starts.
     private var currentFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
         if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
             return DeviceActivityFilter(
-                segment: .hourly(during: todayInterval),
+                segment: .daily(during: todayInterval),
                 users: .all,
                 devices: .init([.iPhone, .iPad])
             )
         }
         return DeviceActivityFilter(
-            segment: .hourly(during: todayInterval),
+            segment: .daily(during: todayInterval),
             users: .all,
             devices: .init([.iPhone]),
             applications: selection.applicationTokens,
@@ -124,7 +132,11 @@ struct ReportView: View {
                     // Last 7 days chart — not needed right now but may be useful in the future
                     // DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
                     //     .frame(height: 140)
+                    // `.id(sessionStartTS)` forces a fresh query when the monitoring session
+                    // (re)starts, so this expanded ring/list reflects the current session rather
+                    // than a cached full-day render. Matches the Home summary ring.
                     DeviceActivityReport(.init("Total Activity"), filter: currentFilter)
+                        .id(sessionStartTS)
                         .frame(minHeight: 500)
                 }
             } else if isRequestingPermission {

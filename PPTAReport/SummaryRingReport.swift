@@ -18,17 +18,22 @@ struct SummaryRingReport: DeviceActivityReportScene {
     func makeConfiguration(
         representing data: DeviceActivityResults<DeviceActivityData>
     ) async -> ActivityReport {
-        var totalDuration: TimeInterval = 0
+        // Collect per-app day totals (keyed like TotalActivityReport) so `RingSession` can subtract
+        // its per-app baseline snapshot; the session total is the sum of what's left.
+        var dayApps: [String: TimeInterval] = [:]
 
         for await eachData in data {
             for await segment in eachData.activitySegments {
                 for await category in segment.categories {
                     for await app in category.applications {
-                        totalDuration += app.totalActivityDuration
+                        let bundle = app.application.bundleIdentifier ?? "unknown-\(app.application.token?.hashValue ?? 0)"
+                        dayApps[bundle, default: 0] += app.totalActivityDuration
                     }
                 }
             }
         }
+
+        let totalDuration = RingSession.scoped(dayApps: dayApps).values.reduce(0, +)
 
         struct PartialSettings: Decodable {
             var thresholdHour: Int?
@@ -57,7 +62,6 @@ struct SummaryRingReport: DeviceActivityReportScene {
             totalDuration: totalDuration,
             limitMinutes: limitMinutes,
             apps: [],
-            hourlyBuckets: [],
             traineeStatus: traineeStatus,
             isTracking: isTracking,
             hasViableAppLimits: hasViableAppLimits

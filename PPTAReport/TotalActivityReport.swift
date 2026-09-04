@@ -24,14 +24,10 @@ struct TotalActivityReport: DeviceActivityReportScene {
         print("TotalActivityReport.makeConfiguration: invoked")
 
         var appData: [String: (name: String, duration: TimeInterval, pickups: Int, notifications: Int, token: ApplicationToken?)] = [:]
-        var hourlyTotals = [TimeInterval](repeating: 0, count: 24)
         var totalDuration: TimeInterval = 0
 
         for await eachData in data {
             for await segment in eachData.activitySegments {
-                let hour = Calendar.current.component(.hour, from: segment.dateInterval.start)
-                guard hour < 24 else { continue }
-
                 for await category in segment.categories {
                     for await app in category.applications {
                         let bundle = app.application.bundleIdentifier ?? "unknown-\(app.application.token?.hashValue ?? 0)"
@@ -52,18 +48,22 @@ struct TotalActivityReport: DeviceActivityReportScene {
                             )
                         }
 
-                        hourlyTotals[hour] += d
                         totalDuration += d
                     }
                 }
             }
         }
 
+        // Scope per-app day totals to the current monitoring session (subtract the baseline snapshot),
+        // then rebuild the list and total from the scoped values so the ring and the per-app rows agree.
+        let scopedDurations = RingSession.scoped(dayApps: appData.mapValues { $0.duration })
+        totalDuration = scopedDurations.values.reduce(0, +)
+
         var list = appData.map { bundle, info in
             AppDeviceActivity(
                 id: bundle,
                 displayName: info.name,
-                duration: info.duration,
+                duration: scopedDurations[bundle] ?? 0,
                 numberOfPickups: info.pickups,
                 numberOfNotifications: info.notifications,
                 token: info.token
@@ -107,13 +107,10 @@ struct TotalActivityReport: DeviceActivityReportScene {
             }
         }
 
-        let hourlyBuckets = hourlyTotals.enumerated().map { HourlyBucket(id: $0.offset, duration: $0.element) }
-
         return ActivityReport(
             totalDuration: totalDuration,
             limitMinutes: limitMinutes,
             apps: list,
-            hourlyBuckets: hourlyBuckets,
             traineeStatus: traineeStatus,
             isTracking: isTracking,
             hasViableAppLimits: hasViableAppLimits

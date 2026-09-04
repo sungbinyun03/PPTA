@@ -34,10 +34,6 @@ struct TotalActivityView: View {
         activityReport.apps.sorted { $0.duration > $1.duration }
     }
 
-    private var hasHourlyData: Bool {
-        activityReport.hourlyBuckets.contains { $0.duration > 0 }
-    }
-
     var body: some View {
         List {
             Section {
@@ -54,17 +50,6 @@ struct TotalActivityView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
-
-            // Hourly breakdown — not needed right now but may be useful in the future
-            // if hasHourlyData {
-            //     Section {
-            //         HourlyBarChart(buckets: activityReport.hourlyBuckets, primary: primary)
-            //             .listRowBackground(Color.clear)
-            //             .listRowSeparator(.hidden)
-            //     } header: {
-            //         ReportSectionHeader("HOURLY BREAKDOWN", primary: primary)
-            //     }
-            // }
 
             if !sortedApps.isEmpty {
                 Section {
@@ -175,48 +160,6 @@ struct ProgressRingView: View {
                     .fontWeight(.medium)
                     .foregroundColor(primary.opacity(0.4))
             }
-        }
-    }
-}
-
-// MARK: - Hourly Bar Chart
-
-struct HourlyBarChart: View {
-    let buckets: [HourlyBucket]
-    let primary: Color
-
-    private var maxDuration: TimeInterval {
-        buckets.map(\.duration).max() ?? 1
-    }
-
-    private var currentHour: Int {
-        Calendar.current.component(.hour, from: .now)
-    }
-
-    var body: some View {
-        VStack(spacing: 6) {
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(buckets) { bucket in
-                    let proportion = maxDuration > 0 ? CGFloat(bucket.duration / maxDuration) : 0
-                    let isNow = bucket.id == currentHour
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(isNow ? primary : primary.opacity(0.25))
-                        .frame(height: max(proportion * 52, bucket.duration > 0 ? 3 : 0))
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: 52)
-
-            HStack {
-                Text("12a").frame(maxWidth: .infinity, alignment: .leading)
-                Text("6a").frame(maxWidth: .infinity)
-                Text("12p").frame(maxWidth: .infinity)
-                Text("6p").frame(maxWidth: .infinity)
-                Text("11p").frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .font(.custom("Satoshi-Variable", size: 10))
-            .fontWeight(.medium)
-            .foregroundColor(.secondary)
         }
     }
 }

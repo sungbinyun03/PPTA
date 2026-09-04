@@ -93,11 +93,50 @@ class DeviceActivityManager {
     
     /// Deployed `statusUpdate` Cloud Run URL.
     private static let statusUpdateURL = URL(string: "https://statusupdate-538124351649.us-central1.run.app")!
-    
+
+    // MARK: - Monitoring session token
+
+    /// Key holding the current monitoring session's start (as `timeIntervalSince1970`). Stamped
+    /// whenever the daily activity actually (re)starts — the exact moment the threshold counter
+    /// resets — and cleared on teardown / pressure Off.
+    ///
+    /// Written to **both** `UserDefaults.standard` (drives `@AppStorage` reactivity + the report's
+    /// `.id()` refresh in the app) **and** the App Group (so the report *extension* can read it as the
+    /// baseline session token — see `RingSession`). `0` / absent means no active session.
+    static let sessionStartKey = "monitoringSessionStartTS"
+
+    private static let appGroupSuite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+
+    /// Baseline the report extension writes; cleared here so a new session recaptures cleanly.
+    private static let ringBaselineKey = "ringSessionBaseline"
+
+    /// Stamp the current session token to both stores. Called on every real monitoring (re)start.
+    private static func stampSessionStart() {
+        let ts = Date().timeIntervalSince1970
+        UserDefaults.standard.set(ts, forKey: sessionStartKey)
+        appGroupSuite?.set(ts, forKey: sessionStartKey)
+    }
+
+    /// Clear the session token + the extension's baseline (Off / teardown), so the ring falls back to
+    /// the full day and the next session captures a fresh baseline.
+    private static func clearSessionStart() {
+        UserDefaults.standard.removeObject(forKey: sessionStartKey)
+        appGroupSuite?.removeObject(forKey: sessionStartKey)
+        appGroupSuite?.removeObject(forKey: ringBaselineKey)
+    }
+
+    /// - Parameter resetSession: `true` for a **deliberate** (re)start the user asked for — pressure
+    ///   Off→On, an App Limits / Pressure Level save — which resets the threshold counter, so the ring
+    ///   should reset too (a fresh session baseline is stamped). `false` for an **incidental** re-arm
+    ///   (app relaunch / OS-dropped monitoring, same pressure level): the daily activity is re-armed
+    ///   but the existing session baseline is preserved, so today's earlier usage isn't hidden and the
+    ///   ring keeps counting from the real reset (or from midnight on a new day). The caller decides
+    ///   which via the `isMonitoringActive` flag (false ⇒ deliberate).
     func startDeviceActivityMonitoring(
         appTokens: FamilyActivitySelection,
         hour: Int,
         minute: Int,
+        resetSession: Bool = true,
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         let limitMinutes = hour * 60 + minute
@@ -134,6 +173,15 @@ class DeviceActivityManager {
                 during: schedule,
                 events: events
             )
+            // Stamp a new session baseline only for a deliberate reset (Off→On, App Limits / level
+            // save) — the threshold counter resets then, so the ring should too. Incidental re-arms
+            // (relaunch / OS re-arm) skip this so today's earlier usage isn't hidden. Writing standard
+            // defaults notifies the `@AppStorage` readers (re-render + forced report refresh); writing
+            // the App Group hands the token to the report extension.
+            if resetSession {
+                Self.stampSessionStart()
+            }
+
             print("Monitoring started. Activity: \(activityName.rawValue)")
             print("Schedule: \(schedule)")
             print("Limit: \(limitMinutes) min. Events: \(events.keys.map(\.rawValue).sorted())")
@@ -160,6 +208,9 @@ class DeviceActivityManager {
     /// account deletion) and for dropping to pressure level Off, where nothing should stay armed.
     func stopAllMonitoring() {
         deviceActivityCenter.stopMonitoring()
+        // No session is running once everything is torn down (Off / sign-out). Clearing lets the ring
+        // fall back to the full day rather than measuring from a stale, now-defunct session baseline.
+        Self.clearSessionStart()
         print("Stopped all device activity monitoring.")
     }
     

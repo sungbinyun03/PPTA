@@ -15,6 +15,9 @@ struct HomeView: View {
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     @State private var isReportViewPresented = false
     @State private var showPressureLevelInfo = false
+    /// Re-renders the ring when the monitoring session (re)starts. Value read via
+    /// `DeviceActivityManager.sessionDayInterval`; the key matches `sessionStartKey`.
+    @AppStorage("monitoringSessionStartTS") private var sessionStartTS: Double = 0
     private let previewMode: Bool
     
     init(previewMode: Bool = false) {
@@ -185,6 +188,12 @@ struct HomeView: View {
     
     private var summaryFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
+        // Full day; the report extension scopes to the current session via `RingSession` (baseline
+        // subtraction), since a filter can't window sub-hour. **Must stay identical to
+        // `ReportView.currentFilter`** — same `.daily` segment, interval, and device set — so the
+        // summary ring and the expanded ring compute the same per-app totals and baseline and agree to
+        // the second. `.daily` (one bucket = exact day total) rather than `.hourly` (24 buckets summed,
+        // which can round differently). `.id(sessionStartTS)` below forces the baseline-capture render.
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
         if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
             return DeviceActivityFilter(
@@ -251,7 +260,12 @@ struct HomeView: View {
 
                 Group {
                     if !previewMode {
+                        // `.id(sessionStartTS)` forces a brand-new report query whenever the
+                        // monitoring session (re)starts. DeviceActivityReport otherwise caches and
+                        // often won't re-query on a filter-interval change alone, which would leave
+                        // the ring showing the previous session's usage after a reset.
                         DeviceActivityReport(.init("Summary Ring"), filter: summaryFilter)
+                            .id(sessionStartTS)
                     } else {
                         Text("Preview mode")
                             .foregroundColor(.secondary)
@@ -321,11 +335,15 @@ struct HomeView: View {
         }
         print("Loaded apps:", UserSettingsManager.shared.userSettings.applications.applicationTokens)
         print("Threshold:", settings.thresholdHour, settings.thresholdMinutes)
-        // Otherwise, start fresh
+        // Otherwise, start fresh. `!flagSaysActive` distinguishes a deliberate (re)start — a Settings
+        // save or the Off branch cleared the flag first — from an incidental re-arm of an OS-dropped
+        // activity (flag still true). Only the former resets the ring's session baseline; the latter
+        // preserves it so a new day / relaunch doesn't zero out usage already logged today.
         DeviceActivityManager.shared.startDeviceActivityMonitoring(
             appTokens: settings.applications,
             hour: settings.thresholdHour,
-            minute: settings.thresholdMinutes
+            minute: settings.thresholdMinutes,
+            resetSession: !flagSaysActive
         ) { result in
             switch result {
             case .success:
