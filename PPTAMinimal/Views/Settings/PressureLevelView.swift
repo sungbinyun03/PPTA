@@ -88,6 +88,9 @@ struct PressureLevelView: View {
 
         userSettingsManager.userSettings.pressureLevel = draftPressureLevel
         userSettingsManager.saveSettings(userSettingsManager.userSettings)
+        // A pressure-level change resets the DeviceActivity threshold; rebase the screen-time ring to
+        // now so it matches (for the rest of today only — see `RingSession`).
+        DeviceActivityManager.markRingReset()
         showConfirmedAlert = true
     }
 }

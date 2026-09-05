@@ -212,7 +212,18 @@ struct AppLimitsView: View {
         settings.applications = selection
         settings.thresholdHour = draftThresholdHour
         settings.thresholdMinutes = draftThresholdMinutes
+        // Changing App Limits restarts monitoring (threshold → 0), so start the status fresh too —
+        // mirroring pressure Off→On (which `saveSettings` handles via its noStatus→allClear path). Only
+        // while tracking; a `.cutOff` user can't reach here (the `isLocked` guard above blocks the
+        // save), so this only ever clears a stale `allClear`/`attentionNeeded`, never a coach lock.
+        // The extension re-escalates if they exceed the new limit again.
+        if settings.pressureLevel != PressureLevel.off {
+            settings.traineeStatus = .allClear
+        }
         userSettingsManager.saveSettings(settings)
+        // Rebase the screen-time ring to now so it matches the reset threshold (today only — see
+        // `RingSession`).
+        DeviceActivityManager.markRingReset()
         return true
     }
 

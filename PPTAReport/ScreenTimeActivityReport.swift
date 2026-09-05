@@ -38,49 +38,57 @@ struct DailyBucket: Identifiable {
 
 // MARK: - Session scoping
 
-/// Scopes full-day per-app usage to the *current monitoring session*, so the ring shows "usage since
-/// this session began" rather than the whole day. When a trainee turns pressure Off→On (or saves App
-/// Limits / changes level), the enforcement threshold resets to 0; this makes the ring match.
+/// Reduces full-day per-app usage to "usage since today's last settings change" — but **only on days
+/// that had one**. On any other day the input is returned unchanged, so the ring shows the plain
+/// full-day API value, which self-resets at midnight.
 ///
-/// Only the report extension can read raw Screen Time totals, so the baseline snapshot is captured and
-/// subtracted here. The app stamps the session token (`monitoringSessionStartTS`) into the App Group on
-/// every monitoring (re)start; the first report render of a new session snapshots each app's day usage,
-/// and every render thereafter subtracts that snapshot. Because it subtracts two exact day totals (not
-/// hour buckets), it's sub-minute precise — unlike a `.hourly` filter window, which snaps to the hour.
+/// The app writes `ringResetAt` (a timestamp) into the App Group whenever the user saves App Limits or
+/// Pressure Level (`DeviceActivityManager.markRingReset()`). If that timestamp is from **today**, the
+/// first render after it snapshots each app's day usage as a baseline, and every render thereafter
+/// subtracts it — so the ring rebases to 0 at the change and climbs with new usage, matching the reset
+/// threshold. If `ringResetAt` is absent or from a prior day, no scoping happens.
+///
+/// This is deliberately decoupled from the monitoring start/stop lifecycle: relaunches and OS re-arms
+/// never reset the ring, which is what caused the old "ring reads 0 after launch" bug.
 enum RingSession {
     private static var suite: UserDefaults? { UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev") }
-    /// Written by the app (`DeviceActivityManager`) on each monitoring (re)start; 0/absent when Off.
-    private static let tokenKey = "monitoringSessionStartTS"
+    /// Timestamp of the most recent App Limits / Pressure Level save; 0/absent when never changed.
+    private static let resetKey = "ringResetAt"
     private static let baselineKey = "ringSessionBaseline"
 
     private struct Baseline: Codable {
-        var token: Double
+        var resetAt: Double
         var dayStart: Double
         var apps: [String: TimeInterval]
     }
 
-    /// Returns per-app durations reduced to the current session. Keyed by the same bundle id both
-    /// reports use. Returns the input unchanged when there is no active session (Off / token 0).
+    /// Returns per-app durations reduced to today's post-settings-change window, or unchanged when
+    /// there was no settings change today. Keyed by the same bundle id both reports use.
     static func scoped(dayApps: [String: TimeInterval], now: Date = Date()) -> [String: TimeInterval] {
         guard let suite else { return dayApps }
-        let token = suite.double(forKey: tokenKey)
-        guard token > 0 else { return dayApps }   // no session → don't scope
 
-        let dayStart = Calendar.current.startOfDay(for: now).timeIntervalSince1970
+        let resetAt = suite.double(forKey: resetKey)
+        guard resetAt > 0 else { return dayApps }   // never changed settings → full day
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now).timeIntervalSince1970
+        // Only scope when the change happened *today*. A change on a prior day is irrelevant — the
+        // API's own screen time already reset at midnight, so show the full day.
+        guard calendar.startOfDay(for: Date(timeIntervalSince1970: resetAt)).timeIntervalSince1970 == today else {
+            return dayApps
+        }
+
         let stored: Baseline? = {
             guard let data = suite.data(forKey: baselineKey) else { return nil }
             return try? JSONDecoder().decode(Baseline.self, from: data)
         }()
 
         let baseline: [String: TimeInterval]
-        if let stored, stored.token == token, stored.dayStart == dayStart {
-            baseline = stored.apps                                   // established session, same day
-        } else if let stored, stored.token == token {
-            baseline = [:]                                          // same session, new day → full day
-            save(Baseline(token: token, dayStart: dayStart, apps: [:]))
+        if let stored, stored.resetAt == resetAt, stored.dayStart == today {
+            baseline = stored.apps                                  // established: same change, same day
         } else {
-            baseline = dayApps                                      // new session → snapshot now
-            save(Baseline(token: token, dayStart: dayStart, apps: dayApps))
+            baseline = dayApps                                     // first render since this change → snapshot
+            save(Baseline(resetAt: resetAt, dayStart: today, apps: dayApps))
         }
 
         var result: [String: TimeInterval] = [:]

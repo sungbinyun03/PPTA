@@ -14,9 +14,9 @@ struct ReportView: View {
     @State private var authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     @State private var isRequestingPermission = false
     @State private var showPressureLevelInfo = false
-    /// Same key HomeView reads, so the expanded ring scopes to the same monitoring session as the
-    /// summary ring. Matches `DeviceActivityManager.sessionStartKey`.
-    @AppStorage("monitoringSessionStartTS") private var sessionStartTS: Double = 0
+    /// Same key HomeView reads, so the expanded ring rebases in lockstep with the summary ring on a
+    /// settings change. Matches `DeviceActivityManager.ringResetKey`.
+    @AppStorage("ringResetAt") private var ringResetAt: Double = 0
 
     private func requestScreenTimePermission() async {
         let center = AuthorizationCenter.shared
@@ -39,7 +39,7 @@ struct ReportView: View {
     // can't window sub-hour. **Must stay identical to `HomeView.summaryFilter`** so the two rings
     // agree. `.daily` (one exact day bucket) rather than `.hourly`; if the hourly bar chart in
     // `TotalActivityView` is ever re-enabled, switch both filters back to `.hourly` together.
-    // `.id(sessionStartTS)` below forces a fresh baseline-capture render when the session (re)starts.
+    // `.id(ringResetAt)` below forces a fresh rebasing render when the user saves a settings change.
     private var currentFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
@@ -132,11 +132,10 @@ struct ReportView: View {
                     // Last 7 days chart — not needed right now but may be useful in the future
                     // DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
                     //     .frame(height: 140)
-                    // `.id(sessionStartTS)` forces a fresh query when the monitoring session
-                    // (re)starts, so this expanded ring/list reflects the current session rather
-                    // than a cached full-day render. Matches the Home summary ring.
+                    // `.id(ringResetAt)` forces a fresh query when the user saves a settings change,
+                    // so this expanded ring/list rebases in lockstep with the Home summary ring.
                     DeviceActivityReport(.init("Total Activity"), filter: currentFilter)
-                        .id(sessionStartTS)
+                        .id(ringResetAt)
                         .frame(minHeight: 500)
                 }
             } else if isRequestingPermission {
