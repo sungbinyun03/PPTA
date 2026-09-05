@@ -251,6 +251,9 @@ class AuthViewModel: ObservableObject {
                 isOnboardingComplete = false
             } else {
                 isOnboardingComplete = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
+                // If this launch is a reinstall by the same user, quietly report it to their coaches.
+                // Runs at most once per launch even though fetchUser() is called repeatedly.
+                ReinstallDetector.handleAuthenticated(uid: uid)
             }
             if let storedToken = UserDefaults.standard.string(forKey: "fcmToken") {
                 await updateFCMToken(storedToken)

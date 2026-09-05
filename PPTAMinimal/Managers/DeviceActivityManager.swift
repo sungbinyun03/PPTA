@@ -340,6 +340,14 @@ class DeviceActivityManager {
         )
     }
 
+    /// Reports that this user just **reinstalled** the app (their sandbox was wiped but the Keychain
+    /// marker survived — see `ReinstallDetector`). Rides the `statusUpdate` fan-out like
+    /// `sendMercyRequest`: the server writes no status, it only pushes `traineeReinstalled` to the
+    /// trainee's coaches. The deterrent is that deleting PPTA to dodge a lock and returning is visible.
+    func sendReinstallNotice(uid: String?) {
+        postToStatusUpdate(uid: uid, status: .allClear, type: "reinstalled")
+    }
+
     /// - Parameter type: `nil` for a plain status update, which keeps the original signed
     ///   message `uid|status|ts` so the server verifies older clients unchanged. A non-nil
     ///   type is appended to the signed message, so a captured signature can't be replayed
