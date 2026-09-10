@@ -135,6 +135,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
 
+        if let type = notification["type"] as? String, type == "traineeReinstalled" {
+            // A trainee deleted PPTA and reinstalled it (detected via a Keychain marker that
+            // survives uninstall while the app sandbox is wiped). Surface it to their coaches.
+            // Copy lives here — app-side — so it can be reworded without redeploying the server,
+            // which now sends only the data payload. Kept neutral: it states the reinstall, not
+            // whether they were locked when they left.
+            let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
+            NotificationManager.shared.sendNotification(
+                title: "\(traineeName) reinstalled PPTA",
+                body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨"
+            )
+            completionHandler(.newData)
+            return
+        }
+
         if let type = notification["type"] as? String, type == "roleRequestReceived" {
             let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
             let role = notification["role"] as? String ?? "coach"
