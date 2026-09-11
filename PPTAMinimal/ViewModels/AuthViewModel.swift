@@ -24,7 +24,11 @@ class AuthViewModel: ObservableObject {
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
     @Published var isOnboardingComplete: Bool = false
-    
+    /// True only on a reinstall of an already-set-up account: the local onboarding flag is gone
+    /// (the app sandbox was wiped) but Firestore shows real setup. Drives the trimmed re-grant
+    /// flow instead of full onboarding, so coaches/trainees are preserved.
+    @Published var needsScreenTimeReconfigure: Bool = false
+
     private let authService: AuthService
     private let userRepository: UserRepository
     private let googleSignInService: GoogleSignInService
@@ -236,6 +240,48 @@ class AuthViewModel: ObservableObject {
         guard let uid = userSession?.uid else { return }
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(uid)")
         isOnboardingComplete = true
+        // Completing (or re-completing after a reinstall) onboarding ends the re-grant flow.
+        needsScreenTimeReconfigure = false
+    }
+
+    /// Loads the user's Firestore settings into `UserSettingsManager` and derives the
+    /// reinstall-aware onboarding routing.
+    ///
+    /// The load matters for two reasons:
+    /// 1. It hydrates `coachIds`/`traineeIds` before onboarding can commit, so a re-run of the
+    ///    flow saves the *real* settings object instead of overwriting relationships with empties.
+    /// 2. `UserSettings.onboardingCompleted` (plus real setup state) survives a reinstall, unlike
+    ///    the per-device `onboardingComplete_<uid>` UserDefaults flag, which iOS wipes on uninstall.
+    private func hydrateSettingsAndRouteOnboarding(uid: String, localFlag: Bool) {
+        let manager = UserSettingsManager.shared
+        // `id == uid` means the in-memory copy already belongs to this user (loaded from Firestore,
+        // where @DocumentID is the uid). Anything else — a default (nil id) or a previous account —
+        // triggers a fresh load. For a brand-new user with no doc yet, `loadSettings` may not call
+        // back at all; that's fine, the synchronous baseline already routes them to full onboarding.
+        if manager.userSettings.id == uid {
+            applyOnboardingRoute(settings: manager.userSettings, localFlag: localFlag)
+        } else {
+            manager.loadSettings { loaded in
+                Task { @MainActor [weak self] in
+                    manager.userSettings = loaded
+                    self?.applyOnboardingRoute(settings: loaded, localFlag: localFlag)
+                }
+            }
+        }
+    }
+
+    private func applyOnboardingRoute(settings: UserSettings, localFlag: Bool) {
+        let accountIsSetUp =
+            settings.onboardingCompleted
+            || settings.hasViableAppLimits
+            || !settings.coachIds.isEmpty
+            || !settings.traineeIds.isEmpty
+        isOnboardingComplete = accountIsSetUp || localFlag
+        // A reinstall is exactly: real setup in Firestore, but the local completion flag is gone.
+        // Gating on the flag (rather than Screen Time `authorizationStatus`) avoids a launch-timing
+        // race and keeps a manual permission revoke — where the flag is still present — out of this
+        // flow (HomeView's "Not Tracking" banner handles that case).
+        needsScreenTimeReconfigure = accountIsSetUp && !localFlag
     }
 
     func fetchUser() async {
@@ -250,7 +296,12 @@ class AuthViewModel: ObservableObject {
                 UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(uid)")
                 isOnboardingComplete = false
             } else {
-                isOnboardingComplete = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
+                let localFlag = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
+                // Synchronous baseline (unchanged for existing installs). Refined below once the
+                // Firestore settings load resolves — that is what lets a reinstall be recognized.
+                isOnboardingComplete = localFlag
+                hydrateSettingsAndRouteOnboarding(uid: uid, localFlag: localFlag)
+
                 // If this launch is a reinstall by the same user, quietly report it to their coaches.
                 // Runs at most once per launch even though fetchUser() is called repeatedly.
                 ReinstallDetector.handleAuthenticated(uid: uid)

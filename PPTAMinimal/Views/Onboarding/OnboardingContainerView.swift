@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct OnboardingContainerView: View {
+    /// When true, run the trimmed post-reinstall flow (re-grant Screen Time + confirm apps +
+    /// re-set limit/pressure), pre-seeded from Firestore, instead of full first-time onboarding.
+    var reconfigure: Bool = false
     @StateObject private var coordinator = OnboardingCoordinator()
     @EnvironmentObject var authViewModel: AuthViewModel
 
@@ -98,7 +101,11 @@ struct OnboardingContainerView: View {
         let name = authViewModel.currentUser?.name ?? ""
         let hasDisplayName = !name.isEmpty && name != "Unknown"
         didConfigure = authViewModel.currentUser != nil
-        coordinator.configure(hasDisplayName: hasDisplayName)
+        coordinator.configure(
+            hasDisplayName: hasDisplayName,
+            flow: reconfigure ? .reconfigure : .fresh,
+            seed: reconfigure ? UserSettingsManager.shared.userSettings : nil
+        )
     }
 }
 

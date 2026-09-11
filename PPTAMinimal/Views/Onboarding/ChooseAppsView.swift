@@ -22,12 +22,22 @@ struct ChooseAppsView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
     @State private var isPickerPresented = false
     @State private var authorizationDenied = false
+    /// Screen Time authorization is granted per install and does NOT survive an uninstall, so on a
+    /// reinstall this starts false even when a selection was restored from Firestore. Tracked in
+    /// @State (refreshed on appear and after a request) so the primary action can require a re-grant
+    /// before advancing — otherwise a pre-filled selection would let "Next" skip authorization.
+    @State private var isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
     @Environment(\.openURL) private var openURL
 
     private var hasSelection: Bool {
         !coordinator.draftSelection.applicationTokens.isEmpty ||
         !coordinator.draftSelection.categoryTokens.isEmpty
     }
+
+    /// A selection is only meaningful to show or advance on once Screen Time is authorized — the
+    /// tokens can't render or be applied to a shield without it. On a reinstall `hasSelection` is
+    /// true (restored from Firestore) but this is false until the user re-grants.
+    private var showingSelection: Bool { hasSelection && isAuthorized }
 
     private var selectionCount: Int {
         coordinator.draftSelection.applicationTokens.count +
@@ -37,19 +47,21 @@ struct ChooseAppsView: View {
     var body: some View {
         OnboardingScaffold(
             coordinator: coordinator,
-            illustration: hasSelection ? nil : "onb-pick-apps",
+            illustration: showingSelection ? nil : "onb-pick-apps",
             illustrationHeight: 230,
             title: "Which apps eat your day?",
-            message: hasSelection
+            message: showingSelection
                 ? "Your limit applies to these together, not to each one separately."
                 : "PPTA counts the time you spend in the apps you pick here. It can't read your messages or see anything else you do.",
-            primaryTitle: hasSelection ? "Next" : "Choose my apps",
-            secondaryTitle: hasSelection ? "Change selection" : nil,
-            onSecondary: hasSelection ? beginSelection : nil,
+            primaryTitle: !isAuthorized
+                ? "Enable Screen Time"
+                : (hasSelection ? "Next" : "Choose my apps"),
+            secondaryTitle: showingSelection ? "Change selection" : nil,
+            onSecondary: showingSelection ? openPicker : nil,
             onPrimary: primaryAction
         ) {
             VStack(spacing: 16) {
-                if hasSelection {
+                if showingSelection {
                     selectionList
                 }
                 if authorizationDenied {
@@ -61,6 +73,11 @@ struct ChooseAppsView: View {
             isPresented: $isPickerPresented,
             selection: $coordinator.draftSelection
         )
+        .onAppear {
+            // Reflect the live authorization state — on a reinstall the initializer's value is stale
+            // by the time this appears, and a returning user may have granted it elsewhere.
+            isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        }
     }
 
     // MARK: - Pieces
@@ -113,18 +130,21 @@ struct ChooseAppsView: View {
     // MARK: - Actions
 
     private func primaryAction() {
-        if hasSelection {
+        if !isAuthorized {
+            // Authorization is its own step — it never auto-opens the picker. The user opens the
+            // picker themselves via "Choose my apps" / "Change selection".
+            requestAuthorization()
+        } else if hasSelection {
             coordinator.advance()
         } else {
-            beginSelection()
+            openPicker()
         }
     }
 
-    /// Requests authorization if needed, then opens the picker in the same tap.
-    ///
-    /// The picker cannot be presented before authorization is approved, so these must be
-    /// sequential — but there is no reason for the user to experience them as two steps.
-    private func beginSelection() {
+    /// Requests Screen Time authorization only. It deliberately does NOT open the picker — the user
+    /// opens that themselves, so the selection sheet never appears on its own (fresh install or
+    /// reinstall alike).
+    private func requestAuthorization() {
         Task {
             let center = AuthorizationCenter.shared
             if center.authorizationStatus != .approved {
@@ -139,10 +159,16 @@ struct ChooseAppsView: View {
             // user marked complete with no authorization.
             let approved = center.authorizationStatus == .approved
             await MainActor.run {
+                isAuthorized = approved
                 authorizationDenied = !approved
-                if approved { isPickerPresented = true }
             }
         }
+    }
+
+    /// Presents the system app picker. Only ever called from an explicit tap on "Choose my apps" /
+    /// "Change selection"; authorization is already granted by the time either is shown.
+    private func openPicker() {
+        isPickerPresented = true
     }
 
     private func openSettings() {

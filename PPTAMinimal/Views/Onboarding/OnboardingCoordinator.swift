@@ -47,6 +47,15 @@ final class OnboardingCoordinator: ObservableObject {
     /// display name already, and re-asking for it is a dead tap.
     private(set) var includesProfile: Bool = true
 
+    /// Which flow this run is.
+    /// - `fresh`: a first-time setup (the full flow).
+    /// - `reconfigure`: a post-reinstall re-grant. Screen Time authorization does not survive an
+    ///   uninstall, so the user must re-grant it and re-confirm apps + limit/pressure — but their
+    ///   account (coaches, trainees, everything in Firestore) is preserved. Intro/profile/find-coach
+    ///   are skipped and the config steps are pre-seeded from the existing settings.
+    enum Flow { case fresh, reconfigure }
+    private(set) var flow: Flow = .fresh
+
     private var uid: String? { Auth.auth().currentUser?.uid }
     private var stepKey: String? { uid.map { "onboardingStep_\($0)" } }
 
@@ -55,9 +64,16 @@ final class OnboardingCoordinator: ObservableObject {
     /// The steps this run will walk, in order. `.completed` is deliberately excluded — it is a
     /// terminal state, not a screen, so it never counts toward progress.
     var steps: [OnboardingStep] {
-        var all: [OnboardingStep] = [.intro, .profile, .chooseApps, .yourRules, .findCoach]
-        if !includesProfile { all.removeAll { $0 == .profile } }
-        return all
+        switch flow {
+        case .reconfigure:
+            // Only the steps that a reinstall actually invalidates: re-grant Screen Time + confirm
+            // apps, then re-set the limit/pressure. Coaches/trainees are untouched, so no find-coach.
+            return [.chooseApps, .yourRules]
+        case .fresh:
+            var all: [OnboardingStep] = [.intro, .profile, .chooseApps, .yourRules, .findCoach]
+            if !includesProfile { all.removeAll { $0 == .profile } }
+            return all
+        }
     }
 
     /// Zero-based position of the current step, for the page indicator.
@@ -79,9 +95,29 @@ final class OnboardingCoordinator: ObservableObject {
     ///   true the profile step is dropped from `steps` entirely rather than being auto-skipped
     ///   at runtime, which keeps `goBack()` from landing on a screen that immediately advances
     ///   again.
-    func configure(hasDisplayName: Bool) {
-        includesProfile = !hasDisplayName
-        restoreStep()
+    func configure(hasDisplayName: Bool, flow: Flow = .fresh, seed: UserSettings? = nil) {
+        self.flow = flow
+        switch flow {
+        case .reconfigure:
+            // Pre-fill the config from the user's existing settings and jump straight to the first
+            // reconfigure step. No `restoreStep()` — a reconfigure always starts at the top.
+            if let seed { seedDrafts(from: seed) }
+            currentStep = .chooseApps
+        case .fresh:
+            includesProfile = !hasDisplayName
+            restoreStep()
+        }
+    }
+
+    /// Pre-fills the Act II draft from existing Firestore settings so the reconfigure flow shows the
+    /// user's current apps/limit/pressure to confirm or tweak, not blank defaults. The stored
+    /// `ApplicationToken`s are reused as-is; if a reinstall invalidated them they render empty in the
+    /// picker and the user simply re-selects, and the cleaned-up selection is what gets saved.
+    private func seedDrafts(from settings: UserSettings) {
+        draftSelection = settings.applications
+        draftThresholdHour = settings.thresholdHour
+        draftThresholdMinutes = settings.thresholdMinutes
+        draftPressureLevel = settings.pressureLevel.isTracking ? settings.pressureLevel : .standard
     }
 
     // MARK: - Navigation
@@ -133,6 +169,10 @@ final class OnboardingCoordinator: ObservableObject {
         settings.thresholdHour = draftThresholdHour
         settings.thresholdMinutes = draftThresholdMinutes
         settings.pressureLevel = draftPressureLevel
+        // Durably record completion so a future reinstall — which wipes the per-device
+        // `onboardingComplete_<uid>` UserDefaults flag — still recognizes this as a set-up account
+        // and routes to the trimmed reconfigure flow rather than full onboarding.
+        settings.onboardingCompleted = true
 
         // Mirror PressureLevelView: HomeView restarts monitoring from
         // `onReceive(userSettingsManager.$userSettings)`, but only when the persisted flag and the
