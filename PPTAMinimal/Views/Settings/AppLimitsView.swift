@@ -56,7 +56,11 @@ struct AppLimitsView: View {
             monitoredAppsSection
             pressureSection
 
-            PrimaryButton(title: "Save Settings", isDisabled: isLocked) {
+            PrimaryButton(
+                title: hasUnsavedChanges ? "Save Settings" : "Save Settings (Unchanged)",
+                isDisabled: isLocked || !hasUnsavedChanges,
+                disabledBackground: Color(.systemGray4)
+            ) {
                 if saveToFirebase() { showSavedAlert = true }
             }
 
@@ -76,8 +80,8 @@ struct AppLimitsView: View {
         }
         .appAlert(
             isPresented: $showSavedAlert,
-            title: "Settings Saved!",
-            message: "Share them from Settings → Share My Limits so your coaches know what your goals are."
+            title: "Settings Saved",
+            message: "Your coaches have been notified, share a screenshot of this page and send it to them so that they know what your goals are!"
         )
         .appAlert(
             isPresented: $showViableRequiredAlert,
@@ -312,6 +316,17 @@ struct AppLimitsView: View {
         .buttonStyle(.plain)
         .disabled(isLocked)
         .accessibilityLabel("Edit")
+    }
+
+    /// Whether the drafts differ from what's saved — drives the greyed-out "(Unchanged)" state so
+    /// Save can't fire a no-op (and a spurious coach notification) when nothing actually changed.
+    private var hasUnsavedChanges: Bool {
+        let s = userSettingsManager.userSettings
+        return selection.applicationTokens != s.applications.applicationTokens
+            || selection.categoryTokens != s.applications.categoryTokens
+            || draftThresholdHour != s.thresholdHour
+            || draftThresholdMinutes != s.thresholdMinutes
+            || draftPressureLevel != s.pressureLevel
     }
 
     private var selectedCount: Int {
