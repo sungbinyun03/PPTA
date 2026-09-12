@@ -85,16 +85,13 @@ struct HomeView: View {
     @ViewBuilder
     private var statusCard: some View {
         let settings = userSettingsManager.userSettings
-        if !settings.isTracking || !settings.hasViableAppLimits {
-            let message = !settings.isTracking && !settings.hasViableAppLimits
-                ? "Pressure Level is off and App Limits aren't set up. Head to Settings to get started."
-                : !settings.isTracking
-                    ? "Pressure Level is off. Enable Standard or Hardcore in Settings to start tracking."
-                    : "App Limits aren't set up. Go to Settings → App Limits to pick apps and set a daily time limit."
+        if !settings.hasViableAppLimits || settings.pressureLevel == .off {
+            // App Limits is the single setup surface (time limit + apps + pressure), so one message
+            // covers every not-set-up case.
             statusBanner(
                 icon: "exclamationmark.triangle.fill",
                 title: "Not Tracking",
-                message: message,
+                message: "App Limits aren't set up. Go to Settings → App Limits to pick your apps, set a daily time limit, and turn Pressure on.",
                 color: Color(.systemGray5),
                 textColor: Color(.label)
             )
@@ -247,7 +244,7 @@ struct HomeView: View {
                         }
                         .buttonStyle(.plain)
                         .popover(isPresented: $showPressureLevelInfo) {
-                            Text("Go to Settings → Pressure Level to activate tracking. Without it, your status and streak won't update.")
+                            Text("Go to Settings → App Limits to activate tracking. Without it, your status and streak won't update.")
                                 .font(.subheadline)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)

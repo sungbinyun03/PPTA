@@ -35,8 +35,11 @@ struct SetupCardView: View {
 
     private var missingItems: [String] {
         var items: [String] = []
-        if !settingsMgr.userSettings.hasViableAppLimits { items.append("App Limits") }
-        if settingsMgr.userSettings.pressureLevel == .off { items.append("Pressure Level") }
+        // Pressure Level now lives inside App Limits, so a single "App Limits" item covers a missing
+        // time limit, no apps, or pressure still Off.
+        if !settingsMgr.userSettings.hasViableAppLimits || settingsMgr.userSettings.pressureLevel == .off {
+            items.append("App Limits")
+        }
         if friendsVm.friends.isEmpty { items.append("Friends") }
         if settingsMgr.userSettings.traineeIds.isEmpty && settingsMgr.userSettings.trainees.isEmpty {
             items.append("Trainees")

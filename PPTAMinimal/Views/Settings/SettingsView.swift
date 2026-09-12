@@ -24,9 +24,15 @@ struct SettingsView: View {
     @State private var editedName      = ""
     @State private var isSavingName    = false
     @State private var showAppLimitsWarning    = false
-    @State private var showPressureLevelWarning = false
 
     @Environment(\.openURL) private var openURL
+
+    /// App Limits is the single setup surface (time limit + apps + pressure). Flag it when any of
+    /// the three is missing: no viable limit (0 time or no apps) or pressure still Off.
+    private var needsAppLimitsSetup: Bool {
+        !settingsMgr.userSettings.hasViableAppLimits ||
+        settingsMgr.userSettings.pressureLevel == .off
+    }
     
     // MARK: – View body
     var body: some View {
@@ -262,7 +268,7 @@ struct SettingsView: View {
                             .clipped()
                         Text("App Limits")
                             .foregroundColor(.primary)
-                        if !settingsMgr.userSettings.hasViableAppLimits {
+                        if needsAppLimitsSetup {
                             Button { showAppLimitsWarning = true } label: {
                                 Image(systemName: "exclamationmark.circle.fill")
                                     .font(.system(size: 18))
@@ -277,42 +283,7 @@ struct SettingsView: View {
                     .padding()
                 }
                 .popover(isPresented: $showAppLimitsWarning) {
-                    Text("No apps selected or daily limit is 0. Tap App Limits to choose apps and set your daily limit.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(16)
-                        .frame(width: 260)
-                        .presentationCompactAdaptation(.popover)
-                }
-                NavigationLink(destination: PressureLevelView()) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Image(systemName: "gauge.with.dots.needle.33percent")
-                            .resizable()
-                            .scaledToFit()
-                            .foregroundStyle(Color("primaryColor"))
-                            .scaleEffect(0.35)
-                            .scaleEffect(2)
-                            .frame(width: Self.settingsRowIconSlotWidth, height: Self.settingsRowIconSlotHeight)
-                            .clipped()
-                        Text("Pressure Level")
-                            .foregroundColor(.primary)
-                        if settingsMgr.userSettings.pressureLevel == .off {
-                            Button { showPressureLevelWarning = true } label: {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.orange)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                    }
-                    .padding()
-                }
-                .popover(isPresented: $showPressureLevelWarning) {
-                    Text("Pressure level is Off — enable Standard or Hardcore so coaches can help hold you accountable.")
+                    Text("Set a daily time limit, pick at least one app, and turn Pressure on (Standard or Hardcore).")
                         .font(.subheadline)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)

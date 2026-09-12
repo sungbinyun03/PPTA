@@ -50,7 +50,7 @@ struct TraineeCircleView: View {
                         .buttonStyle(.plain)
                         .offset(y: 10)
                         .popover(isPresented: $showWarningPopover) {
-                            Text("Your trainee hasn't set their App Limits or Pressure Level yet — remind them to get set up so they can start locking in!")
+                            Text("Your trainee hasn't fully set their App Limits yet — remind them to get set up so they can start locking in!")
                                 .font(.subheadline)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)

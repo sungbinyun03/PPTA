@@ -108,7 +108,7 @@ struct ReportView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showPressureLevelInfo) {
-                    Text("Go to Settings → Pressure Level to activate tracking. Without it, your status and streak won't update.")
+                    Text("Go to Settings → App Limits to activate tracking. Without it, your status and streak won't update.")
                         .font(.subheadline)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
