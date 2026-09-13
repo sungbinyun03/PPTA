@@ -15,6 +15,7 @@ struct HomeView: View {
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     @State private var isReportViewPresented = false
     @State private var showPressureLevelInfo = false
+    @State private var showScreenTimeInfo = false
     /// Re-renders the ring when the user changes settings (App Limits / Pressure Level), so the ring
     /// rebases immediately. Key matches `DeviceActivityManager.ringResetKey`.
     @AppStorage("ringResetAt") private var ringResetAt: Double = 0
@@ -213,21 +214,44 @@ struct HomeView: View {
             start: userSettingsManager.userSettings.startDailyStreakDate,
             calendar: .current
         )
-        guard userSettingsManager.userSettings.isTracking else { return "Daily Streak: Paused" }
-        return "Daily Streak: \(days) day\(days == 1 ? "" : "s")"
+        guard userSettingsManager.userSettings.isTracking else { return "Commitment Streak: Paused" }
+        return "Commitment Streak: \(days) day\(days == 1 ? "" : "s")"
     }
 
     private var reportSection: some View {
-        Button(action: { isReportViewPresented.toggle() }) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
+        VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
                     Text("Daily Screen Time")
                         .font(.custom("BambiBold", size: 22))
                         .foregroundColor(Color("primaryColor"))
+                    Button { showScreenTimeInfo = true } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color("primaryColor").opacity(0.6))
+                            .offset(y: -3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("About these stats")
+                    .popover(isPresented: $showScreenTimeInfo) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            screenTimeInfoRow(
+                                "Commitment Streak",
+                                "How long you've kept your current App Limits unchanged."
+                            )
+                            screenTimeInfoRow(
+                                "Clean Streak",
+                                "How long since a coach last cut you off. (Coming soon.)"
+                            )
+                            screenTimeInfoRow(
+                                "Today's Screen Time",
+                                "Your total time today across your tracked apps."
+                            )
+                        }
+                        .padding(16)
+                        .frame(width: 280)
+                        .presentationCompactAdaptation(.popover)
+                    }
                     Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color("primaryColor").opacity(0.5))
                 }
 
                 HStack(spacing: 6) {
@@ -270,26 +294,28 @@ struct HomeView: View {
                 }
                 .frame(height: 215)
 
-                HStack {
-                    Spacer()
-                    Text("Tap for full breakdown")
-                        .font(.custom("Satoshi-Variable", size: 12))
-                        .fontWeight(.medium)
-                        .foregroundColor(Color("primaryColor").opacity(0.4))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color("primaryColor").opacity(0.4))
+                // Only this label opens the full report — the card itself is not tappable.
+                Button { isReportViewPresented = true } label: {
+                    HStack {
+                        Spacer()
+                        Text("Tap for full breakdown")
+                            .font(.custom("Satoshi-Variable", size: 12))
+                            .fontWeight(.medium)
+                            .foregroundColor(Color("primaryColor").opacity(0.4))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color("primaryColor").opacity(0.4))
+                    }
                 }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color("primaryColor").opacity(0.07))
-            )
-            .padding(.horizontal, 24)
+                .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color("primaryColor").opacity(0.07))
+        )
+        .padding(.horizontal, 24)
         .sheet(isPresented: $isReportViewPresented) {
             NavigationStack {
                 ReportView()
@@ -297,6 +323,19 @@ struct HomeView: View {
                     .background(Color(.systemBackground))
                     .presentationDragIndicator(.visible)
             }
+        }
+    }
+
+    private func screenTimeInfoRow(_ title: String, _ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.custom("Satoshi-Variable", size: 13))
+                .fontWeight(.semibold)
+                .foregroundColor(Color("primaryColor"))
+            Text(body)
+                .font(.custom("Satoshi-Variable", size: 13))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
     

@@ -19,6 +19,8 @@ struct AppLimitsView: View {
     @State private var showTimeLimitSheet = false
     @State private var showFullAppList = false
     @State private var showSavedAlert = false
+    /// "Are you sure?" confirmation shown before a save actually applies.
+    @State private var showSaveConfirm = false
     /// Shown when a non-Off pressure level is chosen without viable limits (time + at least one app).
     @State private var showViableRequiredAlert = false
 
@@ -39,8 +41,14 @@ struct AppLimitsView: View {
     @State private var showTimeLimitInfo = false
     @State private var showPressureInfo = false
 
-    /// Hardcoded until wired to a real timestamp.
-    private let lastChangedText = "<dd/mm/yyyy>"
+    /// When the current App Limits took effect — backed by `startDailyStreakDate` (the Commitment
+    /// Streak start), which `saveToFirebase` resets whenever the apps or limit change. `—` if unset.
+    private var lastChangedText: String {
+        guard let date = userSettingsManager.userSettings.startDailyStreakDate else { return "—" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy"
+        return formatter.string(from: date)
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -61,7 +69,7 @@ struct AppLimitsView: View {
                 isDisabled: isLocked || !hasUnsavedChanges,
                 disabledBackground: Color(.systemGray4)
             ) {
-                if saveToFirebase() { showSavedAlert = true }
+                showSaveConfirm = true
             }
 
             Spacer()
@@ -77,6 +85,15 @@ struct AppLimitsView: View {
                 todayText: currentDateText,
                 lastChangedText: lastChangedText
             )
+        }
+        .appConfirm(
+            isPresented: $showSaveConfirm,
+            title: "Are you sure?",
+            message: "Any change that isn't decreasing your time limit or going from Standard to Hardcore will reset your Commitment Streak.",
+            confirmTitle: "Yes",
+            cancelTitle: "No"
+        ) {
+            if saveToFirebase() { showSavedAlert = true }
         }
         .appAlert(
             isPresented: $showSavedAlert,
@@ -399,10 +416,17 @@ struct AppLimitsView: View {
         let oldTotalSec = settings.thresholdHour * 3600 + settings.thresholdMinutes * 60
         let newTotalSec = draftThresholdHour * 3600 + draftThresholdMinutes * 60
         let limitIncreased = newTotalSec > oldTotalSec
+        // `settings` still holds the pre-save pressure here (assigned below), so this compares old vs draft.
+        // A pressure change resets the streak in EVERY case except tightening Standard → Hardcore
+        // (turning on, turning off, or Hardcore → Standard all reset).
+        let pressureResetsStreak =
+            settings.pressureLevel != draftPressureLevel &&
+            !(settings.pressureLevel == PressureLevel.standard && draftPressureLevel == PressureLevel.hardcore)
 
-        if appsChanged || settings.startDailyStreakDate == nil {
-            settings.startDailyStreakDate = Date()
-        } else if limitIncreased {
+        // `startDailyStreakDate` backs the Commitment Streak (days since App Limits last changed), so
+        // a change to apps, a limit increase, or a (non Standard→Hardcore) pressure change resets it —
+        // as does first setup. A limit decrease and Standard→Hardcore deliberately preserve the streak.
+        if appsChanged || limitIncreased || pressureResetsStreak || settings.startDailyStreakDate == nil {
             settings.startDailyStreakDate = Date()
         }
 

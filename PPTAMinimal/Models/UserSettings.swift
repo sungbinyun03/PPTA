@@ -72,6 +72,10 @@ final class UserSettings: Codable {
     /// Users this user coaches.
     var traineeIds: [String] = []
     var profileImageURL: URL?
+    // TODO: rename/refactor — this single date is being split into two streaks. For now it backs the
+    // **Commitment Streak** (days since the user last changed their App Limits; reset in
+    // `AppLimitsView.saveToFirebase`). A future **Clean Streak** (days since last cut off) will need
+    // its own field, at which point this should be renamed (e.g. `limitsSetAt`) and the two separated.
     var startDailyStreakDate: Date?
     
     /// Whether this user is currently participating in tracking.

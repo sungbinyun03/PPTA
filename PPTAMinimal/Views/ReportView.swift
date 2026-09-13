@@ -92,8 +92,8 @@ struct ReportView: View {
     private var streakHeader: some View {
         let isTracking = userSettingsManager.userSettings.isTracking
         let label = isTracking
-            ? "DAILY STREAK: \(streakDays) DAY\(streakDays == 1 ? "" : "S")"
-            : "DAILY STREAK: PAUSED"
+            ? "COMMITMENT STREAK: \(streakDays) DAY\(streakDays == 1 ? "" : "S")"
+            : "COMMITMENT STREAK: PAUSED"
         return HStack(spacing: 6) {
             Text(label)
                 .font(.custom("Satoshi-Variable", size: 13))

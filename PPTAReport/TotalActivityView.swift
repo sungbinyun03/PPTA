@@ -130,35 +130,31 @@ struct ProgressRingView: View {
                 }
             }
 
-            VStack(spacing: 3) {
-                HStack(spacing: 5) {
-                    Text("TODAY'S SCREEN TIME")
-                        .font(.custom("Satoshi-Variable", size: 13))
-                        .fontWeight(.semibold)
-                        .tracking(1.2)
-                        .foregroundColor(primary.opacity(0.6))
-                    if !hasViableAppLimits {
-                        Button { showAppLimitsInfo = true } label: {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.orange)
-                        }
-                        .buttonStyle(.plain)
-                        .popover(isPresented: $showAppLimitsInfo) {
-                            Text("Go to Settings → App Limits to choose which apps count toward your daily screen time.")
-                                .font(.subheadline)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(16)
-                                .frame(width: 260)
-                                .presentationCompactAdaptation(.popover)
-                        }
+            // "Today's Screen Time" caption removed — explained by the "?" on the Daily Screen Time
+            // header instead.
+            HStack(spacing: 5) {
+                Text("TODAY'S SCREEN TIME")
+                    .font(.custom("Satoshi-Variable", size: 13))
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(primary.opacity(0.6))
+                if !hasViableAppLimits {
+                    Button { showAppLimitsInfo = true } label: {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showAppLimitsInfo) {
+                        Text("Go to Settings → App Limits to choose which apps count toward your daily screen time.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(16)
+                            .frame(width: 260)
+                            .presentationCompactAdaptation(.popover)
                     }
                 }
-                Text("(total across your tracked apps)")
-                    .font(.custom("Satoshi-Variable", size: 13))
-                    .fontWeight(.medium)
-                    .foregroundColor(primary.opacity(0.4))
             }
         }
     }

@@ -119,8 +119,11 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 store.shield.applications = settings.applications.applicationTokens
             }
 
-            // Persist locally for the app to pick up (streak reset), AND notify backend immediately.
-            LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: Date())
+            // Persist locally for the app to pick up, AND notify backend immediately.
+            // `resetStartDate: nil` — `startDailyStreakDate` is now the Commitment Streak (days since
+            // App Limits last changed), so hitting the limit must NOT reset it. (A future Clean Streak
+            // will track cut-offs separately.)
+            LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .hardcoreLimit)
             scheduleLocalNotification(
                 title: "Time's up, you're cut off! 🔒",
