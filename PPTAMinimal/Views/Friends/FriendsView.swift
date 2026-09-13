@@ -121,14 +121,23 @@ struct FriendsView: View {
                             }
                         }
 
-                        // MARK: Pending Outgoing
-                        if !vm.outgoingRequests.isEmpty {
+                        // MARK: Pending Outgoing (friend + coach/trainee requests)
+                        if !vm.outgoingRequests.isEmpty || !roleInbox.outgoing.isEmpty {
                             sectionBlock(title: "Pending") {
                                 ForEach(vm.outgoingRequests, id: \.friendship.id) { pair in
                                     pendingCard(
                                         name: pair.user.name,
+                                        subtitle: "Friend request",
                                         onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
                                         onCancel: { Task { await vm.declineOrCancel(pair.friendship.id) } }
+                                    )
+                                }
+                                ForEach(roleInbox.outgoing) { pair in
+                                    pendingCard(
+                                        name: pair.user.name,
+                                        subtitle: outgoingRoleSubtitle(role: pair.request.role),
+                                        onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
+                                        onCancel: { Task { if let id = pair.request.id { await roleInbox.cancel(id) } } }
                                     )
                                 }
                             }
@@ -282,25 +291,32 @@ struct FriendsView: View {
     @ViewBuilder
     private func pendingCard(
         name: String,
+        subtitle: String? = nil,
         onTap: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 12) {
             InitialsProfilePicView(name: name, profilePicUrl: nil, size: 40)
 
-            Text(name)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.primary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
 
             Spacer()
 
+            // Plain text, no pill — it's a status label, not a button.
             Text("Pending")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color(.systemGray5))
-                .clipShape(Capsule())
 
             Button(action: onCancel) {
                 Text("Cancel")
@@ -357,6 +373,15 @@ struct FriendsView: View {
         switch role {
         case .coach: return "Wants to be your coach"
         case .trainee: return "Wants to be your trainee"
+        }
+    }
+
+    /// Label for a role request *I* sent. `role` is my requested role toward them, so `.trainee`
+    /// (I want to be their trainee → they'd be my coach) reads as a "Coach request", and vice versa.
+    private func outgoingRoleSubtitle(role: RoleRequestRole) -> String {
+        switch role {
+        case .trainee: return "Coach request"
+        case .coach:   return "Trainee request"
         }
     }
 }

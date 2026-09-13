@@ -29,8 +29,8 @@ struct TraineeCoachView: View {
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showTraineesInfo) {
-                        Text("Add a friend, then tap their profile to request them as your Trainee so you can start holding them accountable.")
+                    .popover(isPresented: $showTraineesInfo, arrowEdge: .bottom) {
+                        Text("Add a friend, then tap their profile to request them as your Trainee so you can start holding them accountable once they accept.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -45,7 +45,7 @@ struct TraineeCoachView: View {
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showAttentionInfo) {
+                    .popover(isPresented: $showAttentionInfo, arrowEdge: .bottom) {
                         Text("Your trainee(s) has hit their screen time limit (red ring) — open their profile and cut them off!")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
@@ -89,8 +89,8 @@ struct TraineeCoachView: View {
                             .foregroundColor(.orange)
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showCoachesInfo) {
-                        Text("Add a friend, then tap their profile to request them as your Coach so they can help keep you on track.")
+                    .popover(isPresented: $showCoachesInfo, arrowEdge: .bottom) {
+                        Text("Add a friend, then tap their profile to request them as your Coach so they can help keep you on track once they accept.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -110,7 +110,7 @@ struct TraineeCoachView: View {
                             .background(Circle().fill(snoozeBlue))
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showAskCoachInfo) {
+                    .popover(isPresented: $showAskCoachInfo, arrowEdge: .bottom) {
                         Text("Open a coach's profile and tap Request to snooze your lock for 10 minutes.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)

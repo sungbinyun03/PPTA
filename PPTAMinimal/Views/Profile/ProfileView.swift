@@ -27,7 +27,9 @@ struct ProfileView: View {
         if let user = viewModel.currentUser {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 12) {
-                    NavigationLink(destination: SettingsView()) {
+                    // Hide the Home/Friends tab bar for Settings and everything pushed deeper, so the
+                    // only way back out is the back button (no jumping tabs mid-flow).
+                    NavigationLink(destination: SettingsView().toolbar(.hidden, for: .tabBar)) {
                         Group {
                             if let url = settingsMgr.userSettings.profileImageURL {
                                 AsyncImage(url: url) { phase in

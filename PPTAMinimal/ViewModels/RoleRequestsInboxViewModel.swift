@@ -20,13 +20,26 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         }
     }
 
+    /// A pending role request *I* sent, paired with its target user (the person I asked). Powers the
+    /// Friends-tab "Pending" rows for coach/trainee requests so status is visible without opening a card.
+    struct OutgoingPair: Identifiable {
+        let request: RoleRequest
+        let user: User
+
+        var id: String {
+            request.id ?? "\(request.requesterId)_\(request.targetId)_\(request.role.rawValue)"
+        }
+    }
+
     @Published var incoming: [IncomingPair] = []
+    @Published var outgoing: [OutgoingPair] = []
     @Published var errorMessage: String?
 
     private let db = Firestore.firestore()
     private let roleRepo = RoleRequestRepository()
     private let userRepo = UserRepository()
     private var listener: ListenerRegistration?
+    private var outgoingListener: ListenerRegistration?
 
     private var didPrimeListener = false
     private var seenIds = Set<String>()
@@ -37,39 +50,69 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         guard let uid = currentUserId else { return }
         do {
             let requests = try await roleRepo.fetchIncomingPending(for: uid)
-            let pairs = try await buildPairs(requests: requests)
+            let pairs = try await buildIncomingPairs(requests: requests)
             await apply(pairs: pairs)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        do {
+            let requests = try await roleRepo.fetchOutgoingPending(for: uid)
+            let pairs = try await buildOutgoingPairs(requests: requests)
+            await applyOutgoing(pairs: pairs)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     func startListening() {
-        guard listener == nil else { return }
         guard let uid = currentUserId else { return }
 
-        let query = db.collection("roleRequests")
-            .whereField("targetId", isEqualTo: uid)
-            .whereField("status", isEqualTo: RoleRequestStatus.pending.rawValue)
-            .order(by: "createdAt", descending: true)
+        // Incoming: role requests addressed to me.
+        if listener == nil {
+            let query = db.collection("roleRequests")
+                .whereField("targetId", isEqualTo: uid)
+                .whereField("status", isEqualTo: RoleRequestStatus.pending.rawValue)
+                .order(by: "createdAt", descending: true)
 
-        listener = query.addSnapshotListener { [weak self] snap, error in
-            guard let self else { return }
-            if let error {
-                Task { @MainActor in self.errorMessage = error.localizedDescription }
-                return
+            listener = query.addSnapshotListener { [weak self] snap, error in
+                guard let self else { return }
+                if let error {
+                    Task { @MainActor in self.errorMessage = error.localizedDescription }
+                    return
+                }
+                let requests: [RoleRequest] = (snap?.documents ?? []).compactMap { try? $0.data(as: RoleRequest.self) }
+                Task {
+                    do {
+                        let pairs = try await self.buildIncomingPairs(requests: requests)
+                        await self.apply(pairs: pairs)
+                    } catch {
+                        await MainActor.run { self.errorMessage = error.localizedDescription }
+                    }
+                }
             }
-            let docs = snap?.documents ?? []
-            let requests: [RoleRequest] = docs.compactMap { doc in
-                try? doc.data(as: RoleRequest.self)
-            }
+        }
 
-            Task {
-                do {
-                    let pairs = try await self.buildPairs(requests: requests)
-                    await self.apply(pairs: pairs)
-                } catch {
-                    await MainActor.run { self.errorMessage = error.localizedDescription }
+        // Outgoing: role requests I sent (pending).
+        if outgoingListener == nil {
+            let query = db.collection("roleRequests")
+                .whereField("requesterId", isEqualTo: uid)
+                .whereField("status", isEqualTo: RoleRequestStatus.pending.rawValue)
+                .order(by: "createdAt", descending: true)
+
+            outgoingListener = query.addSnapshotListener { [weak self] snap, error in
+                guard let self else { return }
+                if let error {
+                    Task { @MainActor in self.errorMessage = error.localizedDescription }
+                    return
+                }
+                let requests: [RoleRequest] = (snap?.documents ?? []).compactMap { try? $0.data(as: RoleRequest.self) }
+                Task {
+                    do {
+                        let pairs = try await self.buildOutgoingPairs(requests: requests)
+                        await self.applyOutgoing(pairs: pairs)
+                    } catch {
+                        await MainActor.run { self.errorMessage = error.localizedDescription }
+                    }
                 }
             }
         }
@@ -78,6 +121,8 @@ final class RoleRequestsInboxViewModel: ObservableObject {
     func stopListening() {
         listener?.remove()
         listener = nil
+        outgoingListener?.remove()
+        outgoingListener = nil
         didPrimeListener = false
         seenIds.removeAll()
     }
@@ -98,9 +143,18 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         }
     }
 
+    /// Cancels a role request *I* sent — used by the Friends-tab pending row.
+    func cancel(_ requestId: String) async {
+        do {
+            try await roleRepo.cancel(id: requestId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Helpers
 
-    private func buildPairs(requests: [RoleRequest]) async throws -> [IncomingPair] {
+    private func buildIncomingPairs(requests: [RoleRequest]) async throws -> [IncomingPair] {
         try await withThrowingTaskGroup(of: IncomingPair?.self) { group in
             for req in requests {
                 group.addTask {
@@ -109,6 +163,26 @@ final class RoleRequestsInboxViewModel: ObservableObject {
                 }
             }
             var out: [IncomingPair] = []
+            for try await maybe in group {
+                if let pair = maybe { out.append(pair) }
+            }
+            return out
+        }
+        .sorted { (a, b) in
+            (a.request.createdAt ?? .distantPast) > (b.request.createdAt ?? .distantPast)
+        }
+    }
+
+    private func buildOutgoingPairs(requests: [RoleRequest]) async throws -> [OutgoingPair] {
+        try await withThrowingTaskGroup(of: OutgoingPair?.self) { group in
+            for req in requests {
+                group.addTask {
+                    // Outgoing: the "other" person is the target of the request.
+                    guard let user = try await self.userRepo.fetchUser(by: req.targetId) else { return nil }
+                    return OutgoingPair(request: req, user: user)
+                }
+            }
+            var out: [OutgoingPair] = []
             for try await maybe in group {
                 if let pair = maybe { out.append(pair) }
             }
@@ -136,6 +210,12 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         didPrimeListener = true
     }
 
+    @MainActor
+    private func applyOutgoing(pairs: [OutgoingPair]) {
+        // Notification-free: these are my own outgoing requests, not something to alert me about.
+        outgoing = pairs
+    }
+
     private func roleRequestMessage(from name: String, role: RoleRequestRole) -> String {
         let first = name.firstNameOnly
         switch role {
@@ -146,4 +226,3 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         }
     }
 }
-

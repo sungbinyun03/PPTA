@@ -377,9 +377,10 @@ final class FriendProfileViewModel: ObservableObject {
             return .init(title: "Accept Coach", enabled: true, secondaryTitle: "Decline", secondaryEnabled: true)
         }
 
-        // Outgoing: I want to be trainee of other => role=trainee, target=other
+        // Outgoing: I want to be trainee of other => role=trainee, target=other.
+        // No Cancel here — cancellation lives on the Friends-tab "Pending" row now.
         if outgoing.contains(where: { $0.requesterId == myUid && $0.role == .trainee }) {
-            return .init(title: "Sent", enabled: false, secondaryTitle: "Cancel", secondaryEnabled: true)
+            return .init(title: "Sent", enabled: false)
         }
 
         return .init(title: "Request as Coach", enabled: true)
@@ -398,9 +399,10 @@ final class FriendProfileViewModel: ObservableObject {
             return .init(title: "Accept Trainee", enabled: true, secondaryTitle: "Decline", secondaryEnabled: true)
         }
 
-        // Outgoing: I want to coach other => role=coach, target=other
+        // Outgoing: I want to coach other => role=coach, target=other.
+        // No Cancel here — cancellation lives on the Friends-tab "Pending" row now.
         if outgoing.contains(where: { $0.requesterId == myUid && $0.role == .coach }) {
-            return .init(title: "Sent", enabled: false, secondaryTitle: "Cancel", secondaryEnabled: true)
+            return .init(title: "Sent", enabled: false)
         }
 
         return .init(title: "Request as Trainee", enabled: true)
