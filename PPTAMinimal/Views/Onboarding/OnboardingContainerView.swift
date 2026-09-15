@@ -80,10 +80,17 @@ struct OnboardingContainerView: View {
             IntroKeyView(coordinator: coordinator)
         case .profile:
             CreateProfileView(coordinator: coordinator)
-        case .chooseApps:
-            ChooseAppsView(coordinator: coordinator)
-        case .yourRules:
-            YourRulesView(coordinator: coordinator)
+        case .appLimits:
+            // Reuses the Settings App Limits screen in onboarding mode: "Save & Continue", always
+            // enabled, no confirm alert, ensures Screen Time auth, marks onboarding complete, then
+            // advances the flow. The page dots render below the button (inside AppLimitsView) to
+            // match the other onboarding screens. Reconfigure pre-fills from existing settings.
+            AppLimitsView(
+                onboarding: true,
+                onContinue: { coordinator.advance() },
+                onboardingProgressIndex: coordinator.progressIndex,
+                onboardingProgressTotal: coordinator.progressTotal
+            )
         case .findCoach:
             FindCoachView(coordinator: coordinator)
         case .completed:

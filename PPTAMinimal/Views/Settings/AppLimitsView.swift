@@ -14,6 +14,16 @@ import FamilyControls
 import DeviceActivity
 
 struct AppLimitsView: View {
+    /// Onboarding mode: reuse this screen as the onboarding app-limits/pressure step. Relabels the
+    /// button to "Save & Continue", drops the changed/confirm gates, ensures Screen Time is authorized,
+    /// marks onboarding complete, and calls `onContinue` (advance the flow) after a successful save.
+    var onboarding: Bool = false
+    var onContinue: (() -> Void)? = nil
+    /// Onboarding page-dot position/count, shown under the Save & Continue button to match the
+    /// other onboarding screens. Ignored outside onboarding.
+    var onboardingProgressIndex: Int = 0
+    var onboardingProgressTotal: Int = 1
+
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     /// Bumped by `DeviceActivityManager.markRingReset()` on save; keys the baseline-capture probe below.
     @AppStorage("ringResetAt") private var ringResetAt: Double = 0
@@ -100,12 +110,27 @@ struct AppLimitsView: View {
             monitoredAppsSection
             pressureSection
 
-            PrimaryButton(
-                title: hasUnsavedChanges ? "Save Settings" : "Save Settings (Unchanged)",
-                isDisabled: isLocked || !hasUnsavedChanges,
-                disabledBackground: Color(.systemGray4)
-            ) {
-                showSaveConfirm = true
+            if onboarding {
+                // Onboarding: always enabled (reaffirming unchanged settings is valid), no confirm
+                // alert (the user must do this to enter the app), and label reads "Save & Continue".
+                PrimaryButton(
+                    title: "Save & Continue",
+                    isDisabled: isLocked,
+                    disabledBackground: Color(.systemGray4)
+                ) {
+                    attemptOnboardingSave()
+                }
+
+                PageIndicator(page: onboardingProgressIndex, length: onboardingProgressTotal)
+                    .padding(.top, 4)
+            } else {
+                PrimaryButton(
+                    title: hasUnsavedChanges ? "Save Settings" : "Save Settings (Unchanged)",
+                    isDisabled: isLocked || !hasUnsavedChanges,
+                    disabledBackground: Color(.systemGray4)
+                ) {
+                    showSaveConfirm = true
+                }
             }
 
             Spacer()
@@ -220,9 +245,21 @@ struct AppLimitsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                editButton { isPickerPresented = true }
+                editButton { presentAppPicker() }
             }
             .modifier(SettingsBox())
+        }
+    }
+
+    /// Presents the FamilyActivityPicker. In onboarding (reconfigure re-grants after uninstall drops
+    /// the Screen Time grant) we ensure authorization first so the picker actually appears.
+    private func presentAppPicker() {
+        guard onboarding else {
+            isPickerPresented = true
+            return
+        }
+        ensureScreenTimeAuthorization { granted in
+            if granted { isPickerPresented = true }
         }
     }
 
@@ -422,6 +459,19 @@ struct AppLimitsView: View {
         draftThresholdHour = s.thresholdHour
         draftThresholdMinutes = s.thresholdMinutes
         draftPressureLevel = s.pressureLevel
+
+        // Fresh onboarding users have no saved settings — seed sensible defaults (Standard, 1h, blank
+        // app selection). Reconfigure users are hydrated from their pre-uninstall settings, so their
+        // non-empty values are preserved untouched. The Save gate still requires ≥1 app before saving.
+        if onboarding {
+            let noAppsPicked = selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty
+            if noAppsPicked && draftThresholdHour == 0 && draftThresholdMinutes == 0 {
+                draftThresholdHour = 1
+            }
+            if draftPressureLevel == .off {
+                draftPressureLevel = .standard
+            }
+        }
     }
 
     /// Saves time limit + monitored apps + pressure level together.
@@ -479,10 +529,50 @@ struct AppLimitsView: View {
             settings.traineeStatus = .allClear
         }
 
+        // Onboarding save doubles as the durable "onboarding done" flag (previously set by the
+        // coordinator's commitConfiguration) so a future launch skips straight into the app.
+        if onboarding {
+            settings.onboardingCompleted = true
+        }
+
         userSettingsManager.saveSettings(settings)
         // Rebase the screen-time ring to now so it matches the reset threshold (today only).
         DeviceActivityManager.markRingReset()
         return true
+    }
+
+    // MARK: - Onboarding save
+
+    /// The onboarding "Save & Continue" action. Ensures Screen Time is authorized (a reinstall drops
+    /// the grant), then runs the same `saveToFirebase` as Settings — coach notifications, ring reset,
+    /// commitment-streak stamp, monitoring restart — and advances the flow on success. The viable +
+    /// pressure gate lives in `saveToFirebase`, which surfaces the "set up App Limits first" alert.
+    private func attemptOnboardingSave() {
+        ensureScreenTimeAuthorization { granted in
+            guard granted else { return }
+            if saveToFirebase() {
+                onContinue?()
+            }
+        }
+    }
+
+    /// Requests Screen Time (FamilyControls) authorization if it isn't already approved. Uninstalling
+    /// clears the grant, so the reconfigure flow — which pre-fills app tokens the user may never tap
+    /// into the picker to re-pick — still needs this before saving. Completion runs on the main actor.
+    private func ensureScreenTimeAuthorization(_ completion: @escaping (Bool) -> Void) {
+        let center = AuthorizationCenter.shared
+        if center.authorizationStatus == .approved {
+            completion(true)
+            return
+        }
+        Task {
+            do {
+                try await center.requestAuthorization(for: .individual)
+                await MainActor.run { completion(center.authorizationStatus == .approved) }
+            } catch {
+                await MainActor.run { completion(false) }
+            }
+        }
     }
 }
 

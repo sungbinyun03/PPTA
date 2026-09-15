@@ -21,6 +21,13 @@ protocol AuthenticationFormProtocol {
 
 @MainActor
 class AuthViewModel: ObservableObject {
+    /// DEV TOGGLE — force the full "fresh install" onboarding flow, ignoring the per-user completion
+    /// flag, Firestore setup state, and reinstall detection, so you can exercise the fresh flow on an
+    /// already-set-up account. When true, `applyOnboardingRoute` routes to full onboarding; once
+    /// the run completes, `markOnboardingComplete()` lets the app fall through to the main tabs (a
+    /// relaunch re-forces fresh). MUST be `false` for release builds.
+    static let devManualFreshOnboard = false
+
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
     @Published var isOnboardingComplete: Bool = false
@@ -271,6 +278,12 @@ class AuthViewModel: ObservableObject {
     }
 
     private func applyOnboardingRoute(settings: UserSettings, localFlag: Bool) {
+        if Self.devManualFreshOnboard {
+            // Dev: pretend this is a brand-new user so the full fresh onboarding flow runs.
+            isOnboardingComplete = false
+            needsScreenTimeReconfigure = false
+            return
+        }
         let accountIsSetUp =
             settings.onboardingCompleted
             || settings.hasViableAppLimits
@@ -299,7 +312,8 @@ class AuthViewModel: ObservableObject {
                 let localFlag = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
                 // Synchronous baseline (unchanged for existing installs). Refined below once the
                 // Firestore settings load resolves — that is what lets a reinstall be recognized.
-                isOnboardingComplete = localFlag
+                // The dev fresh-onboard toggle forces the full flow even for a set-up account.
+                isOnboardingComplete = Self.devManualFreshOnboard ? false : localFlag
                 hydrateSettingsAndRouteOnboarding(uid: uid, localFlag: localFlag)
 
                 // If this launch is a reinstall by the same user, quietly report it to their coaches.

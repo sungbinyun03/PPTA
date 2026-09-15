@@ -86,9 +86,16 @@ enum RingSession {
         let baseline: [String: TimeInterval]
         if let stored, stored.resetAt == resetAt, stored.dayStart == today {
             baseline = stored.apps                                  // established: same change, same day
-        } else {
-            baseline = dayApps                                     // first render since this change → snapshot
+        } else if dayApps.values.reduce(0, +) > 0 {
+            baseline = dayApps                                     // first data-bearing render → snapshot
             save(Baseline(resetAt: resetAt, dayStart: today, apps: dayApps))
+        } else {
+            // No usage data this render yet — common right after a reinstall/settings save, before the
+            // report extension has loaded the day's totals. Snapshotting an empty baseline here poisons
+            // the rest of the day: every later render would subtract ~0 and show the full day's usage
+            // (the "ring didn't reset" bug). Skip saving and return unscoped for now; the first render
+            // that actually carries data captures the real baseline and the ring rebases correctly.
+            return dayApps
         }
 
         var result: [String: TimeInterval] = [:]

@@ -7,7 +7,7 @@
 //  This replaced a three-screen concept carousel. Explaining coach / trainee / pressure levels /
 //  lock-out as abstract slides, before the user has done anything, is the least persuasive place
 //  to put that information. Everything else moved to the screen where it changes a decision:
-//  the lock-out consequence is now explained on `YourRulesView`, next to the choice it affects.
+//  the lock-out consequence is now explained on the app-limits step, next to the choice it affects.
 //
 
 import SwiftUI

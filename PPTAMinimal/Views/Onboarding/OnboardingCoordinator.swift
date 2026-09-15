@@ -18,8 +18,7 @@ import FirebaseAuth
 enum OnboardingStep: String, CaseIterable {
     case intro
     case profile
-    case chooseApps
-    case yourRules
+    case appLimits
     case findCoach
     case completed
 }
@@ -28,16 +27,10 @@ final class OnboardingCoordinator: ObservableObject {
     @Published private(set) var currentStep: OnboardingStep = .intro
     @Published var onboardingComplete: Bool = false
 
-    // MARK: - Act II draft
-    //
-    // Apps, limit, and pressure live here rather than being written straight to
-    // `UserSettingsManager`, so backing out of a step leaves no half-applied configuration
-    // behind. All three are committed together in `commitConfiguration()`.
-
-    @Published var draftSelection = FamilyActivitySelection()
-    @Published var draftThresholdHour: Int = 1
-    @Published var draftThresholdMinutes: Int = 0
-    @Published var draftPressureLevel: PressureLevel = .standard
+    // The app-limits step (apps + limit + pressure) is now handled by the shared `AppLimitsView`,
+    // which reads/writes `UserSettingsManager` directly and saves via its own `saveToFirebase`
+    // (coach notifications, ring reset, commitment streak, onboardingCompleted flag). The
+    // coordinator no longer holds Act II drafts or commits them.
 
     /// Direction of the last transition, so the container can slide Back the opposite way from
     /// Next. Owned here rather than in the view because every screen calls `advance()` itself.
@@ -66,11 +59,11 @@ final class OnboardingCoordinator: ObservableObject {
     var steps: [OnboardingStep] {
         switch flow {
         case .reconfigure:
-            // Only the steps that a reinstall actually invalidates: re-grant Screen Time + confirm
-            // apps, then re-set the limit/pressure. Coaches/trainees are untouched, so no find-coach.
-            return [.chooseApps, .yourRules]
+            // Only the step a reinstall actually invalidates: re-grant Screen Time + re-confirm
+            // apps/limit/pressure. Coaches/trainees are untouched, so no find-coach.
+            return [.appLimits]
         case .fresh:
-            var all: [OnboardingStep] = [.intro, .profile, .chooseApps, .yourRules, .findCoach]
+            var all: [OnboardingStep] = [.intro, .profile, .appLimits, .findCoach]
             if !includesProfile { all.removeAll { $0 == .profile } }
             return all
         }
@@ -99,25 +92,14 @@ final class OnboardingCoordinator: ObservableObject {
         self.flow = flow
         switch flow {
         case .reconfigure:
-            // Pre-fill the config from the user's existing settings and jump straight to the first
-            // reconfigure step. No `restoreStep()` — a reconfigure always starts at the top.
-            if let seed { seedDrafts(from: seed) }
-            currentStep = .chooseApps
+            // Jump straight to the app-limits step. It reads the user's existing settings from
+            // `UserSettingsManager` itself (hydrated on reinstall), so no draft seeding is needed.
+            // No `restoreStep()` — a reconfigure always starts at the top.
+            currentStep = .appLimits
         case .fresh:
             includesProfile = !hasDisplayName
             restoreStep()
         }
-    }
-
-    /// Pre-fills the Act II draft from existing Firestore settings so the reconfigure flow shows the
-    /// user's current apps/limit/pressure to confirm or tweak, not blank defaults. The stored
-    /// `ApplicationToken`s are reused as-is; if a reinstall invalidated them they render empty in the
-    /// picker and the user simply re-selects, and the cleaned-up selection is what gets saved.
-    private func seedDrafts(from settings: UserSettings) {
-        draftSelection = settings.applications
-        draftThresholdHour = settings.thresholdHour
-        draftThresholdMinutes = settings.thresholdMinutes
-        draftPressureLevel = settings.pressureLevel.isTracking ? settings.pressureLevel : .standard
     }
 
     // MARK: - Navigation
@@ -145,52 +127,6 @@ final class OnboardingCoordinator: ObservableObject {
             currentStep = step
         }
         persistStep(step)
-    }
-
-    // MARK: - Commit
-
-    /// Writes the whole Act II draft in a single save.
-    ///
-    /// Deliberately *not* `UserSettingsManager.update {}`: that helper treats a nil document id as
-    /// "still default" and silently falls back to `loadSettingsSyncFromDefaults()`, which is
-    /// exactly a brand-new user's state — the draft would be replaced by defaults mid-onboarding.
-    /// Mutating the shared settings object and calling `saveSettings` is the same pattern
-    /// `PressureLevelView.saveToFirebase()` uses.
-    ///
-    /// `saveSettings` derives `isTracking` and resets `traineeStatus` from the pressure level, so
-    /// neither is set here. It also notifies coaches of setup changes, but that path is guarded on
-    /// the *previous* settings having viable limits — false for a new user — so finishing
-    /// onboarding never pages anyone.
-    @MainActor
-    func commitConfiguration() {
-        let manager = UserSettingsManager.shared
-        let settings = manager.userSettings
-        settings.applications = draftSelection
-        settings.thresholdHour = draftThresholdHour
-        settings.thresholdMinutes = draftThresholdMinutes
-        settings.pressureLevel = draftPressureLevel
-        // Durably record completion so a future reinstall — which wipes the per-device
-        // `onboardingComplete_<uid>` UserDefaults flag — still recognizes this as a set-up account
-        // and routes to the trimmed reconfigure flow rather than full onboarding.
-        settings.onboardingCompleted = true
-
-        // Mirror PressureLevelView: HomeView restarts monitoring from
-        // `onReceive(userSettingsManager.$userSettings)`, but only when the persisted flag and the
-        // actually-running activities disagree. Clearing both guarantees a clean first start.
-        UserDefaults.standard.set(false, forKey: "isMonitoringActive")
-        DeviceActivityManager.shared.stopMonitoring()
-
-        manager.saveSettings(settings)
-    }
-
-    /// Whether the draft would produce a monitorable configuration. Mirrors the guard
-    /// `PressureLevelView` applies before allowing a non-Off level to be saved.
-    var draftHasViableLimits: Bool {
-        UserSettings.appLimitsAreViable(
-            thresholdHour: draftThresholdHour,
-            thresholdMinutes: draftThresholdMinutes,
-            applications: draftSelection
-        )
     }
 
     // MARK: - Resume
