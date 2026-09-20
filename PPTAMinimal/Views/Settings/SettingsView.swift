@@ -291,15 +291,6 @@ struct SettingsView: View {
                         .frame(width: 260)
                         .presentationCompactAdaptation(.popover)
                 }
-                NavigationLink(destination: ShareLimitsView()) {
-                    settingsRow(
-                        icon: Image(systemName: "square.and.arrow.up")
-                            .foregroundStyle(Color("primaryColor")),
-                        text: "Share My Limits",
-                        iconScale: 1.1
-                    )
-                }
-
                 Button {
                     if let url = URL(string: "https://forms.gle/VbHG5VJrMXGQuFV3A") {
                         openURL(url)
