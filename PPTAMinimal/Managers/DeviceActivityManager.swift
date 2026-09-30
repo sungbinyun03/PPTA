@@ -78,6 +78,54 @@ enum LockCause: String {
     case snoozeEnded     // the post-unlock grace timer ran out and re-locked them
 }
 
+/// The one way this app raises and lifts a shield.
+///
+/// A `FamilyActivitySelection` can name individual apps, whole categories, or both, and
+/// ManagedSettings keeps them on **separate** properties: `shield.applications` blocks only the
+/// app tokens, and nothing in a category is touched unless `shield.applicationCategories` is set
+/// too. Every shield write used to set the first and never the second — so a category-only
+/// selection metered usage and fired the limit (DeviceActivity events are armed over
+/// `categoryTokens` as well, see `startDeviceActivityMonitoring`), notified the coaches, and then
+/// shielded nothing at all. Silent, total enforcement failure.
+///
+/// Both properties move together here so they cannot drift apart. That matters most on the
+/// clearing side: a snooze that dropped `shield.applications` and left `applicationCategories`
+/// standing would leave the trainee locked out of a whole category with no way back — worse than
+/// not shielding at all.
+///
+/// Apps only, deliberately: the selection's `webDomainTokens` are ignored everywhere else in the
+/// app too (they don't count toward viability, the limit events pass `webDomains: []`, and the UI
+/// says "apps selected"), so shielding websites here would block usage that can never trigger a
+/// lock.
+///
+/// Compiled into both the app and the AppMonitor extension (same arrangement as
+/// `UnlockGrace`/`LimitEvent`), so both processes shield identically.
+enum ShieldPolicy {
+
+    /// Shields everything in `selection` — individual apps *and* whole categories.
+    ///
+    /// Empty sets are written as `nil` rather than as an empty policy: both mean "shield nothing",
+    /// and `nil` is the value the clearing path uses, so state stays comparable.
+    ///
+    /// `.specific` takes an `except:` set of apps to spare inside a shielded category, left at its
+    /// default empty. `FamilyActivitySelection` has no exclusion concept — a category the user
+    /// picked arrives as a bare token — so there is nothing honest to put there.
+    static func apply(_ selection: FamilyActivitySelection, to store: ManagedSettingsStore) {
+        let apps = selection.applicationTokens
+        let categories = selection.categoryTokens
+        store.shield.applications = apps.isEmpty ? nil : apps
+        store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
+        print("Shield applied. Apps: \(apps.count), categories: \(categories.count)")
+    }
+
+    /// Lifts the shield completely. Clears **both** properties — see the note above on why a
+    /// half-cleared shield is the worst outcome available here.
+    static func clear(_ store: ManagedSettingsStore) {
+        store.shield.applications = nil
+        store.shield.applicationCategories = nil
+    }
+}
+
 class DeviceActivityManager {
     static let shared = DeviceActivityManager()
     private init() {}
@@ -197,7 +245,7 @@ class DeviceActivityManager {
         // A coach re-locking mid-grace ends the grace period outright.
         cancelUnlockGracePeriod()
 
-        store.shield.applications = settings.applications.applicationTokens
+        ShieldPolicy.apply(settings.applications, to: store)
 
         NotificationManager.shared.sendNotification(
             title: "Locked by \(coach) 🔒",
@@ -231,7 +279,7 @@ class DeviceActivityManager {
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
         // don't notify or arm grace in that case: you can only be unlocked if you were locked, and
         // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
-        store.shield.applications = nil
+        ShieldPolicy.clear(store)
 
         guard settings.isTracking else { return }
 

@@ -50,7 +50,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.intervalDidEnd(for: activity)
         // Never let the grace activity's interval end clear a shield it didn't apply.
         guard activity != UnlockGrace.activityName else { return }
-        store.shield.applications = nil
+        ShieldPolicy.clear(store)
         // No statusUpdate here — intervalDidStart fires at 00:00 and handles the reset.
     }
     
@@ -65,7 +65,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // them again. The streak was already reset at the original cutoff, so pass
             // `resetStartDate: nil` — expiring grace shouldn't punish it a second time.
             if activity == UnlockGrace.activityName {
-                store.shield.applications = settings.applications.applicationTokens
+                ShieldPolicy.apply(settings.applications, to: store)
                 DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
                 LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
                 sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .snoozeEnded)
@@ -116,7 +116,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 )
                 return
             case .hardcore:
-                store.shield.applications = settings.applications.applicationTokens
+                ShieldPolicy.apply(settings.applications, to: store)
             }
 
             // Persist locally for the app to pick up, AND notify backend immediately.
