@@ -28,6 +28,7 @@ struct FriendsView: View {
     /// The phone-number field uses `.phonePad`, which has no Return/Done key, so focus is tracked
     /// here and cleared by a tap anywhere outside the keyboard (see the tap gesture below).
     @FocusState private var phoneFieldFocused: Bool
+    @State private var friendSearchText: String = ""
 
     private let primaryColor = Color("primaryColor")
 
@@ -172,6 +173,16 @@ struct FriendsView: View {
                             }
                             .padding(.horizontal, 20)
 
+                            // Search sits *inside* the Friends section, not above the whole
+                            // screen, so it reads as scoped to this list. The request and
+                            // Pending sections stay unfiltered — they're short, actionable, and
+                            // already hide themselves when empty, so filtering them would make
+                            // an Accept/Decline row silently vanish while typing.
+                            if !vm.friends.isEmpty {
+                                friendSearchField
+                                    .padding(.horizontal, 20)
+                            }
+
                             VStack(spacing: 8) {
                                 if vm.friends.isEmpty {
                                     Text("No friends yet")
@@ -179,8 +190,15 @@ struct FriendsView: View {
                                         .foregroundColor(.secondary)
                                         .frame(maxWidth: .infinity, alignment: .center)
                                         .padding(.vertical, 20)
+                                } else if filteredFriends.isEmpty {
+                                    Text("No friends match \u{201C}\(trimmedFriendQuery)\u{201D}")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.vertical, 20)
                                 } else {
-                                    ForEach(vm.friends, id: \.id) { friend in
+                                    ForEach(filteredFriends, id: \.id) { friend in
                                         friendRow(friend: friend)
                                     }
                                 }
@@ -343,6 +361,50 @@ struct FriendsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
+    }
+
+    // MARK: - Friend search
+
+    /// Hand-rolled rather than `.searchable()`: this tab's `NavigationStack` has no title bar for
+    /// a system search field to attach to, and the chrome matches the phone field above.
+    private var friendSearchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(primaryColor.opacity(0.5))
+
+            TextField("Search friends", text: $friendSearchText)
+                .font(.system(size: 15))
+                .autocorrectionDisabled()
+
+            if !friendSearchText.isEmpty {
+                Button {
+                    friendSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(primaryColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var trimmedFriendQuery: String {
+        friendSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Matches on `name` only — it's the one field a friend row shows, so a hit on a hidden field
+    /// (email, phone) would look like a bug. `localizedStandardContains` gets case- and
+    /// diacritic-insensitive matching, and substrings so a surname matches mid-name.
+    private var filteredFriends: [User] {
+        let query = trimmedFriendQuery
+        guard !query.isEmpty else { return vm.friends }
+        return vm.friends.filter { $0.name.localizedStandardContains(query) }
     }
 
     // MARK: - Friend row
