@@ -25,6 +25,9 @@ struct FriendsView: View {
     @State private var showContactsPermissionAlert = false
     @State private var profileTarget: FriendProfileTarget? = nil
     @State private var showFriendsInfo = false
+    /// The phone-number field uses `.phonePad`, which has no Return/Done key, so focus is tracked
+    /// here and cleared by a tap anywhere outside the keyboard (see the tap gesture below).
+    @FocusState private var phoneFieldFocused: Bool
 
     private let primaryColor = Color("primaryColor")
 
@@ -61,6 +64,7 @@ struct FriendsView: View {
                             HStack(spacing: 8) {
                                 TextField("Add by phone number", text: $phoneToAdd)
                                     .keyboardType(.phonePad)
+                                    .focused($phoneFieldFocused)
                                     .font(.system(size: 15))
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 12)
@@ -186,7 +190,12 @@ struct FriendsView: View {
                     }
                     .padding(.bottom, 32)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
+            // `.phonePad` has no Return key, so let a tap anywhere outside the field dismiss the
+            // keyboard. `simultaneousGesture` + `contentShape` keeps buttons/rows still tappable.
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded { phoneFieldFocused = false })
         }
         .task { await vm.refresh() }
         .refreshable { await vm.refresh() }

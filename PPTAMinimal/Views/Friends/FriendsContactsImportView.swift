@@ -24,6 +24,7 @@ struct FriendsContactsImportView: View {
     @State private var onApp: [RegisteredContact] = []
     @State private var invite: [ContactRow] = []
     @State private var errorMessage: String? = nil
+    @State private var searchText = ""
 
     private let firestoreService = FirestoreService()
     private let primaryColor = Color("primaryColor")
@@ -53,9 +54,9 @@ struct FriendsContactsImportView: View {
                             }
 
                             // MARK: On App
-                            if !onApp.isEmpty {
+                            if !filteredOnApp.isEmpty {
                                 sectionBlock(title: "On Peer Pressure") {
-                                    ForEach(onApp) { item in
+                                    ForEach(filteredOnApp) { item in
                                         contactRow(
                                             name: item.displayName,
                                             detail: item.contact.primaryPhone,
@@ -67,14 +68,16 @@ struct FriendsContactsImportView: View {
 
                             // MARK: Invite
                             sectionBlock(title: "Invite to Peer Pressure") {
-                                if invite.isEmpty {
-                                    Text("No other contacts found with phone numbers.")
+                                if filteredInvite.isEmpty {
+                                    Text(searchText.isEmpty
+                                         ? "No other contacts found with phone numbers."
+                                         : "No contacts match \u{201C}\(searchText)\u{201D}.")
                                         .font(.system(size: 14))
                                         .foregroundColor(.secondary)
                                         .frame(maxWidth: .infinity, alignment: .center)
                                         .padding(.vertical, 20)
                                 } else {
-                                    ForEach(invite) { c in
+                                    ForEach(filteredInvite) { c in
                                         contactRow(
                                             name: c.displayName,
                                             detail: c.primaryPhone,
@@ -99,6 +102,7 @@ struct FriendsContactsImportView: View {
             }
             .navigationTitle("Add from Contacts")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search contacts")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
@@ -128,6 +132,23 @@ struct FriendsContactsImportView: View {
                 MessageComposeView(recipients: draft.recipients, body: draft.body)
             }
         }
+    }
+
+    // MARK: - Search filtering
+
+    private func matches(_ name: String, _ phone: String?) -> Bool {
+        guard !searchText.isEmpty else { return true }
+        if name.localizedCaseInsensitiveContains(searchText) { return true }
+        if let phone, phone.localizedCaseInsensitiveContains(searchText) { return true }
+        return false
+    }
+
+    private var filteredOnApp: [RegisteredContact] {
+        onApp.filter { matches($0.displayName, $0.contact.primaryPhone) }
+    }
+
+    private var filteredInvite: [ContactRow] {
+        invite.filter { matches($0.displayName, $0.primaryPhone) }
     }
 
     // MARK: - Section builder
