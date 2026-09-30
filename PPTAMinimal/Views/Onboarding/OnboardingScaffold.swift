@@ -110,14 +110,8 @@ struct OnboardingScaffold<Content: View>: View {
                             .foregroundColor(.secondary)
                     }
                 }
-
-                PageIndicator(
-                    page: coordinator.progressIndex,
-                    length: coordinator.progressTotal
-                )
-                .padding(.top, 2)
-                .padding(.bottom, 28)
             }
+            .padding(.bottom, 28)
         }
     }
 }

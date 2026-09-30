@@ -19,10 +19,6 @@ struct AppLimitsView: View {
     /// marks onboarding complete, and calls `onContinue` (advance the flow) after a successful save.
     var onboarding: Bool = false
     var onContinue: (() -> Void)? = nil
-    /// Onboarding page-dot position/count, shown under the Save & Continue button to match the
-    /// other onboarding screens. Ignored outside onboarding.
-    var onboardingProgressIndex: Int = 0
-    var onboardingProgressTotal: Int = 1
 
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     /// Bumped by `DeviceActivityManager.markRingReset()` on save; keys the baseline-capture probe below.
@@ -120,9 +116,6 @@ struct AppLimitsView: View {
                 ) {
                     attemptOnboardingSave()
                 }
-
-                PageIndicator(page: onboardingProgressIndex, length: onboardingProgressTotal)
-                    .padding(.top, 4)
             } else {
                 PrimaryButton(
                     title: hasUnsavedChanges ? "Save Settings" : "Save Settings (Unchanged)",

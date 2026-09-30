@@ -11,12 +11,21 @@
 //
 
 import SwiftUI
+import PhotosUI
+import FirebaseStorage
+import UIKit
 
 struct CreateProfileView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
+    @ObservedObject private var settingsMgr = UserSettingsManager.shared
     @EnvironmentObject var viewModel: AuthViewModel
     @State private var displayName: String = ""
     @State private var isSaving = false
+
+    // Profile picture picked/uploaded right here, on the same screen as the name.
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var pickedImageData: Data?
+    @State private var isUploadingPhoto = false
 
     private var trimmedName: String {
         displayName.trimmingCharacters(in: .whitespaces)
@@ -42,7 +51,12 @@ struct CreateProfileView: View {
             onPrimary: save
         ) {
             VStack(spacing: 28) {
-                avatar
+                VStack(spacing: 10) {
+                    avatar
+                    Text("Tap to add a photo (optional)")
+                        .font(.custom("Satoshi-Variable", size: 12))
+                        .foregroundColor(.secondary)
+                }
                 InputView(
                     text: $displayName,
                     title: "Display Name",
@@ -53,25 +67,101 @@ struct CreateProfileView: View {
         }
         .onAppear(perform: prefill)
         .onChange(of: viewModel.currentUser) { _, _ in prefill() }
+        .onChange(of: pickerItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    await MainActor.run { pickedImageData = data }
+                }
+                await uploadProfileImage(from: item)
+            }
+        }
     }
 
+    /// Tappable avatar: shows the just-picked image, then the stored one, then initials/placeholder.
     private var avatar: some View {
-        ZStack {
-            Circle()
-                .fill(Color("primaryColor").opacity(0.12))
-                .frame(width: 116, height: 116)
+        PhotosPicker(selection: $pickerItem, matching: .images) {
+            ZStack {
+                Circle()
+                    .fill(Color("primaryColor").opacity(0.12))
+                    .frame(width: 116, height: 116)
 
-            if initials.isEmpty {
-                Image(systemName: "person.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundColor(Color("primaryColor").opacity(0.4))
-                    .frame(width: 46, height: 46)
-            } else {
-                Text(initials.uppercased())
-                    .font(.custom("BambiBold", size: 38))
-                    .foregroundColor(Color("primaryColor"))
+                avatarContent
+
+                if isUploadingPhoto {
+                    ProgressView()
+                        .tint(Color("primaryColor"))
+                }
+
+                // Camera badge, bottom-trailing.
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Color("primaryColor"))
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+                    .offset(x: 40, y: 40)
             }
+        }
+        .buttonStyle(.plain)
+        .disabled(isUploadingPhoto)
+    }
+
+    @ViewBuilder
+    private var avatarContent: some View {
+        if let data = pickedImageData, let uiImage = UIImage(data: data) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 116, height: 116)
+                .clipShape(Circle())
+        } else if let url = settingsMgr.userSettings.profileImageURL {
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    placeholderAvatar
+                }
+            }
+            .frame(width: 116, height: 116)
+            .clipShape(Circle())
+        } else {
+            placeholderAvatar
+        }
+    }
+
+    @ViewBuilder
+    private var placeholderAvatar: some View {
+        if initials.isEmpty {
+            Image(systemName: "person.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundColor(Color("primaryColor").opacity(0.4))
+                .frame(width: 46, height: 46)
+        } else {
+            Text(initials.uppercased())
+                .font(.custom("BambiBold", size: 38))
+                .foregroundColor(Color("primaryColor"))
+        }
+    }
+
+    /// Same upload path as Settings: Photos item → Firebase Storage → `profileImageURL`.
+    private func uploadProfileImage(from item: PhotosPickerItem) async {
+        await MainActor.run { isUploadingPhoto = true }
+        defer { Task { @MainActor in isUploadingPhoto = false } }
+
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        do {
+            let uid = viewModel.currentUser?.id ?? UUID().uuidString
+            let ref = Storage.storage().reference(withPath: "profilePictures/\(uid).jpg")
+            _ = try await ref.putDataAsync(data, metadata: nil)
+            let url = try await ref.downloadURL()
+            await UserSettingsManager.shared.update { settings in
+                settings.profileImageURL = url
+            }
+        } catch {
+            // Non-blocking: the photo is optional, so a failed upload just leaves the placeholder.
         }
     }
 
