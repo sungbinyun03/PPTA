@@ -35,11 +35,11 @@ struct ReportView: View {
     }
 
     // Today, full-day — feeds the progress ring and per-app list. The report extension scopes these
-    // figures to the current monitoring session via `RingSession` (baseline subtraction); a filter
-    // can't window sub-hour. **Must stay identical to `HomeView.summaryFilter`** so the two rings
+    // figures are shown as-is by the report extension (full day, no baseline subtraction).
+    // **Must stay identical to `HomeView.summaryFilter`** so the two rings
     // agree. `.daily` (one exact day bucket) rather than `.hourly`; if the hourly bar chart in
     // `TotalActivityView` is ever re-enabled, switch both filters back to `.hourly` together.
-    // `.id(ringResetAt)` below forces a fresh rebasing render when the user saves a settings change.
+    // `.id(ringResetAt)` below forces a fresh render when the user saves a settings change.
     private var currentFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
@@ -133,7 +133,7 @@ struct ReportView: View {
                     // DeviceActivityReport(.init("Weekly Trend"), filter: weeklyFilter)
                     //     .frame(height: 140)
                     // `.id(ringResetAt)` forces a fresh query when the user saves a settings change,
-                    // so this expanded ring/list rebases in lockstep with the Home summary ring.
+                    // so this expanded ring/list refreshes in lockstep with the Home summary ring.
                     DeviceActivityReport(.init("Total Activity"), filter: currentFilter)
                         .id(ringResetAt)
                         .frame(minHeight: 500)

@@ -66,6 +66,51 @@ enum LimitEvent {
     }
 }
 
+/// Once-per-day gating for the daily limit and warning events, as pure functions of the stored
+/// marker so it can be tested without an App Group.
+///
+/// The daily events are armed with `includesPastActivity: true`, so they count **total** usage since
+/// midnight (matching the report) and any restart of monitoring while the user is already over —
+/// app launch re-arm, an App Limits re-save, a reinstall — makes them fire again at once. Without a
+/// gate that re-sends the coaches' `statusUpdate`, repeats the local notification and, in Hardcore,
+/// re-raises a shield a coach Released or a snooze lifted (and stamps `ShieldPolicy.lastRaisedAt`,
+/// which would make a late Release look superseded).
+///
+/// Markers live in the App Group, written by the AppMonitor extension.
+/// - Limit reached: one string `day|limitMinutes|pressure`. Fires once per day for a given limit and
+///   pressure level; *changing* either is a deliberate settings change and fires again if the new
+///   limit is already exceeded ("save a limit below today's usage trips it right away").
+/// - Warnings: one string `day|limitMinutes|highestMinutesFired`. A warning fires only if its
+///   threshold is above every warning already fired for that limit today, so a burst of
+///   already-passed tiers on arming delivers at most the highest one (the extension also gives all
+///   warnings one notification identifier, so a lower tier that lands first is replaced).
+enum LimitFireGate {
+    static let reachedKey = "limitReachedFiredMarker"
+    static let warningKey = "limitWarningFiredMarker"
+
+    /// Local calendar day, e.g. `2026-09-30`.
+    static func dayStamp(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// The marker to store if the limit-reached event should act now; nil if it already acted.
+    static func nextReachedMarker(stored: String?, day: String, limitMinutes: Int, pressure: String) -> String? {
+        let marker = "\(day)|\(limitMinutes)|\(pressure)"
+        return stored == marker ? nil : marker
+    }
+
+    /// The marker to store if a warning at `minutes` should be delivered now; nil to drop it.
+    static func nextWarningMarker(stored: String?, day: String, limitMinutes: Int, minutes: Int) -> String? {
+        let parts = stored?.split(separator: "|").map(String.init) ?? []
+        if parts.count == 3, parts[0] == day, parts[1] == "\(limitMinutes)",
+           let highest = Int(parts[2]), minutes <= highest {
+            return nil
+        }
+        return "\(day)|\(limitMinutes)|\(minutes)"
+    }
+}
+
 /// Why a `cutOff`/`snoozedLock` happened, sent to the backend so a coach's push can say the right
 /// thing (a coach locking them vs. a Hardcore auto-lock vs. a snooze timer running out).
 ///
@@ -172,27 +217,19 @@ class DeviceActivityManager {
     // MARK: - Ring reset marker
 
     /// Timestamp (`timeIntervalSince1970`) of the most recent **deliberate settings change** — an App
-    /// Limits or Pressure Level save. The screen-time ring only applies its "usage since reset" window
-    /// on days that have such a change; on every other day (and after a plain relaunch) it shows the
-    /// full-day API value, which self-resets at midnight.
+    /// Limits save. It only drives the `@AppStorage`/`.id()` refresh of the report views in the app so
+    /// they re-query after a save. The ring itself always shows the full-day API value (self-resets at
+    /// midnight); there is no "usage since reset" window.
     ///
-    /// Deliberately **not** tied to the monitoring start/stop lifecycle. That coupling was the source
-    /// of the "ring reads 0 after launch" bug: a cold launch briefly sees the blank default settings
-    /// (`isTracking == false`), tears monitoring down, then re-arms it — which used to re-stamp the
-    /// baseline at launch time and hide the day's earlier usage.
-    ///
-    /// Written to both `UserDefaults.standard` (drives `@AppStorage`/`.id()` refresh in the app) and
-    /// the App Group (read by the report extension — see `RingSession`).
+    /// Deliberately **not** tied to the monitoring start/stop lifecycle: a cold launch briefly sees the
+    /// blank default settings (`isTracking == false`) and re-arms monitoring, which must not refresh
+    /// or otherwise affect the displayed usage.
     static let ringResetKey = "ringResetAt"
 
-    private static let appGroupSuite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
-
-    /// Marks "the user just changed settings," so the ring rebases to now for the rest of today.
-    /// Call from the App Limits / Pressure Level save handlers only.
+    /// Marks "the user just changed settings" so the report views re-query.
+    /// Call from the App Limits save handler only.
     static func markRingReset() {
-        let ts = Date().timeIntervalSince1970
-        UserDefaults.standard.set(ts, forKey: ringResetKey)
-        appGroupSuite?.set(ts, forKey: ringResetKey)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: ringResetKey)
     }
 
     func startDeviceActivityMonitoring(
@@ -210,12 +247,19 @@ class DeviceActivityManager {
             repeats: true
         )
 
+        // `includesPastActivity: true` makes the threshold count TOTAL usage since midnight, the same
+        // figure the report shows, instead of usage since monitoring (re)started. So a mid-day save
+        // or relaunch can't reset the count, and a limit saved below today's usage trips right away.
+        // The flip side — these fire immediately on any restart while over — is handled by
+        // `LimitFireGate` in the extension. (The unlock grace event below deliberately does NOT
+        // include past activity: it measures usage from the Release.)
         func event(atMinutes minutes: Int) -> DeviceActivityEvent {
             DeviceActivityEvent(
                 applications: appTokens.applicationTokens,
                 categories: appTokens.categoryTokens,
                 webDomains: [],
-                threshold: DateComponents(minute: minutes)
+                threshold: DateComponents(minute: minutes),
+                includesPastActivity: true
             )
         }
 

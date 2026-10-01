@@ -18,22 +18,20 @@ struct SummaryRingReport: DeviceActivityReportScene {
     func makeConfiguration(
         representing data: DeviceActivityResults<DeviceActivityData>
     ) async -> ActivityReport {
-        // Collect per-app day totals (keyed like TotalActivityReport) so `RingSession` can subtract
-        // its per-app baseline snapshot; the session total is the sum of what's left.
-        var dayApps: [String: TimeInterval] = [:]
+        // The ring shows the plain full-day total for the filtered apps (Screen Time's own figure,
+        // which self-resets at midnight). Deliberately no "since last settings change" baseline: a
+        // baseline that went wrong read 0m while the shield was up, contradicting enforcement.
+        var totalDuration: TimeInterval = 0
 
         for await eachData in data {
             for await segment in eachData.activitySegments {
                 for await category in segment.categories {
                     for await app in category.applications {
-                        let bundle = app.application.bundleIdentifier ?? "unknown-\(app.application.token?.hashValue ?? 0)"
-                        dayApps[bundle, default: 0] += app.totalActivityDuration
+                        totalDuration += app.totalActivityDuration
                     }
                 }
             }
         }
-
-        let totalDuration = RingSession.scoped(dayApps: dayApps).values.reduce(0, +)
 
         struct PartialSettings: Decodable {
             var thresholdHour: Int?

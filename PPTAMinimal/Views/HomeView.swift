@@ -196,12 +196,11 @@ struct HomeView: View {
     
     private var summaryFilter: DeviceActivityFilter {
         let selection = userSettingsManager.userSettings.applications
-        // Full day; the report extension reduces it to today's post-settings-change window via
-        // `RingSession` (only on days that had a change). **Must stay identical to
+        // Full day, shown as-is by the report extension. **Must stay identical to
         // `ReportView.currentFilter`** — same `.daily` segment, interval, and device set — so the
-        // summary ring and the expanded ring compute the same per-app totals and baseline and agree to
+        // summary ring and the expanded ring compute the same per-app totals and agree to
         // the second. `.daily` (one bucket = exact day total) rather than `.hourly` (24 buckets summed,
-        // which can round differently). `.id(ringResetAt)` below forces a rebasing render on a change.
+        // which can round differently). `.id(ringResetAt)` below forces a fresh query on a settings save.
         let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
         if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
             return DeviceActivityFilter(
@@ -292,8 +291,8 @@ struct HomeView: View {
                 Group {
                     if !previewMode {
                         // `.id(ringResetAt)` forces a brand-new report query whenever the user saves a
-                        // settings change, so the ring rebases to 0 immediately. DeviceActivityReport
-                        // otherwise caches and often won't re-query on its own.
+                        // settings change, so the ring picks up the new selection immediately.
+                        // DeviceActivityReport otherwise caches and often won't re-query on its own.
                         DeviceActivityReport(.init("Summary Ring"), filter: summaryFilter)
                             .id(ringResetAt)
                     } else {
@@ -380,9 +379,8 @@ struct HomeView: View {
         }
         print("Loaded apps:", UserSettingsManager.shared.userSettings.applications.applicationTokens)
         print("Threshold:", settings.thresholdHour, settings.thresholdMinutes)
-        // Otherwise, start fresh. The ring reset is no longer tied to monitoring (re)starts — it is
-        // driven only by explicit settings-change saves (see `DeviceActivityManager.markRingReset`),
-        // so a relaunch / OS re-arm here never rebases the ring.
+        // Otherwise, start fresh. The ring is the plain full-day figure, so a relaunch / OS re-arm
+        // here never changes it; `DeviceActivityManager.markRingReset` only refreshes the report query.
         DeviceActivityManager.shared.startDeviceActivityMonitoring(
             appTokens: settings.applications,
             hour: settings.thresholdHour,

@@ -76,25 +76,50 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 return
             }
 
+            // The daily events count total usage since midnight (`includesPastActivity`), so every
+            // restart of monitoring while already over fires them again. Act at most once per day
+            // (see `LimitFireGate`); a repeat must not re-notify coaches or re-raise a shield that a
+            // coach Released or a snooze lifted.
+            let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
+            let day = LimitFireGate.dayStamp(Date())
+            let limitMinutes = settings.thresholdHour * 60 + settings.thresholdMinutes
+
+            if let warningMinutes = LimitEvent.warningThresholds(forLimitMinutes: limitMinutes)[event] {
+                guard let marker = LimitFireGate.nextWarningMarker(
+                    stored: suite?.string(forKey: LimitFireGate.warningKey),
+                    day: day, limitMinutes: limitMinutes, minutes: warningMinutes
+                ) else { return }
+                suite?.set(marker, forKey: LimitFireGate.warningKey)
+            } else if event == LimitEvent.reached {
+                guard let marker = LimitFireGate.nextReachedMarker(
+                    stored: suite?.string(forKey: LimitFireGate.reachedKey),
+                    day: day, limitMinutes: limitMinutes, pressure: settings.pressureLevel.rawValue
+                ) else { return }
+                suite?.set(marker, forKey: LimitFireGate.reachedKey)
+            }
+
             // Tiered warnings are informational nudges for the trainee only: send the local
             // notification and stop. No status change, no shield, no backend call — coaches
             // care about the limit being hit, not the countdown toward it.
             if event == LimitEvent.halfway {
                 scheduleLocalNotification(
                     title: "Halfway there! ⏳",
-                    body: "You've used half your daily screen time — pace yourself!"
+                    body: "You've used half your daily screen time — pace yourself!",
+                    identifier: "limit-warning"
                 )
                 return
             } else if event == LimitEvent.fiveMinutes {
                 scheduleLocalNotification(
                     title: "5 minutes left! ⏳",
-                    body: "Just 5 minutes of screen time left today."
+                    body: "Just 5 minutes of screen time left today.",
+                    identifier: "limit-warning"
                 )
                 return
             } else if event == LimitEvent.twoMinutes {
                 scheduleLocalNotification(
                     title: "2 minutes left! ⏳",
-                    body: "Only 2 minutes of screen time left today — wrap it up!"
+                    body: "Only 2 minutes of screen time left today — wrap it up!",
+                    identifier: "limit-warning"
                 )
                 return
             }
@@ -143,13 +168,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     
     // MARK: - Local notification
 
-    private func scheduleLocalNotification(title: String, body: String) {
+    /// - Parameter identifier: a fixed one makes a later notification replace an earlier one; the
+    ///   warnings share one so a burst of already-passed tiers leaves a single banner.
+    private func scheduleLocalNotification(title: String, body: String, identifier: String = "threshold-\(UUID().uuidString)") {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
         let request = UNNotificationRequest(
-            identifier: "threshold-\(UUID().uuidString)",
+            identifier: identifier,
             content: content,
             trigger: nil
         )

@@ -21,9 +21,6 @@ struct AppLimitsView: View {
     var onContinue: (() -> Void)? = nil
 
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
-    /// Bumped by `DeviceActivityManager.markRingReset()` on save; keys the baseline-capture probe below.
-    @AppStorage("ringResetAt") private var ringResetAt: Double = 0
-
     @State private var isPickerPresented = false
     @State private var showTimeLimitSheet = false
     @State private var showFullAppList = false
@@ -57,39 +54,6 @@ struct AppLimitsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM/yyyy"
         return formatter.string(from: date)
-    }
-
-    /// Mirrors `HomeView.summaryFilter` so the baseline captured here matches what Home later reads.
-    private var baselineCaptureFilter: DeviceActivityFilter {
-        let selection = userSettingsManager.userSettings.applications
-        let todayInterval = Calendar.current.dateInterval(of: .day, for: .now) ?? DateInterval()
-        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
-            return DeviceActivityFilter(
-                segment: .daily(during: todayInterval),
-                users: .all,
-                devices: .init([.iPhone, .iPad])
-            )
-        }
-        return DeviceActivityFilter(
-            segment: .daily(during: todayInterval),
-            users: .all,
-            devices: .init([.iPhone]),
-            applications: selection.applicationTokens,
-            categories: selection.categoryTokens
-        )
-    }
-
-    /// Off-screen probe that forces the Screen Time report extension to run — snapshotting the ring's
-    /// baseline — the instant App Limits are saved (`ringResetAt` changes), so the Home ring is correct
-    /// without the user having to open Home first. Rendered at ~1pt / near-zero opacity (NOT `.hidden()`
-    /// or zero-sized), since iOS may skip `makeConfiguration` for a fully hidden or zero-sized report.
-    private var baselineCaptureProbe: some View {
-        DeviceActivityReport(.init("Summary Ring"), filter: baselineCaptureFilter)
-            .id(ringResetAt)
-            .frame(width: 1, height: 1)
-            .opacity(0.012)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
     }
 
     var body: some View {
@@ -127,8 +91,6 @@ struct AppLimitsView: View {
             }
 
             Spacer()
-
-            baselineCaptureProbe
         }
         .padding()
         .familyActivityPicker(isPresented: $isPickerPresented, selection: $selection)
@@ -529,7 +491,7 @@ struct AppLimitsView: View {
         }
 
         userSettingsManager.saveSettings(settings)
-        // Rebase the screen-time ring to now so it matches the reset threshold (today only).
+        // Stamp the save so Home / the report re-query (`.id(ringResetAt)`); display only.
         DeviceActivityManager.markRingReset()
         return true
     }

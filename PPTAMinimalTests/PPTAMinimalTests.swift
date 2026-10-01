@@ -80,3 +80,54 @@ struct LockDecisionTests {
         #expect(r == .resolved(result: "applied"))
     }
 }
+
+struct LimitFireGateTests {
+
+    private let day = "2026-09-30"
+
+    @Test func reachedActsOnceAPerDayForTheSameLimitAndPressure() {
+        let first = LimitFireGate.nextReachedMarker(stored: nil, day: day, limitMinutes: 5, pressure: "Hardcore")
+        #expect(first != nil)
+        // A relaunch / re-save re-fires the event: dropped, so no re-lock after a Release.
+        #expect(LimitFireGate.nextReachedMarker(stored: first, day: day, limitMinutes: 5, pressure: "Hardcore") == nil)
+    }
+
+    @Test func reachedActsAgainOnANewDay() {
+        let yesterday = LimitFireGate.nextReachedMarker(stored: nil, day: "2026-09-29", limitMinutes: 5, pressure: "Hardcore")
+        #expect(LimitFireGate.nextReachedMarker(stored: yesterday, day: day, limitMinutes: 5, pressure: "Hardcore") != nil)
+    }
+
+    @Test func reachedActsAgainWhenTheLimitOrPressureIsChanged() {
+        let m = LimitFireGate.nextReachedMarker(stored: nil, day: day, limitMinutes: 30, pressure: "Standard")
+        #expect(LimitFireGate.nextReachedMarker(stored: m, day: day, limitMinutes: 5, pressure: "Standard") != nil)
+        #expect(LimitFireGate.nextReachedMarker(stored: m, day: day, limitMinutes: 30, pressure: "Hardcore") != nil)
+    }
+
+    @Test func warningsOnlyFireAboveTheHighestAlreadyFired() {
+        let m = LimitFireGate.nextWarningMarker(stored: nil, day: day, limitMinutes: 30, minutes: 25)
+        #expect(m != nil)
+        // The burst's lower tiers, and a repeat of the same one, are dropped whatever the order.
+        #expect(LimitFireGate.nextWarningMarker(stored: m, day: day, limitMinutes: 30, minutes: 15) == nil)
+        #expect(LimitFireGate.nextWarningMarker(stored: m, day: day, limitMinutes: 30, minutes: 25) == nil)
+        // A higher tier reached later in the day still fires.
+        #expect(LimitFireGate.nextWarningMarker(stored: m, day: day, limitMinutes: 30, minutes: 28) != nil)
+    }
+
+    @Test func warningsResetOnANewDayOrLimit() {
+        let m = LimitFireGate.nextWarningMarker(stored: nil, day: "2026-09-29", limitMinutes: 30, minutes: 28)
+        #expect(LimitFireGate.nextWarningMarker(stored: m, day: day, limitMinutes: 30, minutes: 15) != nil)
+        let n = LimitFireGate.nextWarningMarker(stored: nil, day: day, limitMinutes: 30, minutes: 28)
+        #expect(LimitFireGate.nextWarningMarker(stored: n, day: day, limitMinutes: 60, minutes: 30) != nil)
+    }
+
+    @Test func malformedMarkerIsTreatedAsNothingFired() {
+        #expect(LimitFireGate.nextWarningMarker(stored: "garbage", day: day, limitMinutes: 30, minutes: 15) != nil)
+    }
+
+    @Test func dayStampIsLocalCalendarDay() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let d = cal.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 23, minute: 59))!
+        #expect(LimitFireGate.dayStamp(d, calendar: cal) == "2026-09-30")
+    }
+}

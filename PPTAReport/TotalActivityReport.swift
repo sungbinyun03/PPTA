@@ -54,16 +54,11 @@ struct TotalActivityReport: DeviceActivityReportScene {
             }
         }
 
-        // Scope per-app day totals to the current monitoring session (subtract the baseline snapshot),
-        // then rebuild the list and total from the scoped values so the ring and the per-app rows agree.
-        let scopedDurations = RingSession.scoped(dayApps: appData.mapValues { $0.duration })
-        totalDuration = scopedDurations.values.reduce(0, +)
-
         var list = appData.map { bundle, info in
             AppDeviceActivity(
                 id: bundle,
                 displayName: info.name,
-                duration: scopedDurations[bundle] ?? 0,
+                duration: info.duration,
                 numberOfPickups: info.pickups,
                 numberOfNotifications: info.notifications,
                 token: info.token
