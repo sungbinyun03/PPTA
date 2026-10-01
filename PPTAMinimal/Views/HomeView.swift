@@ -93,8 +93,7 @@ struct HomeView: View {
                 icon: "exclamationmark.triangle.fill",
                 title: "Not Tracking",
                 message: "App Limits aren't set up. Go to Settings → App Limits to pick your apps, set a daily time limit, and turn Pressure on.",
-                color: Color(.systemGray5),
-                textColor: Color(.label)
+                color: Color(.systemGray)
             )
         } else {
             switch settings.traineeStatus {
@@ -103,14 +102,14 @@ struct HomeView: View {
                     icon: "checkmark.circle.fill",
                     title: "All Clear",
                     message: "You're within your limit and tracking properly.",
-                    color: TraineeStatus.allClear.ringColor ?? .green
+                    color: Color("primaryColor")
                 )
             case .attentionNeeded:
                 statusBanner(
                     icon: "exclamationmark.circle.fill",
                     title: "Limits Exceeded",
                     message: "You've hit your screen time limit. Your coaches have been notified and can lock your apps.",
-                    color: TraineeStatus.attentionNeeded.ringColor ?? .red
+                    color: .orange
                 )
             case .cutOff:
                 statusBanner(
@@ -119,7 +118,7 @@ struct HomeView: View {
                     message: settings.pressureLevel == .hardcore
                         ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
                         : "A coach locked your apps. If you want more time, have a coach snooze the lock for you.",
-                    color: TraineeStatus.cutOff.ringColor ?? Color(white: 0.25)
+                    color: .red
                 )
             case .snoozedLock:
                 statusBanner(
@@ -134,23 +133,29 @@ struct HomeView: View {
         }
     }
 
-    private func statusBanner(icon: String, title: String, message: String, color: Color, textColor: Color = .white) -> some View {
-        HStack(spacing: 12) {
+    /// Compact status strip: dot/icon + title, with the longer explanation as a small secondary line.
+    /// Matte tint of the status color (not a solid block) so it reads as information, not an alert.
+    private func statusBanner(icon: String, title: String, message: String, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(textColor)
-            VStack(alignment: .leading, spacing: 2) {
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(color)
+                .frame(height: 16)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.custom("BambiBold", size: 15))
-                    .foregroundColor(textColor)
-                Text(message)
                     .font(.custom("Satoshi-Variable", size: 13))
-                    .foregroundColor(textColor.opacity(0.85))
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                Text(message)
+                    .font(.custom("Satoshi-Variable", size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(color.opacity(0.85))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 24)
     }
