@@ -16,6 +16,12 @@ const LOCK_CAUSE = {
 };
 const VALID_CAUSES = Object.values(LOCK_CAUSE);
 
+// Switch for server-composed alert pushes to coaches (traineeStatus, traineeReinstalled). false =
+// the old silent background push (the app composes the banner locally), safe with any app build.
+// Flip to true only once the build that skips its local banner when `aps.alert` is present is on
+// every tester's phone; older builds would show two banners.
+const ALERT_PUSH = false;
+
 function bad(res, code, reason) {
   res.status(code).set('Content-Type', 'text/plain').send(reason);
 }
@@ -54,6 +60,83 @@ function readBodyAsObject(req) {
   }
 
   return {};
+}
+
+function firstName(name, fallback) {
+  const first = String(name || '').trim().split(/\s+/)[0];
+  return first || fallback;
+}
+
+// Banner copy for a traineeStatus push, rendered per recipient: the coach who acted sees "You…".
+// `null` = no banner (allClear is the silent daily reset). Mirrors the app's fallback copy.
+function traineeStatusCopy({ status, cause, traineeFirst, byFirst, actedBySelf }) {
+  switch (status) {
+    case 'attentionNeeded':
+      return { title: `${traineeFirst} hit their time limit! 👀`, body: 'Go ahead and cut them off!' };
+    case 'cutOff': {
+      const title = `${traineeFirst} has been locked! 🔒`;
+      switch (cause) {
+        case LOCK_CAUSE.HARDCORE_LIMIT:
+          return { title, body: 'They hit their limit — their apps locked automatically.' };
+        case LOCK_CAUSE.COACH:
+          return { title, body: actedBySelf ? 'You cut off their apps.' : `${byFirst} cut off their apps.` };
+        case LOCK_CAUSE.SNOOZE_ENDED:
+          return { title, body: "Their snooze ran out — they're locked again." };
+        default:
+          return { title, body: 'Their apps are now locked.' };
+      }
+    }
+    case 'snoozedLock':
+      return {
+        title: `${traineeFirst}'s lock has been snoozed! ⏳`,
+        body: actedBySelf ? 'You gave them 10 more minutes.' : `${byFirst} gave them 10 more minutes.`,
+      };
+    case 'allClear':
+      return null;
+    default:
+      return { title: 'Accountability update', body: `${traineeFirst} has a status update.` };
+  }
+}
+
+// One send path for the coach fan-out. With ALERT_PUSH on and copy present: an alert push (shows
+// while the app is force-quit) that still carries `data` and content-available so the app's handler
+// runs its side effects. Otherwise the old silent background push.
+async function sendCoachPush(token, data, copy, collapseId) {
+  if (!ALERT_PUSH || !copy) {
+    return admin.messaging().send({
+      token,
+      data,
+      apns: {
+        headers: {
+          'apns-priority': '5',
+          'apns-push-type': 'background',
+        },
+        payload: {
+          aps: { 'content-available': 1 },
+        },
+      },
+    });
+  }
+
+  return admin.messaging().send({
+    token,
+    data,
+    apns: {
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'alert',
+        'apns-collapse-id': collapseId,
+        'apns-expiration': String(Math.floor(Date.now() / 1000) + 3600),
+      },
+      payload: {
+        aps: {
+          alert: { title: copy.title, body: copy.body },
+          sound: 'default',
+          'content-available': 1,
+        },
+      },
+    },
+  });
 }
 
 functions.http('statusUpdate', async (req, res) => {
@@ -247,8 +330,9 @@ functions.http('statusUpdate', async (req, res) => {
       }
     } else if (isReinstall) {
       // ▲ NEW: a trainee deleted & reinstalled PPTA — notify ALL their coaches (accountability
-      //   deterrent). Silent background push (like traineeStatus) so the APP composes the copy;
-      //   the client turns this into a local notification. No status/state is written here.
+      //   deterrent). Alert push once ALERT_PUSH is on (server composes the copy); until then a
+      //   silent background push that the client turns into a local notification. No
+      //   status/state is written here.
       const settingsSnap = await settingsRef.get();
       const rawCoachIds = settingsSnap.exists ? settingsSnap.get('coachIds') : [];
       const coachIds = Array.isArray(rawCoachIds)
@@ -261,23 +345,19 @@ functions.http('statusUpdate', async (req, res) => {
           const token = coachSnap.exists ? coachSnap.get('fcmToken') : null;
           if (!token) continue;
 
-          await admin.messaging().send({
+          await sendCoachPush(
             token,
-            data: {
+            {
               type: 'traineeReinstalled',
               uid: String(uid),
               traineeName,
             },
-            apns: {
-              headers: {
-                'apns-priority': '5',
-                'apns-push-type': 'background',
-              },
-              payload: {
-                aps: { 'content-available': 1 },
-              },
+            {
+              title: `${firstName(traineeName, 'Your trainee')} reinstalled PPTA`,
+              body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨",
             },
-          });
+            `reinstall-${uid}`
+          );
         } catch (_) {
           // best-effort
         }
@@ -329,7 +409,8 @@ functions.http('statusUpdate', async (req, res) => {
         }
       }
     } else {
-      // Status update: silent background fan-out to all coaches so their apps refresh.
+      // Status update: fan-out to all coaches. Alert push (ALERT_PUSH) with per-recipient copy, or
+      // the silent background push (allClear always) that makes their apps refresh.
       const settingsSnap = await settingsRef.get();
       const rawCoachIds = settingsSnap.exists ? settingsSnap.get('coachIds') : [];
       const coachIds = Array.isArray(rawCoachIds)
@@ -351,25 +432,24 @@ functions.http('statusUpdate', async (req, res) => {
           const token = coachSnap.exists ? coachSnap.get('fcmToken') : null;
           if (!token) continue;
 
-          await admin.messaging().send({
+          await sendCoachPush(
             token,
-            data: {
+            {
               type: 'traineeStatus',
               uid: String(uid),
               status: String(status),
               traineeName,
               ...attribution,
             },
-            apns: {
-              headers: {
-                'apns-priority': '5',
-                'apns-push-type': 'background',
-              },
-              payload: {
-                aps: { 'content-available': 1 },
-              },
-            },
-          });
+            traineeStatusCopy({
+              status: String(status),
+              cause: hasCause ? String(cause) : undefined,
+              traineeFirst: firstName(traineeName, 'Your trainee'),
+              byFirst: firstName(byName, 'A coach'),
+              actedBySelf: hasBy && String(by) === coachId,
+            }),
+            `status-${uid}`
+          );
         } catch (_) {
           // best-effort
         }

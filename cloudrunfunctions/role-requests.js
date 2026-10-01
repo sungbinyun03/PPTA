@@ -9,6 +9,12 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// Switch for server-composed alert pushes. false = the old silent background push (the app
+// composes the banner locally), safe with any app build. Flip to true only once the build that
+// skips its local banner when `aps.alert` is present is on every tester's phone; older builds
+// would show two banners.
+const ALERT_PUSH = false;
+
 function json(res, status, obj) {
   res.status(status).set("Content-Type", "application/json").send(JSON.stringify(obj));
 }
@@ -147,6 +153,44 @@ async function sendDataPush(token, data) {
   }
 }
 
+/// User-visible push: iOS shows the banner itself, even when the app is force-quit. `data` keeps
+/// the same keys as the silent push so the app's handler still runs its side effects (the
+/// content-available wake) and can skip its own local banner. Falls back to `sendDataPush` while
+/// ALERT_PUSH is off.
+async function sendAlertPush(token, data, title, body, collapseId) {
+  if (!ALERT_PUSH) return sendDataPush(token, data);
+  if (!token) return;
+
+  try {
+    await admin.messaging().send({
+      token,
+      data,
+      apns: {
+        headers: {
+          "apns-priority": "10",
+          "apns-push-type": "alert",
+          "apns-collapse-id": collapseId,
+          "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600),
+        },
+        payload: {
+          aps: {
+            alert: { title, body },
+            sound: "default",
+            "content-available": 1,
+          },
+        },
+      },
+    });
+  } catch (e) {
+    console.error("FCM alert send error:", e);
+  }
+}
+
+function firstName(name, fallback) {
+  const first = String(name || "").trim().split(/\s+/)[0];
+  return first || fallback;
+}
+
 /// Silent nudge so the other device drops coachIds/traineeIds entries that this
 /// request just deleted. Deliberately produces no user-visible alert.
 async function sendRelationshipsChanged(uid) {
@@ -231,12 +275,14 @@ functions.http("roleRequests", async (req, res) => {
       const requesterName = await getUserName(uid);
       const targetToken = await getFcmToken(targetId);
 
-      await sendDataPush(targetToken, {
+      await sendAlertPush(targetToken, {
         type: "roleRequestReceived",
         requesterId: uid,
         requesterName: requesterName || "Someone",
         role,
-      });
+      }, "New role request! 🤝",
+      `${firstName(requesterName, "Someone")} wants to be your ${role}.`,
+      `roleReq-${id}`);
 
       return json(res, 200, { id });
     }
@@ -294,12 +340,14 @@ functions.http("roleRequests", async (req, res) => {
       const acceptorName = await getUserName(uid);
       const requesterToken = await getFcmToken(requesterId);
 
-      await sendDataPush(requesterToken, {
+      await sendAlertPush(requesterToken, {
         type: "roleRequestAccepted",
         acceptorId: uid,
         acceptorName: acceptorName || "Your friend",
         role,
-      });
+      }, "Request accepted! 🎉",
+      `${firstName(acceptorName, "Your friend")} accepted your ${role} request.`,
+      `roleAcc-${id}`);
 
       return json(res, 200, { ok: true });
     }
