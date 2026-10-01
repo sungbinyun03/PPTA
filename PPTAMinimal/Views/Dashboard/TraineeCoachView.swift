@@ -17,6 +17,23 @@ struct TraineeCoachView: View {
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 
+    /// Left→right: attention needed, cut off & asking me for more time, cut off, snoozed, all clear, not set up.
+    /// Stable within a group (enumerated offset breaks ties), so the view model's order is kept.
+    private var sortedTrainees: [StatusCenterPerson] {
+        func rank(_ t: StatusCenterPerson) -> Int {
+            switch t.traineeStatus ?? .noStatus {
+            case .attentionNeeded: return 0
+            case .cutOff: return t.isRequestingSnoozeFromMe ? 1 : 2
+            case .snoozedLock: return 3
+            case .allClear: return 4
+            case .noStatus: return 5
+            }
+        }
+        return viewModel.trainees.enumerated()
+            .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
+            .map(\.element)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -59,7 +76,7 @@ struct TraineeCoachView: View {
             .padding(.horizontal, 35)
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
-                    ForEach(viewModel.trainees) { trainee in
+                    ForEach(sortedTrainees) { trainee in
                         let status = trainee.traineeStatus ?? .noStatus
                         Button {
                             selectedPerson = trainee
