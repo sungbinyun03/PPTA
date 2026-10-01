@@ -42,6 +42,12 @@ struct TabNavigator: View {
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
     
+    private func loadPeopleForLaunch() async {
+        await statusVm.refresh()
+        await InitialsProfilePicView.prefetch((statusVm.trainees + statusVm.coaches).map(\.profileImageURL))
+        LaunchGate.shared.markPeopleLoaded()
+    }
+
     var body: some View {
         TabView(selection: $selected) {
             HomeView(previewMode: previewMode)
@@ -79,11 +85,14 @@ struct TabNavigator: View {
             if requestedAt != nil { selected = 0 }
         }
         .task {
+            // Started first and run alongside the badge loads: the cold-launch facade waits on it
+            // (coach/trainee lists + their avatars), so it shouldn't queue behind them.
+            async let people: Void = loadPeopleForLaunch()
             await roleInbox.refreshOnce()
             roleInbox.startListening()
             await friendsBadgeVm.refresh()
             friendsBadgeVm.startListening()
-            await statusVm.refresh()
+            await people
         }
         .onDisappear {
             roleInbox.stopListening()

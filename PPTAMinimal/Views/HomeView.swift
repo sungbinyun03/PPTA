@@ -77,8 +77,11 @@ struct HomeView: View {
                         // was not running.
                         Task { @MainActor in
                             print("HomeView.onAppear: applying pending extension updates (status)...")
+                            async let avatar: Void = InitialsProfilePicView.prefetch([loadedSettings.profileImageURL])
                             await UserSettingsManager.shared.applyPendingStatusIfNeeded()
                             print("HomeView.onAppear: done applying pending extension updates.")
+                            await avatar
+                            LaunchGate.shared.markSettingsLoaded()
                         }
                     }
                 }

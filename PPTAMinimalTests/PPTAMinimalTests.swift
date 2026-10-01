@@ -131,3 +131,36 @@ struct LimitFireGateTests {
         #expect(LimitFireGate.dayStamp(d, calendar: cal) == "2026-09-30")
     }
 }
+
+struct LaunchGateTests {
+
+    @Test func holdsForMinimumDisplayEvenWhenReady() {
+        #expect(!LaunchGate.shouldDismiss(elapsed: 0.1, isReady: true, minDisplay: 0.3, cap: 2.5))
+        #expect(LaunchGate.shouldDismiss(elapsed: 0.3, isReady: true, minDisplay: 0.3, cap: 2.5))
+    }
+
+    @Test func holdsUntilReadyThenCapOverrides() {
+        #expect(!LaunchGate.shouldDismiss(elapsed: 2.0, isReady: false, minDisplay: 0.3, cap: 2.5))
+        #expect(LaunchGate.shouldDismiss(elapsed: 2.5, isReady: false, minDisplay: 0.3, cap: 2.5))
+    }
+
+    @MainActor @Test func neverReadyStillDismissesAtCap() async {
+        let gate = LaunchGate(initiallyVisible: true, minDisplay: 0.05, cap: 0.2)
+        await gate.run(isReady: { false })
+        #expect(!gate.isVisible)
+    }
+
+    @MainActor @Test func notShownWhenNotArmedAndWaitReturnsImmediately() async {
+        let gate = LaunchGate(initiallyVisible: false)
+        #expect(!gate.isVisible)
+        await gate.waitUntilDismissed()
+    }
+
+    @MainActor @Test func waitUntilDismissedResumesOnDismiss() async {
+        let gate = LaunchGate(initiallyVisible: true, minDisplay: 0, cap: 5)
+        async let waiter: Void = gate.waitUntilDismissed()
+        await gate.run(isReady: { true })
+        await waiter
+        #expect(!gate.isVisible)
+    }
+}

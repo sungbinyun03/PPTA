@@ -282,6 +282,7 @@ struct PPTAMinimalApp: App {
     // Link our AppDelegate to SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject var viewModel = AuthViewModel.shared
+    @StateObject private var launchGate = LaunchGate.shared
     @Environment(\.scenePhase) private var scenePhase
     
     /// Onboarding completion is stored per user (by uid) so a new account on the same device sees onboarding.
@@ -300,26 +301,16 @@ struct PPTAMinimalApp: App {
     
     var body: some Scene {
         WindowGroup {
-            if viewModel.userSession == nil {
-                NavigationView {
-                    LoginView()
-                        .environmentObject(viewModel)
+            rootView
+                // Cold launch only (see `LaunchGate`): covers Home while its first data loads.
+                .overlay {
+                    if launchGate.isVisible {
+                        LaunchFacadeView()
+                            .environmentObject(viewModel)
+                            .transition(.opacity)
+                    }
                 }
-            } else if viewModel.isOnboardingComplete {
-                if viewModel.needsScreenTimeReconfigure {
-                    // Reinstall of a set-up account: run the trimmed re-grant flow (Screen Time +
-                    // confirm apps + limit/pressure) instead of dropping them straight on Home with
-                    // monitoring silently off. Coaches/trainees are preserved.
-                    OnboardingContainerView(reconfigure: true)
-                        .environmentObject(viewModel)
-                } else {
-                    TabNavigator()
-                        .environmentObject(viewModel)
-                }
-            } else {
-                OnboardingContainerView()
-                    .environmentObject(viewModel)
-            }
+                .animation(.easeOut(duration: 0.25), value: launchGate.isVisible)
         }
         .onChange(of: scenePhase) { _, newPhase in
             // Detached unconditionally — a sign-out clears `userSession`, and gating on it would
@@ -343,6 +334,30 @@ struct PPTAMinimalApp: App {
                 // to open Friends.
                 await PendingCoachRequestStore.drainUsingCurrentFriendships()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        if viewModel.userSession == nil {
+            NavigationView {
+                LoginView()
+                    .environmentObject(viewModel)
+            }
+        } else if viewModel.isOnboardingComplete {
+            if viewModel.needsScreenTimeReconfigure {
+                // Reinstall of a set-up account: run the trimmed re-grant flow (Screen Time +
+                // confirm apps + limit/pressure) instead of dropping them straight on Home with
+                // monitoring silently off. Coaches/trainees are preserved.
+                OnboardingContainerView(reconfigure: true)
+                    .environmentObject(viewModel)
+            } else {
+                TabNavigator()
+                    .environmentObject(viewModel)
+            }
+        } else {
+            OnboardingContainerView()
+                .environmentObject(viewModel)
         }
     }
 }

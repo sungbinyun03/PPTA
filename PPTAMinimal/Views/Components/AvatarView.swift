@@ -59,11 +59,31 @@ private final class AvatarImageLoader: ObservableObject {
         }
     }
 
+    /// One attempt, no retry: warms the cache so the avatar is there on first render. A miss falls
+    /// back to the view's own loader, which retries.
+    static func prefetch(_ url: URL) async {
+        guard cache.object(forKey: url as NSURL) == nil, let img = await fetch(url) else { return }
+        cache.setObject(img, forKey: url as NSURL)
+    }
+
     private nonisolated static func fetch(_ url: URL) async -> UIImage? {
         guard let (data, response) = try? await URLSession.shared.data(from: url),
               (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true
         else { return nil }
         return UIImage(data: data)
+    }
+}
+
+extension InitialsProfilePicView {
+    /// Downloads the avatars into the shared cache ahead of the views that show them (cold-launch
+    /// facade). Never throws; an unreachable URL just leaves that avatar to load as usual.
+    @MainActor
+    static func prefetch(_ urls: [URL?]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for url in Set(urls.compactMap { $0 }) {
+                group.addTask { await AvatarImageLoader.prefetch(url) }
+            }
+        }
     }
 }
 

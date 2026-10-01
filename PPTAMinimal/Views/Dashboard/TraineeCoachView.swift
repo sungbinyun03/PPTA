@@ -38,8 +38,11 @@ struct TraineeCoachView: View {
     private func presentAskCoachInfoIfRequested() {
         guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
         guard notifications.consumeCoachesPopoverRequest() else { return }
+        // The launch facade covers Home on a cold start; a popover presented under it is lost, so
+        // wait for it to go. Consumed above, so the 15s window only has to cover reaching here.
         // Short delay: a popover presented mid tab/launch transition is dropped.
         Task { @MainActor in
+            await LaunchGate.shared.waitUntilDismissed()
             try? await Task.sleep(nanoseconds: 600_000_000)
             showAskCoachInfo = true
         }
