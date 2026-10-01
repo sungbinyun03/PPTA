@@ -111,8 +111,14 @@ struct FriendProfileSheetView: View {
         guard vm.isTrainee else { return nil }
         guard vm.traineeStatus == .attentionNeeded else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
-        guard let url = UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID) else { return nil }
-        return { Task { await vm.performLock(url: url) } }
+        // Signed when tapped, not here: the signature carries a timestamp the server rejects after
+        // 5 minutes, and this runs on every body evaluation, so a sheet left open would send a
+        // stale one.
+        let childUID = otherUserId
+        return {
+            guard let url = UnlockService.makeLockURL(childUID: childUID, coachUID: coachUID) else { return }
+            Task { await vm.performLock(url: url) }
+        }
     }
 
     /// Trainee side: offer "Request to snooze" only when *I* am cut off and this person is my coach.
@@ -129,7 +135,11 @@ struct FriendProfileSheetView: View {
         // Show the button for both cutOff (active) and snoozedLock (greyed-out/disabled in FriendProfileView).
         guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
-        guard let url = UnlockService.makeUnlockURL(childUID: otherUserId, coachUID: coachUID) else { return nil }
-        return { Task { await vm.performUnlock(url: url) } }
+        // Signed when tapped — see `makeLockActionIfNeeded`.
+        let childUID = otherUserId
+        return {
+            guard let url = UnlockService.makeUnlockURL(childUID: childUID, coachUID: coachUID) else { return }
+            Task { await vm.performUnlock(url: url) }
+        }
     }
 }
