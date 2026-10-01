@@ -9,6 +9,7 @@ struct PhoneVerificationView: View {
     @State private var isCodeSent = false
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @State private var isVerifying = false
     @FocusState private var isPhoneFocused: Bool
     @FocusState private var isCodeFocused: Bool
 
@@ -157,6 +158,7 @@ struct PhoneVerificationView: View {
                     }
                     .foregroundColor(primaryColor)
                 }
+                .disabled(isVerifying)
                 Spacer()
             }
             .padding(.horizontal, 24)
@@ -182,7 +184,7 @@ struct PhoneVerificationView: View {
                 .frame(height: 0)
                 .onChange(of: verificationCode) { _, newValue in
                     if newValue.count > 6 { verificationCode = String(newValue.prefix(6)) }
-                    if newValue.count == 6 { Task { await verifyCode() } }
+                    if newValue.count == 6 { submitVerificationCode() }
                 }
 
             // OTP digit boxes
@@ -203,8 +205,11 @@ struct PhoneVerificationView: View {
                     .padding(.horizontal, 24)
             }
 
-            PrimaryButton(title: "Verify", isDisabled: verificationCode.count != 6) {
-                Task { await verifyCode() }
+            PrimaryButton(
+                title: isVerifying ? "Verifying..." : "Verify",
+                isDisabled: verificationCode.count != 6 || isVerifying
+            ) {
+                submitVerificationCode()
             }
             .padding(.horizontal, 24)
 
@@ -215,6 +220,7 @@ struct PhoneVerificationView: View {
                     .font(.subheadline)
                     .foregroundColor(primaryColor)
             }
+            .disabled(isVerifying)
             .padding(.bottom, 40)
         }
         .onAppear {
@@ -276,9 +282,27 @@ struct PhoneVerificationView: View {
         }
     }
 
-    private func verifyCode() async {
-        errorMessage = nil
+    /// The only way into `verifyCode()`. Both the auto-submit on the 6th digit and the Verify
+    /// button — which becomes enabled at that same instant — funnel through here, because a phone
+    /// `AuthCredential` is one-shot: the second `link(with:)` fails on a consumed credential and
+    /// used to flash a generic error while the first, successful call was still finishing.
+    ///
+    /// `isVerifying` is set synchronously, before the `Task` is created. Setting it inside the
+    /// async work would leave exactly the window this closes.
+    @MainActor
+    private func submitVerificationCode() {
+        guard !isVerifying else { return }
         guard verificationCode.count == 6, !verificationID.isEmpty else { return }
+
+        isVerifying = true
+        errorMessage = nil
+        Task { await verifyCode() }
+    }
+
+    /// Call only via `submitVerificationCode()`, which owns the in-flight guard.
+    @MainActor
+    private func verifyCode() async {
+        defer { isVerifying = false }
 
         let credential = PhoneAuthProvider.provider().credential(
             withVerificationID: verificationID,
@@ -288,14 +312,29 @@ struct PhoneVerificationView: View {
         guard let currentUser = Auth.auth().currentUser else { return }
         do {
             _ = try await currentUser.link(with: credential)
-            let cleanedCode = countryCode.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-            let cleanedNumber = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
-            await authViewModel.updateUserPhoneNumber(phoneNumber: "+\(cleanedCode)\(cleanedNumber)")
-            dismiss()
         } catch {
             print("DEBUG: verifyCode error — domain: \((error as NSError).domain), code: \((error as NSError).code), msg: \(error.localizedDescription)")
-            errorMessage = AuthViewModel.userFacingMessage(for: error)
+            // Already linked means the link we were asked to make has already happened — the
+            // desired end state holds, so nothing is broken. Fall through to the success tail
+            // rather than surfacing an error the user can do nothing about.
+            guard isPhoneProviderAlreadyLinked(error) else {
+                errorMessage = AuthViewModel.userFacingMessage(for: error)
+                return
+            }
         }
+
+        let cleanedCode = countryCode.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        let cleanedNumber = phoneNumber.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+        await authViewModel.updateUserPhoneNumber(phoneNumber: "+\(cleanedCode)\(cleanedNumber)")
+        dismiss()
+    }
+
+    /// `providerAlreadyLinked` (17015) on the link path is success, not failure. The guard above is
+    /// the real fix; this is the backstop so a duplicate that still gets through can't flash.
+    private func isPhoneProviderAlreadyLinked(_ error: Error) -> Bool {
+        let ns = error as NSError
+        return ns.domain == "FIRAuthErrorDomain"
+            && ns.code == AuthErrorCode.providerAlreadyLinked.rawValue
     }
 }
 
