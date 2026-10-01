@@ -52,6 +52,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         print("@@ TOKEN RECEIVED: \(deviceToken.map { String(format: "%02x", $0)}.joined())")
     }
     
+    /// Whether the push has an APNs alert, i.e. iOS shows the banner itself and the handler must
+    /// not post a local one on top.
+    private static func carriesAlert(_ notification: [AnyHashable: Any]) -> Bool {
+        (notification["aps"] as? [String: Any])?["alert"] != nil
+    }
+
+    /// Runs `work`, then calls `completionHandler(.newData)`. The call is what tells iOS it may
+    /// suspend the app, so it has to come after the handler's Firestore and `statusUpdate` writes,
+    /// or they can be left in flight. A background task plus a cap keep a stalled network from
+    /// burning the wake budget (or getting the app killed) — at the cap we finish regardless.
+    private static func finishWork(
+        then completionHandler: @escaping (UIBackgroundFetchResult) -> Void,
+        _ work: @escaping @MainActor () async -> Void
+    ) {
+        let app = UIApplication.shared
+        var bgTask = UIBackgroundTaskIdentifier.invalid
+        bgTask = app.beginBackgroundTask(withName: "remoteLockWork") {
+            app.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
+        // Whichever of `work` and the cap finishes first completes. Unstructured tasks rather
+        // than a task group: a group would still wait on `work` after the cap fired.
+        var finished = false
+        let finish = { @MainActor in
+            guard !finished else { return }
+            finished = true
+            completionHandler(.newData)
+            if bgTask != .invalid {
+                app.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
+        Task { @MainActor in
+            await work()
+            finish()
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 20_000_000_000)
+            finish()
+        }
+    }
+
     func application(_ application: UIApplication, didReceiveRemoteNotification notification: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void){
         print("@@@ Received Remote Notification: \(notification)")
         if Auth.auth().canHandleNotification(notification){
@@ -66,9 +108,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
             let coachUID = notification["by"] as? String
             print("!!!! Unlock notification received. Coach: \(coachName)")
-            Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteUnlock(from: coachName, coachUID: coachUID)
-                completionHandler(.newData)
+            let pushShowsBanner = Self.carriesAlert(notification)
+            Self.finishWork(then: completionHandler) {
+                await DeviceActivityManager.shared.handleRemoteUnlock(from: coachName, coachUID: coachUID, pushShowsBanner: pushShowsBanner)
             }
             return
         }
@@ -80,9 +122,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
             let coachUID = notification["by"] as? String
             print("!!!! Lock notification received. Coach: \(coachName)")
-            Task { @MainActor in
-                DeviceActivityManager.shared.handleRemoteLock(from: coachName, coachUID: coachUID)
-                completionHandler(.newData)
+            let pushShowsBanner = Self.carriesAlert(notification)
+            Self.finishWork(then: completionHandler) {
+                await DeviceActivityManager.shared.handleRemoteLock(from: coachName, coachUID: coachUID, pushShowsBanner: pushShowsBanner)
             }
             return
         }

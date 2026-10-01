@@ -237,8 +237,13 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
     
+    /// - Parameter pushShowsBanner: The incoming push already carried an APNs alert, so iOS shows
+    ///   the banner itself; posting our own would be a second one for the same event.
+    ///
+    /// Returns once the status writes have resolved, so the caller can hold the background wake
+    /// open until they have — a write left in flight when the app is suspended may not land.
     @MainActor
-    func handleRemoteLock(from coach: String, coachUID: String?) {
+    func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async {
         let settings = LocalSettingsStore.load()
         guard settings.isTracking else { return }
 
@@ -247,33 +252,37 @@ class DeviceActivityManager {
 
         ShieldPolicy.apply(settings.applications, to: store)
 
-        NotificationManager.shared.sendNotification(
-            title: "Locked by \(coach) 🔒",
-            body: "Head to a coach's profile to ask them to snooze the lock."
-        )
+        if !pushShowsBanner {
+            NotificationManager.shared.sendNotification(
+                title: "Locked by \(coach) 🔒",
+                body: "Head to a coach's profile to ask them to snooze the lock."
+            )
+        }
 
         // Sync in-memory state so the main app reflects the new status immediately.
         // `lockedByName` is also what the shield reads to say "Alex locked this" rather than
         // falling back to daily-limit copy. The Cloud Function writes it to Firestore, but not
         // in time for the shield that appears seconds from now, so set it locally too.
-        UserSettingsManager.shared.update {
+        async let saved: Void = UserSettingsManager.shared.updateAndWait {
             $0.traineeStatus = .cutOff
             $0.lockedByName = coach
         }
 
         // Best-effort: notify backend that user is now cut off. `cause: .coach` + the acting coach's
         // UID let the fan-out tell every coach who did it (and say "You…" to the actor).
-        postToStatusUpdate(
+        async let posted: Void = postToStatusUpdateAndWait(
             uid: LocalSettingsStore.loadCurrentUserId(),
             status: .cutOff,
             type: nil,
             cause: .coach,
             by: coachUID
         )
+        _ = await (saved, posted)
     }
 
+    /// See `handleRemoteLock` for `pushShowsBanner` and why this is awaitable.
     @MainActor
-    func handleRemoteUnlock(from coach: String, coachUID: String?) {
+    func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async {
         let settings = LocalSettingsStore.load()
 
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
@@ -283,27 +292,32 @@ class DeviceActivityManager {
 
         guard settings.isTracking else { return }
 
-        NotificationManager.shared.sendNotification(
-            title: "Lock snoozed by \(coach)! ⏳",
-            body: "You've got \(UnlockGrace.durationMinutes) minutes before your apps lock again — make them count!"
-        )
+        if !pushShowsBanner {
+            NotificationManager.shared.sendNotification(
+                title: "Lock snoozed by \(coach)! ⏳",
+                body: "You've got \(UnlockGrace.durationMinutes) minutes before your apps lock again — make them count!"
+            )
+        }
 
         // Sync in-memory state so the main app reflects the snooze immediately, and notify all
         // coaches (including the snoozer) that this coach snoozed the lock.
         // Clear the locking coach: the shield's next appearance is a grace expiry, not this
         // coach's lock, and a stale name would misattribute it.
-        UserSettingsManager.shared.update {
+        // Grace is armed first, before any network wait: it is what enforces the re-lock, and
+        // the write below can take seconds.
+        startUnlockGracePeriod(settings: settings)
+        async let saved: Void = UserSettingsManager.shared.updateAndWait {
             $0.traineeStatus = .snoozedLock
             $0.lockedByName = nil
         }
-        postToStatusUpdate(
+        async let posted: Void = postToStatusUpdateAndWait(
             uid: LocalSettingsStore.loadCurrentUserId(),
             status: .snoozedLock,
             type: nil,
             cause: .coach,
             by: coachUID
         )
-        startUnlockGracePeriod(settings: settings)
+        _ = await (saved, posted)
     }
 
     // MARK: - Unlock grace period
@@ -417,7 +431,40 @@ class DeviceActivityManager {
         targetCoach: String? = nil,
         extra: [String: String] = [:]
     ) {
-        guard let uid, !uid.isEmpty else { return }
+        guard let req = makeStatusUpdateRequest(
+            uid: uid, status: status, type: type, cause: cause, by: by,
+            targetCoach: targetCoach, extra: extra
+        ) else { return }
+        URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()
+    }
+
+    /// `postToStatusUpdate`, returning once the request has resolved. For the push handlers, which
+    /// must not let the app suspend with the POST still in flight. Failures are swallowed, same as
+    /// the fire-and-forget version.
+    private func postToStatusUpdateAndWait(
+        uid: String?,
+        status: TraineeStatus,
+        type: String?,
+        cause: LockCause? = nil,
+        by: String? = nil
+    ) async {
+        guard let req = makeStatusUpdateRequest(
+            uid: uid, status: status, type: type, cause: cause, by: by,
+            targetCoach: nil, extra: [:]
+        ) else { return }
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    private func makeStatusUpdateRequest(
+        uid: String?,
+        status: TraineeStatus,
+        type: String?,
+        cause: LockCause?,
+        by: String?,
+        targetCoach: String?,
+        extra: [String: String]
+    ) -> URLRequest? {
+        guard let uid, !uid.isEmpty else { return nil }
 
         let ts = Int(Date().timeIntervalSince1970)
         var msg = "\(uid)|\(status.rawValue)|\(ts)"
@@ -449,7 +496,6 @@ class DeviceActivityManager {
         if let by, !by.isEmpty { body["by"] = by }
         for (key, value) in extra { body[key] = value }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()
+        return req
     }
 }

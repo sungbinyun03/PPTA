@@ -22,9 +22,13 @@ final class UserSettingsManager : ObservableObject{
         return Auth.auth().currentUser?.uid
     }
 
-    func saveSettings(_ settings: UserSettings) {
+    /// - Parameter completion: Called once the Firestore write resolves (or immediately if there is
+    ///   no user to write for). Only the push handlers use it, to finish their writes before
+    ///   telling iOS the background wake is done.
+    func saveSettings(_ settings: UserSettings, completion: ((Error?) -> Void)? = nil) {
         guard let userID = userID else {
             print("ERROR: No user is logged in. Cannot save settings.")
+            completion?(nil)
             return
         }
 
@@ -60,6 +64,7 @@ final class UserSettingsManager : ObservableObject{
             } else {
                 print("User settings saved successfully for user \(userID)!")
             }
+            completion?(error)
         }
         
         let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
@@ -200,6 +205,20 @@ final class UserSettingsManager : ObservableObject{
         
         transform(&draft)
         saveSettings(draft)
+    }
+
+    /// `update`, returning once the Firestore write has resolved. For a push handler that must not
+    /// call its completion handler (and let iOS suspend the app) with the write still in flight.
+    @MainActor
+    func updateAndWait(_ transform: (inout UserSettings) -> Void) async {
+        var draft = userSettings
+        if draft.id == UserSettings().id {
+            draft = loadSettingsSyncFromDefaults()
+        }
+        transform(&draft)
+        await withCheckedContinuation { continuation in
+            saveSettings(draft) { _ in continuation.resume() }
+        }
     }
 
     /// Reads and clears any pending trainee status / streak updates that were
