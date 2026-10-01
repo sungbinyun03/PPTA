@@ -30,21 +30,11 @@ struct ProfileView: View {
                     // Hide the Home/Friends tab bar for Settings and everything pushed deeper, so the
                     // only way back out is the back button (no jumping tabs mid-flow).
                     NavigationLink(destination: SettingsView().toolbar(.hidden, for: .tabBar)) {
-                        Group {
-                            if let url = settingsMgr.userSettings.profileImageURL {
-                                AsyncImage(url: url) { phase in
-                                    if let image = phase.image {
-                                        image.resizable().scaledToFill()
-                                    } else {
-                                        initialsCircle(for: user)
-                                    }
-                                }
-                                .frame(width: 58, height: 58)
-                                .clipShape(Circle())
-                            } else {
-                                initialsCircle(for: user)
-                            }
-                        }
+                        InitialsProfilePicView(
+                            name: user.name,
+                            profilePicUrl: settingsMgr.userSettings.profileImageURL?.absoluteString,
+                            size: 58
+                        )
                         .overlay(alignment: .bottomTrailing) {
                             if settingsNeedAttention {
                                 Image(systemName: "exclamationmark.circle.fill")
@@ -94,16 +84,6 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 24) // Keeps the main layout structured
         }
-    }
-
-    private func initialsCircle(for user: User) -> some View {
-        Text(user.intiials)
-            .font(.title)
-            .fontWeight(.semibold)
-            .foregroundStyle(.white)
-            .frame(width: 58, height: 58)
-            .background(Color(.systemGray3))
-            .clipShape(Circle())
     }
 }
 

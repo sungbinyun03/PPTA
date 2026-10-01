@@ -4,29 +4,90 @@
 //
 
 import SwiftUI
+import UIKit
+
+/// Loads and holds one avatar image. AsyncImage never retries a failed load and drops its result
+/// when the parent re-renders mid-flight (-999), which stranded the Home header on initials when
+/// it was created before the network was up. This lives in @StateObject so it survives re-renders,
+/// retries with backoff, and retries again when the app becomes active.
+@MainActor
+private final class AvatarImageLoader: ObservableObject {
+    @Published private(set) var image: UIImage?
+
+    private static let cache = NSCache<NSURL, UIImage>()
+    private static let retryDelays: [UInt64] = [2, 5, 15, 30]  // seconds
+
+    private var url: URL?
+    private var task: Task<Void, Never>?
+
+    func load(_ newURL: URL?) {
+        if newURL == url, image != nil || task != nil { return }
+        task?.cancel()
+        task = nil
+        url = newURL
+        image = nil
+        guard let newURL else { return }
+        if let cached = Self.cache.object(forKey: newURL as NSURL) {
+            image = cached
+            return
+        }
+        start(newURL)
+    }
+
+    /// Called when the app becomes active: restart only if we gave up.
+    func retryIfNeeded() {
+        guard let url, image == nil, task == nil else { return }
+        start(url)
+    }
+
+    private func start(_ target: URL) {
+        task = Task { [weak self] in
+            var attempt = 0
+            while !Task.isCancelled {
+                if let img = await Self.fetch(target) {
+                    guard let self, self.url == target else { return }
+                    Self.cache.setObject(img, forKey: target as NSURL)
+                    self.image = img
+                    self.task = nil
+                    return
+                }
+                guard attempt < Self.retryDelays.count else { break }
+                try? await Task.sleep(nanoseconds: Self.retryDelays[attempt] * 1_000_000_000)
+                attempt += 1
+            }
+            if !Task.isCancelled, let self, self.url == target { self.task = nil }
+        }
+    }
+
+    private nonisolated static func fetch(_ url: URL) async -> UIImage? {
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
+              (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true
+        else { return nil }
+        return UIImage(data: data)
+    }
+}
 
 struct InitialsProfilePicView: View {
     let name: String
     let profilePicUrl: String?
     let size: CGFloat
 
+    @StateObject private var loader = AvatarImageLoader()
+
     var body: some View {
         Group {
-            if let profilePicUrl, let url = URL(string: profilePicUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        initialsCircle
-                    }
-                }
+            if let image = loader.image {
+                Image(uiImage: image).resizable().scaledToFill()
             } else {
                 initialsCircle
             }
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
+        .task(id: profilePicUrl) { loader.load(profilePicUrl.flatMap { URL(string: $0) }) }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            loader.retryIfNeeded()
+        }
     }
 
     private var initialsCircle: some View {
