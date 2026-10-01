@@ -3,12 +3,25 @@ import firebase_admin
 from firebase_admin import firestore, messaging
 import hmac
 import hashlib
+import json
 import os
 import time
+import uuid
 
+# Step 4 switch. False = the old silent background push (safe with any app build). Flip to True
+# only once the build that skips its local banner when `aps.alert` is present (f6af45d) is on
+# every tester's phone; older builds would show two banners.
+ALERT_PUSH = False
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app()
+
+
+def _command_ok(cmd_id, push=None):
+    body = {"ok": True, "cmd": cmd_id}
+    if push:
+        body["push"] = push
+    return (json.dumps(body), 200, {"Content-Type": "application/json"})
 
 
 def _bad_request(reason, code):
@@ -79,33 +92,61 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         print(f"Could not resolve coach name: {e}")
 
+    # The command is the source of truth the trainee converges on, so a failed write must fail
+    # the request (the coach sees the error) rather than push a lock that nothing records.
+    cmd_id = uuid.uuid4().hex
     try:
         db.collection("userSettings").document(uid).set(
             {
                 "lockedByUID": coach,
                 "lockedByName": coach_name,
+                "lockCommand": {
+                    "id": cmd_id,
+                    "action": "lock",
+                    "by": coach,
+                    "byName": coach_name,
+                    "at": firestore.SERVER_TIMESTAMP,
+                },
             },
             merge=True,
         )
     except Exception as e:
-        print(f"Error writing lockedBy to userSettings: {e}")
+        print(f"Error writing lockCommand to userSettings: {e}")
+        return _bad_request("could not record lock command", 500)
 
     snap = db.collection("users").document(uid).get()
     if not snap.exists:
-        return _bad_request(f"user {uid} not found", 404)
+        return _command_ok(cmd_id, "no-token")
 
-    token = snap.get("fcmToken")
+    # to_dict().get: snap.get() raises KeyError when the field is absent.
+    token = (snap.to_dict() or {}).get("fcmToken")
     if not token or (isinstance(token, str) and not token.strip()):
-        return _bad_request(f"no token for uid {uid}", 404)
+        return _command_ok(cmd_id, "no-token")
 
-    message = messaging.Message(
-        token=token,
-        data={
-            "type": "lock",
-            "by": str(coach),
-            "byName": coach_name,
-        },
-        apns=messaging.APNSConfig(
+    parts = coach_name.split()
+    first = parts[0] if parts else "Your coach"
+
+    if ALERT_PUSH:
+        apns = messaging.APNSConfig(
+            headers={
+                "apns-priority": "10",
+                "apns-push-type": "alert",
+                "apns-collapse-id": f"lock-{uid}",
+                "apns-expiration": str(int(time.time()) + 3600),
+            },
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(
+                    alert=messaging.ApsAlert(
+                        title=f"Locked by {first} 🔒",
+                        body="Head to a coach's profile to ask them to snooze the lock.",
+                    ),
+                    sound="default",
+                    content_available=True,
+                )
+            ),
+        )
+    else:
+        apns = messaging.APNSConfig(
             headers={
                 "apns-priority": "5",
                 "apns-push-type": "background",
@@ -113,7 +154,18 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
             payload=messaging.APNSPayload(
                 aps=messaging.Aps(content_available=True)
             ),
-        ),
+        )
+
+    message = messaging.Message(
+        token=token,
+        data={
+            "type": "lock",
+            "by": str(coach),
+            "byName": coach_name,
+            "cmd": cmd_id,
+            "uid": uid,
+        },
+        apns=apns,
     )
 
     try:
@@ -121,6 +173,8 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
         print(f"Lock FCM sent. ID: [{message_id}], UID: [{uid}]")
     except Exception as e:
         print(f"FCM send error: {e}")
-        return _bad_request(f"FCM send error: {str(e)}", 500)
+        # The command is already persisted and the trainee converges on it at next launch/foreground,
+        # so a push failure is not a failed request; a 500 would tell the coach to retry a lock that lands.
+        return _command_ok(cmd_id, "failed")
 
-    return ("OK", 200, {"Content-Type": "text/plain"})
+    return _command_ok(cmd_id)

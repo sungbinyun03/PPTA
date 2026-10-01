@@ -3,12 +3,25 @@ import firebase_admin
 from firebase_admin import firestore, messaging
 import hmac
 import hashlib
+import json
 import os
 import time
+import uuid
 
+# Step 4 switch. False = the old silent background push (safe with any app build). Flip to True
+# only once the build that skips its local banner when `aps.alert` is present (f6af45d) is on
+# every tester's phone; older builds would show two banners.
+ALERT_PUSH = False
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app()
+
+
+def _command_ok(cmd_id, push=None):
+    body = {"ok": True, "cmd": cmd_id}
+    if push:
+        body["push"] = push
+    return (json.dumps(body), 200, {"Content-Type": "application/json"})
 
 
 def _bad_request(reason: str, code: int):
@@ -79,17 +92,28 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         print(f"Could not resolve coach name for coach [{coach}]: {e}")
 
+    # The command is the source of truth the trainee converges on, so a failed write must fail
+    # the request (the coach sees the error) rather than push an unlock that nothing records.
+    cmd_id = uuid.uuid4().hex
     try:
         db.collection("userSettings").document(uid).set(
             {
                 "lockedByUID": firestore.DELETE_FIELD,
                 "lockedByName": firestore.DELETE_FIELD,
+                "lockCommand": {
+                    "id": cmd_id,
+                    "action": "unlock",
+                    "by": coach,
+                    "byName": coach_name,
+                    "at": firestore.SERVER_TIMESTAMP,
+                },
             },
             merge=True,
         )
-        print(f"Cleared lock attribution for UID: [{uid}]")
+        print(f"Recorded unlock command [{cmd_id}] for UID: [{uid}]")
     except Exception as e:
-        print(f"Error clearing lock attribution for UID [{uid}]: {e}")
+        print(f"Error writing lockCommand for UID [{uid}]: {e}")
+        return _bad_request("could not record unlock command", 500)
 
     print(f"Fetching FCM token for UID: [{uid}] from 'users' collection.")
     user_doc_ref = db.collection("users").document(uid)
@@ -97,26 +121,43 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
 
     if not snap.exists:
         print(f"User document does not exist for UID: [{uid}] in 'users' collection")
-        return _bad_request(f"user {uid} not found in 'users' collection", 404)
+        return _command_ok(cmd_id, "no-token")
 
-    token = snap.get("fcmToken")
+    # to_dict().get: snap.get() raises KeyError when the field is absent.
+    token = (snap.to_dict() or {}).get("fcmToken")
 
     if not token:
         print(f"Token is None or empty for UID: [{uid}]")
-        return _bad_request(f"no token for uid {uid}", 404)
+        return _command_ok(cmd_id, "no-token")
 
     if isinstance(token, str) and not token.strip():
         print(f"Token for UID [{uid}] is a whitespace-only string")
-        return _bad_request(f"invalid (whitespace) token for uid {uid}", 404)
+        return _command_ok(cmd_id, "no-token")
 
-    message = messaging.Message(
-        token=token,
-        data={
-            "type": "unlock",
-            "by": str(coach),
-            "byName": coach_name,
-        },
-        apns=messaging.APNSConfig(
+    parts = coach_name.split()
+    first = parts[0] if parts else "Your coach"
+
+    if ALERT_PUSH:
+        apns = messaging.APNSConfig(
+            headers={
+                "apns-priority": "10",
+                "apns-push-type": "alert",
+                "apns-collapse-id": f"lock-{uid}",
+                "apns-expiration": str(int(time.time()) + 3600),
+            },
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(
+                    alert=messaging.ApsAlert(
+                        title=f"Lock snoozed by {first}! ⏳",
+                        body="You've got 10 minutes before your apps lock again — make them count!",
+                    ),
+                    sound="default",
+                    content_available=True,
+                )
+            ),
+        )
+    else:
+        apns = messaging.APNSConfig(
             headers={
                 "apns-priority": "5",
                 "apns-push-type": "background",
@@ -124,7 +165,18 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
             payload=messaging.APNSPayload(
                 aps=messaging.Aps(content_available=True)
             ),
-        ),
+        )
+
+    message = messaging.Message(
+        token=token,
+        data={
+            "type": "unlock",
+            "by": str(coach),
+            "byName": coach_name,
+            "cmd": cmd_id,
+            "uid": uid,
+        },
+        apns=apns,
     )
 
     try:
@@ -132,6 +184,7 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
         print(f"Successfully sent FCM message. ID: [{message_id}]. To UID: [{uid}]")
     except Exception as e:
         print(f"Error sending FCM message for UID [{uid}]: {e}")
-        return _bad_request(f"FCM send error: {str(e)}", 500)
+        # Command already persisted; see lockApp for why a push failure is a 200.
+        return _command_ok(cmd_id, "failed")
 
-    return ("OK", 200, {"Content-Type": "text/plain"})
+    return _command_ok(cmd_id)
