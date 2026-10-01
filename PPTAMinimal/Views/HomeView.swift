@@ -63,6 +63,11 @@ struct HomeView: View {
             if previewMode {
                 seedPreviewData()
             } else {
+                // Apply the coach's latest lock/unlock command, so one whose push never arrived is
+                // enforced from here rather than never. Also covers a sign-in mid-session, which
+                // `scenePhase` doesn't see. Idempotent — the scenePhase hook calls the same thing on
+                // every foreground.
+                LockReconciler.shared.start()
                 // 1. Load user settings from Firestore on launch
                 UserSettingsManager.shared.loadSettings { loadedSettings in
                     DispatchQueue.main.async {

@@ -78,6 +78,14 @@ enum LockCause: String {
     case snoozeEnded     // the post-unlock grace timer ran out and re-locked them
 }
 
+/// What a remote lock/unlock actually did on this device. Raw values are what `LockReconciler`
+/// writes into `lockAck.result`, which the coach's sheet reads.
+enum LockOutcome: String {
+    case applied
+    case notTracking
+    case emptySelection
+}
+
 /// The one way this app raises and lifts a shield.
 ///
 /// A `FamilyActivitySelection` can name individual apps, whole categories, or both, and
@@ -110,12 +118,31 @@ enum ShieldPolicy {
     /// `.specific` takes an `except:` set of apps to spare inside a shielded category, left at its
     /// default empty. `FamilyActivitySelection` has no exclusion concept — a category the user
     /// picked arrives as a bare token — so there is nothing honest to put there.
-    static func apply(_ selection: FamilyActivitySelection, to store: ManagedSettingsStore) {
+    ///
+    /// - Parameter recordsRaise: Stamps `lastRaisedAt`. Pass `false` for a re-assertion of a shield
+    ///   that is already established (`LockReconciler`'s silent re-raise), which is not a new event
+    ///   and must not make an older coach command look superseded.
+    static func apply(_ selection: FamilyActivitySelection, to store: ManagedSettingsStore, recordsRaise: Bool = true) {
         let apps = selection.applicationTokens
         let categories = selection.categoryTokens
         store.shield.applications = apps.isEmpty ? nil : apps
         store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
+        if recordsRaise, !(apps.isEmpty && categories.isEmpty) {
+            UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
+                .set(Date().timeIntervalSince1970, forKey: lastRaisedKey)
+        }
         print("Shield applied. Apps: \(apps.count), categories: \(categories.count)")
+    }
+
+    private static let lastRaisedKey = "shield.lastRaisedAt"
+
+    /// When this process family last raised a shield for a *new* reason (coach lock, Hardcore limit,
+    /// snooze running out). Lets a late "unlock" command tell that something locked the trainee
+    /// after the coach released them, so it must not lift that later shield.
+    static var lastRaisedAt: Date? {
+        guard let t = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
+            .object(forKey: lastRaisedKey) as? Double else { return nil }
+        return Date(timeIntervalSince1970: t)
     }
 
     /// Lifts the shield completely. Clears **both** properties — see the note above on why a
@@ -236,16 +263,34 @@ class DeviceActivityManager {
         deviceActivityCenter.stopMonitoring()
         print("Stopped all device activity monitoring.")
     }
+
+    /// Lifts whatever shield is up, through `ShieldPolicy` like every other clear. Stopping
+    /// monitoring does not do this: a shield already raised stays up with nothing left to lower it.
+    func clearShield() {
+        ShieldPolicy.clear(store)
+    }
     
     /// - Parameter pushShowsBanner: The incoming push already carried an APNs alert, so iOS shows
     ///   the banner itself; posting our own would be a second one for the same event.
     ///
     /// Returns once the status writes have resolved, so the caller can hold the background wake
     /// open until they have — a write left in flight when the app is suspended may not land.
+    ///
+    /// Returns what happened so `LockReconciler` can ack it: a lock that was not enforced
+    /// (`notTracking`, `emptySelection`) must not read as applied.
     @MainActor
-    func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async {
+    @discardableResult
+    func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async -> LockOutcome {
         let settings = LocalSettingsStore.load()
-        guard settings.isTracking else { return }
+        guard settings.isTracking else {
+            print("handleRemoteLock: pressure is Off; not locking.")
+            return .notTracking
+        }
+        // An empty selection would make `ShieldPolicy.apply` write nil/nil, i.e. clear the shield.
+        guard !settings.applications.applicationTokens.isEmpty || !settings.applications.categoryTokens.isEmpty else {
+            print("handleRemoteLock: no apps selected; not locking.")
+            return .emptySelection
+        }
 
         // A coach re-locking mid-grace ends the grace period outright.
         cancelUnlockGracePeriod()
@@ -278,11 +323,13 @@ class DeviceActivityManager {
             by: coachUID
         )
         _ = await (saved, posted)
+        return .applied
     }
 
     /// See `handleRemoteLock` for `pushShowsBanner` and why this is awaitable.
     @MainActor
-    func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async {
+    @discardableResult
+    func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async -> LockOutcome {
         let settings = LocalSettingsStore.load()
 
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
@@ -290,7 +337,7 @@ class DeviceActivityManager {
         // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
         ShieldPolicy.clear(store)
 
-        guard settings.isTracking else { return }
+        guard settings.isTracking else { return .notTracking }
 
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
@@ -318,6 +365,7 @@ class DeviceActivityManager {
             by: coachUID
         )
         _ = await (saved, posted)
+        return .applied
     }
 
     // MARK: - Unlock grace period
@@ -369,6 +417,18 @@ class DeviceActivityManager {
     /// Stops the grace window without touching the daily `AppUsageMonitoring` activity.
     func cancelUnlockGracePeriod() {
         deviceActivityCenter.stopMonitoring([UnlockGrace.activityName])
+    }
+
+    /// Re-asserts an already-established coach lock with **none** of `handleRemoteLock`'s side
+    /// effects — no local notification, no status write, no `statusUpdate` POST, no change to the
+    /// shield context (so the coach's name on the lock screen is left as `handleRemoteLock` set it).
+    /// For `LockReconciler`, whose lock is level-triggered for the day.
+    ///
+    /// Lives here so every app-side shield write still goes through this manager's single
+    /// `ManagedSettingsStore` and through `ShieldPolicy`.
+    @MainActor
+    func reapplyShield(matching selection: FamilyActivitySelection) {
+        ShieldPolicy.apply(selection, to: store, recordsRaise: false)
     }
 
     private func sendStatusUpdate(uid: String?, status: TraineeStatus) {

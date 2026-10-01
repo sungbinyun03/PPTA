@@ -59,6 +59,7 @@ struct FriendProfileSheetView: View {
                     onLock: makeLockActionIfNeeded(),
                     onUnlock: makeUnlockActionIfNeeded(),
                     lockedByName: vm.lockedByName,
+                    lockDelivery: vm.lockDelivery,
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
                     isRequestingSnoozeFromMe: vm.isRequestingSnoozeFromMe,
@@ -103,13 +104,17 @@ struct FriendProfileSheetView: View {
                 if didUnfriend { dismiss() }
             }
             .task { await vm.refresh() }
+            .onAppear { vm.startWatchingLockState() }
+            .onDisappear { vm.stopWatchingLockState() }
         }
     }
 
     private func makeLockActionIfNeeded() -> (() -> Void)? {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isTrainee else { return nil }
-        guard vm.traineeStatus == .attentionNeeded else { return nil }
+        // A lock still waiting on the trainee's phone isn't offered again; a release still waiting
+        // can be taken back by locking.
+        guard (vm.traineeStatus == .attentionNeeded && !vm.hasPendingLock) || vm.hasPendingUnlock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         // Signed when tapped, not here: the signature carries a timestamp the server rejects after
         // 5 minutes, and this runs on every body evaluation, so a sheet left open would send a
@@ -133,7 +138,8 @@ struct FriendProfileSheetView: View {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isTrainee else { return nil }
         // Show the button for both cutOff (active) and snoozedLock (greyed-out/disabled in FriendProfileView).
-        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock else { return nil }
+        // A pending lock counts too, so a lock the phone hasn't acked can still be released.
+        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock || vm.hasPendingLock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         // Signed when tapped — see `makeLockActionIfNeeded`.
         let childUID = otherUserId

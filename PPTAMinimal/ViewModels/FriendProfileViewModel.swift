@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 
 @MainActor
 final class FriendProfileViewModel: ObservableObject {
@@ -215,33 +216,161 @@ final class FriendProfileViewModel: ObservableObject {
 
     // MARK: - Lock / Unlock actions
 
+    /// Where the last Lock / Release the coach sent has got to. Driven by the trainee's `lockAck`,
+    /// not a timer: the server records the command before it pushes, and the trainee's phone acks
+    /// it once it has applied it, whenever that is (push, app open, back online).
+    enum LockDelivery: Equatable {
+        /// Sent; the trainee's phone hasn't acked yet.
+        case waiting(isLock: Bool)
+        /// Still no ack after a minute. Neutral: it applies as soon as the phone is online or PPTA
+        /// opens, and the listener below keeps running, so a late ack still resolves this.
+        case stalled(isLock: Bool)
+        case confirmed(isLock: Bool)
+        /// Acked, but not enforced: pressure Off, no apps selected, or superseded by a newer command.
+        case notEnforced(isLock: Bool, result: String)
+    }
+
+    @Published private(set) var lockDelivery: LockDelivery?
+
+    /// Today's latest command is a lock / a release the trainee's phone hasn't acked. Lets the
+    /// sheet offer Release for a lock still in flight, and Lock to take back a release still in flight.
+    @Published private(set) var hasPendingLock = false
+    @Published private(set) var hasPendingUnlock = false
+
+    private var lockWatcher: ListenerRegistration?
+    private var trackedCommand: (id: String, isLock: Bool, issuedAt: Date)?
+    private var latestAck: (id: String, result: String)?
+    private var latestCommand: (id: String, at: Date?)?
+    private var stallTask: Task<Void, Never>?
+
+    /// How long to wait for an ack before saying so. Not a failure threshold.
+    private static let ackStallSeconds: UInt64 = 60
+
+    /// Listens to the trainee's `userSettings` for `lockCommand` / `lockAck` while the sheet is open.
+    func startWatchingLockState() {
+        guard lockWatcher == nil else { return }
+        lockWatcher = Firestore.firestore().collection("userSettings").document(otherUserId)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let data = snapshot?.data() else { return }
+                Task { @MainActor in self?.applyLockState(data) }
+            }
+    }
+
+    func stopWatchingLockState() {
+        lockWatcher?.remove()
+        lockWatcher = nil
+        stallTask?.cancel()
+    }
+
+    private func applyLockState(_ data: [String: Any]) {
+        if let ack = data["lockAck"] as? [String: Any],
+           let id = ack["id"] as? String, let result = ack["result"] as? String {
+            latestAck = (id, result)
+        } else {
+            latestAck = nil
+        }
+
+        if let cmd = data["lockCommand"] as? [String: Any], let id = cmd["id"] as? String {
+            latestCommand = (id, (cmd["at"] as? Timestamp)?.dateValue())
+        } else {
+            latestCommand = nil
+        }
+
+        var pendingLock = false
+        var pendingUnlock = false
+        if let cmd = data["lockCommand"] as? [String: Any],
+           let id = cmd["id"] as? String, let action = cmd["action"] as? String,
+           let at = (cmd["at"] as? Timestamp)?.dateValue(),
+           Calendar.current.isDateInToday(at),
+           latestAck?.id != id {
+            pendingLock = action == "lock"
+            pendingUnlock = action == "unlock"
+        }
+        hasPendingLock = pendingLock
+        hasPendingUnlock = pendingUnlock
+
+        resolveTrackedCommand()
+    }
+
+    private func resolveTrackedCommand() {
+        guard let tracked = trackedCommand else { return }
+        // The ack is a single field, so it names whichever command the trainee acked last. If that
+        // is a newer command than the one tracked, the tracked one was replaced and won't be acked.
+        switch LockDecision.ackResolution(
+            trackedId: tracked.id,
+            trackedIssuedAt: tracked.issuedAt,
+            ackId: latestAck?.id,
+            ackResult: latestAck?.result,
+            commandId: latestCommand?.id,
+            commandAt: latestCommand?.at
+        ) {
+        case .none:
+            return
+        case .resolved(let result):
+            trackedCommand = nil
+            stallTask?.cancel()
+            if result == "applied" {
+                lockDelivery = .confirmed(isLock: tracked.isLock)
+                traineeStatus = tracked.isLock ? .cutOff : .snoozedLock
+            } else {
+                lockDelivery = .notEnforced(isLock: tracked.isLock, result: result)
+                // The optimistic status was wrong; show what the trainee's document really says.
+                Task { await refresh() }
+            }
+        case .superseded:
+            trackedCommand = nil
+            stallTask?.cancel()
+            lockDelivery = .notEnforced(isLock: tracked.isLock, result: "superseded")
+            Task { await refresh() }
+        }
+    }
+
+    private func track(command id: String, isLock: Bool) {
+        trackedCommand = (id, isLock, Date())
+        lockDelivery = .waiting(isLock: isLock)
+        stallTask?.cancel()
+        stallTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.ackStallSeconds * 1_000_000_000)
+            guard !Task.isCancelled, let self, self.trackedCommand?.id == id else { return }
+            self.lockDelivery = .stalled(isLock: isLock)
+        }
+        resolveTrackedCommand()
+    }
+
     func performLock(url: URL) async {
-        guard await performLockUnlockAction(url: url) else { return }
-        // Optimistic update: show the coach the expected state immediately while
-        // the FCM travels to the trainee's device. After 15s we verify against
-        // Firestore — if the FCM was lost, the real status reappears and the
-        // coach can try locking again.
+        let result = await performLockUnlockAction(url: url)
+        guard result.ok else { return }
+        // Optimistic: the coach sees the expected state straight away, and the Release button.
         traineeStatus = .cutOff
-        scheduleVerification(
-            expected: .cutOff,
-            failureTitle: "Lock may not have reached \(name.firstNameOnly) ⚠️",
-            failureBody: "\(name.firstNameOnly) may still have access to their apps. Try locking them again."
-        )
+        if let cmd = result.cmd {
+            track(command: cmd, isLock: true)
+        } else {
+            scheduleVerification(
+                expected: .cutOff,
+                failureTitle: "Lock not confirmed for \(name.firstNameOnly) yet",
+                failureBody: "\(name.firstNameOnly)'s phone hasn't confirmed the lock."
+            )
+        }
     }
 
     func performUnlock(url: URL) async {
-        guard await performLockUnlockAction(url: url) else { return }
+        let result = await performLockUnlockAction(url: url)
+        guard result.ok else { return }
         traineeStatus = .snoozedLock
-        scheduleVerification(
-            expected: .snoozedLock,
-            failureTitle: "Snooze may not have reached \(name.firstNameOnly) ⚠️",
-            failureBody: "The snooze unlock didn't seem to go through. Try again."
-        )
+        if let cmd = result.cmd {
+            track(command: cmd, isLock: false)
+        } else {
+            scheduleVerification(
+                expected: .snoozedLock,
+                failureTitle: "Snooze not confirmed for \(name.firstNameOnly) yet",
+                failureBody: "\(name.firstNameOnly)'s phone hasn't confirmed the snooze."
+            )
+        }
     }
 
-    /// Verifies the action landed by re-fetching Firestore after a delay.
-    /// If the status didn't update to `expected`, reverts the UI and fires an iOS
-    /// system notification so the coach is alerted even if they've left the app.
+    /// Old-server fallback, used only when the response carries no `cmd` (before `lockApp` /
+    /// `unlockApp` return the command id, so there is no ack to wait for): re-fetch after a delay
+    /// and tell the coach if the status hasn't moved. Delete once the new server is deployed.
     private func scheduleVerification(expected: TraineeStatus, failureTitle: String, failureBody: String) {
         Task {
             try? await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
@@ -252,9 +381,9 @@ final class FriendProfileViewModel: ObservableObject {
         }
     }
 
-    /// Calls the signed Cloud Run URL and returns `true` on HTTP 2xx.
-    @discardableResult
-    private func performLockUnlockAction(url: URL) async -> Bool {
+    /// Calls the signed Cloud Run URL. `ok` is true on HTTP 2xx; `cmd` is the command id the server
+    /// recorded, nil from a server that predates `lockCommand` (it answers with plain text).
+    private func performLockUnlockAction(url: URL) async -> (ok: Bool, cmd: String?) {
         isPerformingLockUnlock = true
         lockUnlockError = nil
         defer { isPerformingLockUnlock = false }
@@ -262,15 +391,16 @@ final class FriendProfileViewModel: ObservableObject {
             var req = URLRequest(url: url)
             req.httpMethod = "GET"
             req.timeoutInterval = 15
-            let (_, resp) = try await URLSession.shared.data(for: req)
+            let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lockUnlockError = "Action failed — please try again."
-                return false
+                return (false, nil)
             }
-            return true
+            let cmd = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["cmd"] as? String
+            return (true, cmd)
         } catch {
             lockUnlockError = error.localizedDescription
-            return false
+            return (false, nil)
         }
     }
 

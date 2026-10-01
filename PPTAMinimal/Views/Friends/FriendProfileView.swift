@@ -32,6 +32,9 @@ struct FriendProfileView: View {
     let onLock: (() -> Void)?
     let onUnlock: (() -> Void)?
     let lockedByName: String?
+    /// Where the coach's last Lock / Release has got to, from the trainee's ack. Defaulted so
+    /// existing construction sites keep compiling.
+    var lockDelivery: FriendProfileViewModel.LockDelivery? = nil
     /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
     var monitoredAppNames: [String] = []
     var monitoredAppStats: [MonitoredAppStat] = []
@@ -57,6 +60,51 @@ struct FriendProfileView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let primaryColor = Color("primaryColor")
+
+    // MARK: - Lock delivery
+
+    /// Same matte strip as the "Locked by" row. Copy stays neutral while the phone hasn't answered:
+    /// the command is already recorded server-side, so there is nothing for the coach to retry.
+    private func lockDeliveryStrip(_ delivery: FriendProfileViewModel.LockDelivery) -> some View {
+        let first = name.firstNameOnly
+        let text: String
+        var icon: String? = nil
+        switch delivery {
+        case .waiting:
+            text = "Waiting for \(first)'s phone"
+        case .stalled(let isLock):
+            text = "\(first)'s phone hasn't confirmed yet. The \(isLock ? "lock" : "snooze") applies as soon as it's online or PPTA opens."
+        case .confirmed(let isLock):
+            text = isLock ? "\(first)'s apps are locked" : "\(first)'s lock is snoozed"
+            icon = "checkmark.circle.fill"
+        case .notEnforced(_, let result):
+            switch result {
+            case "notTracking": text = "\(first) has pressure turned off, so nothing changed."
+            case "emptySelection": text = "\(first) has no apps selected, so nothing changed."
+            case "superseded": text = "A newer lock or snooze replaced this one."
+            default: text = "\(first)'s phone received this but didn't apply it."
+            }
+            icon = "info.circle"
+        }
+        return HStack(spacing: 8) {
+            if let icon {
+                Image(systemName: icon).font(.system(size: 12))
+            } else {
+                ProgressView().controlSize(.small)
+            }
+            Text(text)
+                .font(.custom("Satoshi-Variable", size: 13))
+                .fontWeight(.medium)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .foregroundColor(primaryColor)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(primaryColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 20)
+    }
 
     // MARK: - Computed
 
@@ -218,6 +266,10 @@ struct FriendProfileView: View {
                             }
                             .disabled(isSnoozed)
                             .padding(.horizontal, 20)
+                        }
+
+                        if let lockDelivery {
+                            lockDeliveryStrip(lockDelivery)
                         }
 
                         // Trainee viewing their coach, while cut off: ask this specific coach to snooze.

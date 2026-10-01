@@ -106,11 +106,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         {
             // Prefer resolved display name; fall back to UID if server didn't include it.
             let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
-            let coachUID = notification["by"] as? String
             print("!!!! Unlock notification received. Coach: \(coachName)")
             let pushShowsBanner = Self.carriesAlert(notification)
             Self.finishWork(then: completionHandler) {
-                await DeviceActivityManager.shared.handleRemoteUnlock(from: coachName, coachUID: coachUID, pushShowsBanner: pushShowsBanner)
+                await LockReconciler.shared.applyPush(notification, pushShowsBanner: pushShowsBanner)
             }
             return
         }
@@ -120,11 +119,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             notification["by"] as? String != nil
         {
             let coachName = (notification["byName"] as? String)?.firstNameOnly ?? "Your coach"
-            let coachUID = notification["by"] as? String
             print("!!!! Lock notification received. Coach: \(coachName)")
             let pushShowsBanner = Self.carriesAlert(notification)
             Self.finishWork(then: completionHandler) {
-                await DeviceActivityManager.shared.handleRemoteLock(from: coachName, coachUID: coachUID, pushShowsBanner: pushShowsBanner)
+                await LockReconciler.shared.applyPush(notification, pushShowsBanner: pushShowsBanner)
             }
             return
         }
@@ -309,8 +307,17 @@ struct PPTAMinimalApp: App {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
+            // Detached unconditionally — a sign-out clears `userSession`, and gating on it would
+            // leave a listener attached to the previous user's document.
+            if newPhase == .background {
+                LockReconciler.shared.stop()
+                return
+            }
             guard newPhase == .active, viewModel.userSession != nil else { return }
             Task { @MainActor in
+                // First, and not awaited behind the rest: a coach lock whose push was dropped is
+                // unenforced until this runs, and its first server snapshot is what applies it.
+                LockReconciler.shared.start()
                 await UserSettingsManager.shared.applyPendingStatusIfNeeded()
                 // Names accrue in the App Group whenever a shield is drawn, which can be
                 // long after the user's last save.

@@ -19,6 +19,7 @@ struct LocalSettingsStore {
     // Keys for cross-process status & streak updates from the extension.
     private static let pendingStatusKey = "PendingTraineeStatus"
     private static let pendingStreakKey = "PendingStreakStartDate"
+    private static let lastLockCommandKey = "LastAppliedLockCommandId"
 
     static func save(_ settings: UserSettings) {
         do {
@@ -36,6 +37,13 @@ struct LocalSettingsStore {
     
     static func loadCurrentUserId() -> String? {
         suite?.string(forKey: currentUserIdKey)
+    }
+
+    /// ID of the last coach lock/unlock command this device acted on (`lockCommand.id`), so the
+    /// push handler and `LockReconciler` can't both apply one command.
+    static var lastAppliedLockCommandId: String? {
+        get { suite?.string(forKey: lastLockCommandKey) }
+        set { suite?.set(newValue, forKey: lastLockCommandKey) }
     }
 
     static func load() -> UserSettings {

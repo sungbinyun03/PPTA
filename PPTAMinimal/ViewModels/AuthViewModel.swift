@@ -365,8 +365,29 @@ class AuthViewModel: ObservableObject {
     }
     
     func signOut() {
-        do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
-        catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
+        let uid = authService.currentUser?.uid
+        Task { @MainActor in
+            await clearFCMToken(uid: uid)
+            do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
+            catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
+        }
+    }
+
+    /// Removes this user's `fcmToken` so pushes aimed at them stop reaching a phone someone else
+    /// is about to sign in on. It has to land *while still signed in* (a write queued across a
+    /// sign-out is held for that user and could erase the token they register next time), so
+    /// `signOut` waits for it, but only briefly: offline it must not hold sign-out hostage. Pushes
+    /// also carry their target uid, which the app checks, so this is the second line, not the first.
+    private func clearFCMToken(uid: String?) async {
+        guard let uid else { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try? await self.userRepository.setUserFields(uid: uid, ["fcmToken": FieldValue.delete()])
+            }
+            group.addTask { try? await Task.sleep(nanoseconds: 3_000_000_000) }
+            await group.next()
+            group.cancelAll()
+        }
     }
 
     func deleteIncompleteAccount() {
@@ -401,7 +422,8 @@ class AuthViewModel: ObservableObject {
 
     /// Tears down local state after the account has been deleted, then signs out.
     private func finishAccountDeletion(uid: String) {
-        // Stop screen-time enforcement so no shields linger for a deleted account.
+        // Stop screen-time enforcement and lift any shield that is up: stopping monitoring alone
+        // leaves a raised shield standing, with nothing left that would ever lower it.
         DeviceActivityManager.shared.stopAllMonitoring()
 
         // Clear per-user onboarding flag and the shared app-group snapshot.
@@ -458,6 +480,7 @@ class AuthViewModel: ObservableObject {
             default:
                 break
             }
+        DeviceActivityManager.shared.clearShield()
         }
         // Network/connectivity
         if ns.domain == NSURLErrorDomain || ns.domain == "FIRFirestoreErrorDomain" {
