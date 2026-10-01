@@ -16,7 +16,7 @@ struct LaunchFacadeView: View {
     @State private var pulsing = false
     @State private var showSpinner = false
 
-    private let iconSize: CGFloat = 120
+    private let iconSize: CGFloat = 92
 
     /// Signed out: nothing to wait for. Signed in: the profile must resolve first; if that lands on
     /// onboarding (not Home) there is no Home data to wait for, so dismiss right away rather than
@@ -32,10 +32,7 @@ struct LaunchFacadeView: View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
             VStack(spacing: 24) {
-                Image("launch_logo")
-                    .resizable()
-                    .frame(width: iconSize, height: iconSize)
-                    .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.2237, style: .continuous))
+                BrandHeader(iconSize: iconSize)
                     .scaleEffect(pulsing ? 1.04 : 1.0)
                 if showSpinner {
                     ProgressView().transition(.opacity)

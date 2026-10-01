@@ -12,14 +12,7 @@ struct LoginView: View {
             Spacer()
 
             // Branding
-            VStack(spacing: 8) {
-                Text("PPTA")
-                    .font(.custom("BambiBold", size: 52))
-                    .foregroundColor(primaryColor)
-                Text("Peer Pressure The App")
-                    .font(.custom("Satoshi-Variable", size: 15))
-                    .foregroundColor(primaryColor.opacity(0.6))
-            }
+            BrandHeader()
 
             Spacer()
 
