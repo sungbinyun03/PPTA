@@ -9,6 +9,7 @@ import SwiftUI
 import Combine
 import FamilyControls
 import DeviceActivity
+import FirebaseAuth
 
 struct HomeView: View {
     @EnvironmentObject var viewModel: AuthViewModel
@@ -364,7 +365,16 @@ struct HomeView: View {
         // Off means nothing stays armed, so this tears down any grace period too. Unconditional
         // because a grace period can outlive the daily activity — gating on `systemSaysActive`
         // would leave it armed after switching to Off. Stopping is idempotent.
+        // Only on settings that are actually this user's. At cold launch `userSettings` is the unloaded
+        // default (pressure Off) until Firestore answers (and again if that fetch fails), and acting on it
+        // would tear down a running day's monitoring — and a running grace window — on every launch.
+        // Loaded settings carry the user's uid as `id` (`@DocumentID`).
+        let settingsLoaded = settings.id != nil && settings.id == Auth.auth().currentUser?.uid
         if settings.isTracking == false {
+            guard settingsLoaded else {
+                print("Settings not loaded yet; leaving monitoring untouched.")
+                return
+            }
             DeviceActivityManager.shared.stopAllMonitoring()
             UserDefaults.standard.set(false, forKey: monitoringKey)
             print("Tracking disabled; monitoring is not running.")

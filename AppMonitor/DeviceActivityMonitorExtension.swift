@@ -50,6 +50,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.intervalDidEnd(for: activity)
         // Never let the grace activity's interval end clear a shield it didn't apply.
         guard activity != UnlockGrace.activityName else { return }
+        // Only the real end of the day's interval clears. Stopping monitoring early (cold-launch
+        // re-arm, App Limits save) can also deliver this, and must not drop a standing shield — see
+        // `DayBoundary`.
+        guard DayBoundary.shouldClearShieldOnIntervalEnd(now: Date(), lastRaisedAt: ShieldPolicy.lastRaisedAt) else {
+            print("intervalDidEnd: not the day boundary (monitoring stopped early); keeping the shield.")
+            return
+        }
         ShieldPolicy.clear(store)
         // No statusUpdate here — intervalDidStart fires at 00:00 and handles the reset.
     }
@@ -65,7 +72,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // them again. The streak was already reset at the original cutoff, so pass
             // `resetStartDate: nil` — expiring grace shouldn't punish it a second time.
             if activity == UnlockGrace.activityName {
-                ShieldPolicy.apply(settings.applications, to: store)
+                ShieldPolicy.apply(settings.applications, to: store)  // refuses an empty selection; keeps the shield
                 DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
                 LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
                 sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .snoozeEnded)
@@ -78,8 +85,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
             // The daily events count total usage since midnight (`includesPastActivity`), so every
             // restart of monitoring while already over fires them again. Act at most once per day
-            // (see `LimitFireGate`); a repeat must not re-notify coaches or re-raise a shield that a
-            // coach Released or a snooze lifted.
+            // (see `LimitFireGate`); a repeat must not re-notify coaches. It is the *side effects* that
+            // are deduped, not the shield: a repeat Hardcore fire silently re-asserts it, unless a coach
+            // Released or a snooze lifted it since the last raise.
             let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
             let day = LimitFireGate.dayStamp(Date())
             let limitMinutes = settings.thresholdHour * 60 + settings.thresholdMinutes
@@ -94,7 +102,16 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 guard let marker = LimitFireGate.nextReachedMarker(
                     stored: suite?.string(forKey: LimitFireGate.reachedKey),
                     day: day, limitMinutes: limitMinutes, pressure: settings.pressureLevel.rawValue
-                ) else { return }
+                ) else {
+                    if LimitFireGate.shouldReassert(
+                        pressure: settings.pressureLevel.rawValue,
+                        released: ShieldPolicy.lastReleasedAt, raised: ShieldPolicy.lastRaisedAt, now: Date()
+                    ) {
+                        // No raise stamp, notification or status: not a new event.
+                        ShieldPolicy.apply(settings.applications, to: store, recordsRaise: false)
+                    }
+                    return
+                }
                 suite?.set(marker, forKey: LimitFireGate.reachedKey)
             }
 
@@ -141,7 +158,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 )
                 return
             case .hardcore:
-                ShieldPolicy.apply(settings.applications, to: store)
+                // An empty selection is refused (it would clear). Nothing was shielded, so don't tell
+                // the coaches the trainee is cut off either.
+                guard ShieldPolicy.apply(settings.applications, to: store) else { return }
             }
 
             // Persist locally for the app to pick up, AND notify backend immediately.

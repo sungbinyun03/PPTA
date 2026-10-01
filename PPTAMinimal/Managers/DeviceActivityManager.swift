@@ -76,6 +76,13 @@ enum LimitEvent {
 /// re-raises a shield a coach Released or a snooze lifted (and stamps `ShieldPolicy.lastRaisedAt`,
 /// which would make a late Release look superseded).
 ///
+/// The gate dedupes **side effects only** (coach push, local notification, status write). It must not
+/// dedupe the shield itself: the marker says "the limit fired today", not "the shield is up", so a
+/// shield lost for any other reason (a stop-induced `intervalDidEnd`, an app update, a cleared
+/// store) would otherwise stay down until midnight. A repeat Hardcore fire therefore silently
+/// re-asserts the shield (`shouldReassert`), unless a coach Release or snooze came after the last
+/// raise today.
+///
 /// Markers live in the App Group, written by the AppMonitor extension.
 /// - Limit reached: one string `day|limitMinutes|pressure`. Fires once per day for a given limit and
 ///   pressure level; *changing* either is a deliberate settings change and fires again if the new
@@ -98,6 +105,19 @@ enum LimitFireGate {
     static func nextReachedMarker(stored: String?, day: String, limitMinutes: Int, pressure: String) -> String? {
         let marker = "\(day)|\(limitMinutes)|\(pressure)"
         return stored == marker ? nil : marker
+    }
+
+    /// Whether a *repeat* limit-reached fire (the marker already matched) should silently put the
+    /// shield back. Hardcore only: Standard never shields. Not if a coach Release/snooze happened
+    /// today after the last raise (`ShieldPolicy.lastReleasedAt` vs `lastRaisedAt`) — the Release
+    /// wins until something raises a new shield (a coach re-lock, snooze expiry), which stamps a
+    /// later `raised`. A Release from an earlier day is ignored.
+    static func shouldReassert(pressure: String, released: Date?, raised: Date?,
+                               now: Date, calendar: Calendar = .current) -> Bool {
+        guard pressure == PressureLevel.hardcore.rawValue else { return false }
+        guard let released, calendar.isDate(released, inSameDayAs: now) else { return true }
+        guard let raised else { return false }
+        return raised > released
     }
 
     /// The marker to store if a warning at `minutes` should be delivered now; nil to drop it.
@@ -167,16 +187,25 @@ enum ShieldPolicy {
     /// - Parameter recordsRaise: Stamps `lastRaisedAt`. Pass `false` for a re-assertion of a shield
     ///   that is already established (`LockReconciler`'s silent re-raise), which is not a new event
     ///   and must not make an older coach command look superseded.
-    static func apply(_ selection: FamilyActivitySelection, to store: ManagedSettingsStore, recordsRaise: Bool = true) {
+    /// - Returns: `false` when it refused. An empty selection is never applied: it would write nil/nil,
+    ///   which is a **clear**, so an undecodable or emptied selection would silently lift a standing
+    ///   shield. The current shield is kept; use `clear` to lift one on purpose.
+    @discardableResult
+    static func apply(_ selection: FamilyActivitySelection, to store: ManagedSettingsStore, recordsRaise: Bool = true) -> Bool {
         let apps = selection.applicationTokens
         let categories = selection.categoryTokens
+        guard !(apps.isEmpty && categories.isEmpty) else {
+            print("ShieldPolicy.apply: empty selection; refusing (would clear). Keeping the current shield.")
+            return false
+        }
         store.shield.applications = apps.isEmpty ? nil : apps
         store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
-        if recordsRaise, !(apps.isEmpty && categories.isEmpty) {
+        if recordsRaise {
             UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
                 .set(Date().timeIntervalSince1970, forKey: lastRaisedKey)
         }
         print("Shield applied. Apps: \(apps.count), categories: \(categories.count)")
+        return true
     }
 
     private static let lastRaisedKey = "shield.lastRaisedAt"
@@ -190,11 +219,51 @@ enum ShieldPolicy {
         return Date(timeIntervalSince1970: t)
     }
 
+    private static let lastReleasedKey = "shield.lastReleasedAt"
+
+    /// When a coach Release / snooze last lifted the shield on this device. Compared with
+    /// `lastRaisedAt` by `LimitFireGate.shouldReassert`, so a repeat limit fire re-asserts a Hardcore
+    /// shield that something else lifted, but never one a coach lifted on purpose.
+    static var lastReleasedAt: Date? {
+        guard let t = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
+            .object(forKey: lastReleasedKey) as? Double else { return nil }
+        return Date(timeIntervalSince1970: t)
+    }
+
+    static func recordRelease() {
+        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
+            .set(Date().timeIntervalSince1970, forKey: lastReleasedKey)
+    }
+
     /// Lifts the shield completely. Clears **both** properties — see the note above on why a
     /// half-cleared shield is the worst outcome available here.
     static func clear(_ store: ManagedSettingsStore) {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
+    }
+}
+
+/// Tells the daily interval's real end from monitoring being stopped early.
+///
+/// `intervalDidEnd(AppUsageMonitoring)` is the day boundary's clear, but it can also arrive when
+/// the app stops the activity mid-day (every cold launch, an App Limits re-save), and a Hardcore or
+/// coach shield must not drop then. The interval ends at 23:59:59, so a genuine end lands in the last
+/// minutes of the day. A delayed one lands after midnight, when the standing shield was raised on an
+/// earlier day. Anything else is a stop. Time-based on purpose, rather than a "stopping" marker the
+/// app writes before `stopMonitoring`: a marker can outlive a crashed app and then swallow the real
+/// midnight clear, while the clock and the raise stamp cannot go stale.
+enum DayBoundary {
+    /// Local time from which an `intervalDidEnd` counts as the real interval end (interval end 23:59:59).
+    static let endWindowStart = (hour: 23, minute: 58)
+
+    static func shouldClearShieldOnIntervalEnd(now: Date, lastRaisedAt: Date?, calendar: Calendar = .current) -> Bool {
+        let c = calendar.dateComponents([.hour, .minute], from: now)
+        if (c.hour ?? 0) > endWindowStart.hour
+            || ((c.hour ?? 0) == endWindowStart.hour && (c.minute ?? 0) >= endWindowStart.minute) {
+            return true
+        }
+        guard let lastRaisedAt else { return true }  // pre-stamp shield: keep the old clear-at-end behavior
+        return !calendar.isDate(lastRaisedAt, inSameDayAs: now)
     }
 }
 
@@ -379,6 +448,7 @@ class DeviceActivityManager {
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
         // don't notify or arm grace in that case: you can only be unlocked if you were locked, and
         // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
+        ShieldPolicy.recordRelease()
         ShieldPolicy.clear(store)
 
         guard settings.isTracking else { return .notTracking }

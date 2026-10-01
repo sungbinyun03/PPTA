@@ -130,6 +130,53 @@ struct LimitFireGateTests {
         let d = cal.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 23, minute: 59))!
         #expect(LimitFireGate.dayStamp(d, calendar: cal) == "2026-09-30")
     }
+
+    // MARK: - Re-asserting the shield on a repeat fire
+
+    private var cal: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        return c
+    }
+    private func at(_ hour: Int, day d: Int = 30) -> Date {
+        cal.date(from: DateComponents(year: 2026, month: 9, day: d, hour: hour))!
+    }
+
+    @Test func hardcoreRepeatFireReraisesALostShield() {
+        // Fired at 10:00, nothing released: a relaunch re-fire at 15:00 puts it back.
+        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: nil, raised: at(10), now: at(15), calendar: cal))
+        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: nil, raised: nil, now: at(15), calendar: cal))
+    }
+
+    @Test func standardNeverReraises() {
+        #expect(!LimitFireGate.shouldReassert(pressure: "Standard", released: nil, raised: at(10), now: at(15), calendar: cal))
+    }
+
+    @Test func releaseAfterTheFireWinsOverARepeatFire() {
+        // Raised 10:00, coach Released (or snoozed) 11:00: stays lifted across relaunches.
+        #expect(!LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: at(10), now: at(15), calendar: cal))
+        #expect(!LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: nil, now: at(15), calendar: cal))
+    }
+
+    @Test func aNewRaiseAfterTheReleaseReenablesReassertion() {
+        // Snooze at 11:00, the grace expiry re-locked at 12:00 (a stamped raise).
+        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: at(12), now: at(15), calendar: cal))
+    }
+
+    @Test func aReleaseFromAnEarlierDayIsIgnored() {
+        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11, day: 29), raised: at(10, day: 29), now: at(15), calendar: cal))
+    }
+
+    // MARK: - intervalDidEnd
+
+    @Test func intervalEndClearsOnlyAtTheRealDayBoundary() {
+        let late = cal.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 23, minute: 59, second: 59))!
+        #expect(DayBoundary.shouldClearShieldOnIntervalEnd(now: late, lastRaisedAt: at(10), calendar: cal))
+        // A stop-induced end mid-day keeps the shield.
+        #expect(!DayBoundary.shouldClearShieldOnIntervalEnd(now: at(15), lastRaisedAt: at(10), calendar: cal))
+        // A delayed boundary callback after midnight, shield raised the day before: clears.
+        #expect(DayBoundary.shouldClearShieldOnIntervalEnd(now: at(0, day: 30), lastRaisedAt: at(10, day: 29), calendar: cal))
+    }
 }
 
 struct LaunchGateTests {
