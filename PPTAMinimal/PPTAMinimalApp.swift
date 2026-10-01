@@ -170,7 +170,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     return ("Accountability update", "\(traineeName) has a status update.")
                 }
             }()
-            if let content {
+            // A server alert is shown by iOS itself (even when the app is closed); the local copy
+            // above is only the fallback for a silent push from a server that predates alerts.
+            if let content, !Self.carriesAlert(notification) {
                 NotificationManager.shared.sendNotification(title: content.title, body: content.body)
             }
             completionHandler(.newData)
@@ -180,26 +182,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         if let type = notification["type"] as? String, type == "traineeReinstalled" {
             // A trainee deleted PPTA and reinstalled it (detected via a Keychain marker that
             // survives uninstall while the app sandbox is wiped). Surface it to their coaches.
-            // Copy lives here — app-side — so it can be reworded without redeploying the server,
-            // which now sends only the data payload. Kept neutral: it states the reinstall, not
-            // whether they were locked when they left.
-            let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
-            NotificationManager.shared.sendNotification(
-                title: "\(traineeName) reinstalled PPTA",
-                body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨"
-            )
+            // The server's alert push carries the copy (kept neutral: it states the reinstall, not
+            // whether they were locked when they left). The local copy is only the fallback for a
+            // silent push from a server that predates alerts.
+            if !Self.carriesAlert(notification) {
+                let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
+                NotificationManager.shared.sendNotification(
+                    title: "\(traineeName) reinstalled PPTA",
+                    body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨"
+                )
+            }
             completionHandler(.newData)
             return
         }
 
         if let type = notification["type"] as? String, type == "roleRequestReceived" {
-            let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
-            let role = notification["role"] as? String ?? "coach"
-            let roleLabel = role == "trainee" ? "trainee" : "coach"
-            NotificationManager.shared.sendNotification(
-                title: "New role request! 🤝",
-                body: "\(name) wants to be your \(roleLabel)."
-            )
+            if !Self.carriesAlert(notification) {
+                let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
+                let role = notification["role"] as? String ?? "coach"
+                let roleLabel = role == "trainee" ? "trainee" : "coach"
+                NotificationManager.shared.sendNotification(
+                    title: "New role request! 🤝",
+                    body: "\(name) wants to be your \(roleLabel)."
+                )
+            }
             completionHandler(.newData)
             return
         }
@@ -217,13 +223,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
 
         if let type = notification["type"] as? String, type == "roleRequestAccepted" {
-            let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
-            let role = notification["role"] as? String ?? "coach"
-            let roleLabel = role == "trainee" ? "trainee" : "coach"
-            NotificationManager.shared.sendNotification(
-                title: "Request accepted! 🎉",
-                body: "\(name) accepted your \(roleLabel) request."
-            )
+            if !Self.carriesAlert(notification) {
+                let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
+                let role = notification["role"] as? String ?? "coach"
+                let roleLabel = role == "trainee" ? "trainee" : "coach"
+                NotificationManager.shared.sendNotification(
+                    title: "Request accepted! 🎉",
+                    body: "\(name) accepted your \(roleLabel) request."
+                )
+            }
             completionHandler(.newData)
             return
         }

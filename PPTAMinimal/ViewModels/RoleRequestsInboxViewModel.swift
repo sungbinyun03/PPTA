@@ -41,9 +41,6 @@ final class RoleRequestsInboxViewModel: ObservableObject {
     private var listener: ListenerRegistration?
     private var outgoingListener: ListenerRegistration?
 
-    private var didPrimeListener = false
-    private var seenIds = Set<String>()
-
     private var currentUserId: String? { Auth.auth().currentUser?.uid }
 
     func refreshOnce() async {
@@ -123,8 +120,6 @@ final class RoleRequestsInboxViewModel: ObservableObject {
         listener = nil
         outgoingListener?.remove()
         outgoingListener = nil
-        didPrimeListener = false
-        seenIds.removeAll()
     }
 
     func accept(_ requestId: String) async {
@@ -195,34 +190,14 @@ final class RoleRequestsInboxViewModel: ObservableObject {
 
     @MainActor
     private func apply(pairs: [IncomingPair]) {
-        let ids = Set(pairs.map(\.id))
-        let newlyAdded = ids.subtracting(seenIds)
-
-        if didPrimeListener, let firstNewId = newlyAdded.first,
-           let pair = pairs.first(where: { $0.id == firstNewId }) {
-            let title = "New role request! 🤝"
-            let body = roleRequestMessage(from: pair.user.name, role: pair.request.role)
-            NotificationManager.shared.sendNotification(title: title, body: body)
-        }
-
-        seenIds = ids
+        // No local banner: the server's role-request push is an APNs alert, so iOS shows it
+        // (including while the app is closed). A banner here would double it.
         incoming = pairs
-        didPrimeListener = true
     }
 
     @MainActor
     private func applyOutgoing(pairs: [OutgoingPair]) {
         // Notification-free: these are my own outgoing requests, not something to alert me about.
         outgoing = pairs
-    }
-
-    private func roleRequestMessage(from name: String, role: RoleRequestRole) -> String {
-        let first = name.firstNameOnly
-        switch role {
-        case .coach:
-            return "\(first) wants to be your coach."
-        case .trainee:
-            return "\(first) wants to be your trainee."
-        }
     }
 }
