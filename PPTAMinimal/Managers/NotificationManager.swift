@@ -20,6 +20,23 @@ final class NotificationManager: ObservableObject {
 
     /// Lightweight in-app banner payload (not a system notification).
     @Published var inAppBanner: InAppBanner?
+
+    /// One-shot: set when the user taps the shield's "Ask a coach for more time" notification.
+    /// Lives here (not in a view) so a cold launch can set it before any view exists; the coaches
+    /// section consumes it with `consumeCoachesPopoverRequest()`. Stamped so a tap that never
+    /// finds a cut-off user doesn't pop the popover open much later.
+    @Published private(set) var coachesPopoverRequestedAt: Date?
+
+    func requestCoachesPopover() {
+        coachesPopoverRequestedAt = Date()
+    }
+
+    /// Returns whether a recent request was pending, clearing it either way.
+    func consumeCoachesPopoverRequest() -> Bool {
+        defer { coachesPopoverRequestedAt = nil }
+        guard let at = coachesPopoverRequestedAt else { return false }
+        return Date().timeIntervalSince(at) < 15
+    }
     
     func requestAuthorization() {
     

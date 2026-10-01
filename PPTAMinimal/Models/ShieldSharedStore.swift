@@ -146,6 +146,8 @@ struct ShieldContext: Codable {
 /// compile this file.
 enum ShieldHandoff {
     static let askCoachIdentifier = "pptaAskCoach"
+    /// `userInfo["type"]` on that notification; the app routes its tap to the coaches popover on Home.
+    static let requestMoreTimeType = "requestMoreTime"
 }
 
 extension ShieldContext {

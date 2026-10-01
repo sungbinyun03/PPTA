@@ -74,6 +74,10 @@ struct TabNavigator: View {
                 .padding(.top, 8)
             }
         }
+        .onReceive(notifications.$coachesPopoverRequestedAt) { requestedAt in
+            // The popover lives on Home.
+            if requestedAt != nil { selected = 0 }
+        }
         .task {
             await roleInbox.refreshOnce()
             roleInbox.startListening()

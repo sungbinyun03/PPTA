@@ -251,6 +251,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         completionHandler([.banner, .sound])
     }
 
+    /// Called when the user taps a notification (including the cold-launch tap).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let type = response.notification.request.content.userInfo["type"] as? String
+        if type == ShieldHandoff.requestMoreTimeType {
+            Task { @MainActor in
+                NotificationManager.shared.requestCoachesPopover()
+            }
+        }
+        completionHandler()
+    }
+
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
             guard let token = fcmToken else { return }
             print("FCM Token: \(token)")

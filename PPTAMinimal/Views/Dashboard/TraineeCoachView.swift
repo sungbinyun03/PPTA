@@ -14,6 +14,7 @@ struct TraineeCoachView: View {
     @State private var showAttentionInfo = false
     @State private var showCoachesInfo = false
     @State private var showAskCoachInfo = false
+    @ObservedObject private var notifications = NotificationManager.shared
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 
@@ -32,6 +33,16 @@ struct TraineeCoachView: View {
         return viewModel.trainees.enumerated()
             .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
             .map(\.element)
+    }
+
+    private func presentAskCoachInfoIfRequested() {
+        guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
+        guard notifications.consumeCoachesPopoverRequest() else { return }
+        // Short delay: a popover presented mid tab/launch transition is dropped.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            showAskCoachInfo = true
+        }
     }
 
     var body: some View {
@@ -74,6 +85,12 @@ struct TraineeCoachView: View {
                 }
             }
             .padding(.horizontal, 35)
+            // Shield-notification tap: open the ask-a-coach popover. Runs on appear (cold launch,
+            // flag set before this view existed), on a new request (warm), and when the cut-off
+            // state arrives (the button only exists while cut off, and that loads async on launch).
+            .onAppear { presentAskCoachInfoIfRequested() }
+            .onReceive(notifications.$coachesPopoverRequestedAt) { _ in presentAskCoachInfoIfRequested() }
+            .onChange(of: viewModel.isCurrentUserCutOff) { _, _ in presentAskCoachInfoIfRequested() }
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
                     ForEach(sortedTrainees) { trainee in

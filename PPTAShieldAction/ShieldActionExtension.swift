@@ -71,6 +71,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         content.title = "Ask a coach for more time 🙏"
         content.body = "Open a coach's profile to request a snoozed lock from them."
         content.sound = .default
+        content.userInfo = ["type": ShieldHandoff.requestMoreTimeType]
 
         let request = UNNotificationRequest(
             identifier: ShieldHandoff.askCoachIdentifier,
