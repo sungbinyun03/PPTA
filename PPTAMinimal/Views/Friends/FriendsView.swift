@@ -29,6 +29,10 @@ struct FriendsView: View {
     /// here and cleared by a tap anywhere outside the keyboard (see the tap gesture below).
     @FocusState private var phoneFieldFocused: Bool
     @State private var friendSearchText: String = ""
+    /// Whether the compact search field is revealed. Starts collapsed — see `friendSearchField`
+    /// for why this exists as a separate affordance from `FriendsContactsImportView`'s `.searchable`.
+    @State private var isFriendSearchActive = false
+    @FocusState private var friendSearchFieldFocused: Bool
 
     private let primaryColor = Color("primaryColor")
 
@@ -170,6 +174,27 @@ struct FriendsView: View {
                                             .presentationCompactAdaptation(.popover)
                                     }
                                 }
+
+                                Spacer()
+
+                                // Icon-only reveal, not an always-visible bar: the contacts import
+                                // sheet one tap away already owns a full-width `.searchable`, so a
+                                // second bar here read as duplicate chrome. Collapsing back to just
+                                // this icon happens from inside `friendSearchField` (see its trailing
+                                // button), which is also where `friendSearchText` gets reset.
+                                if !vm.friends.isEmpty && !isFriendSearchActive {
+                                    Button {
+                                        withAnimation(.easeOut(duration: 0.15)) {
+                                            isFriendSearchActive = true
+                                        }
+                                        friendSearchFieldFocused = true
+                                    } label: {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundColor(primaryColor.opacity(0.6))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                             .padding(.horizontal, 20)
 
@@ -178,9 +203,10 @@ struct FriendsView: View {
                             // Pending sections stay unfiltered — they're short, actionable, and
                             // already hide themselves when empty, so filtering them would make
                             // an Accept/Decline row silently vanish while typing.
-                            if !vm.friends.isEmpty {
+                            if isFriendSearchActive && !vm.friends.isEmpty {
                                 friendSearchField
                                     .padding(.horizontal, 20)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
                             }
 
                             VStack(spacing: 8) {
@@ -212,8 +238,14 @@ struct FriendsView: View {
             }
             // `.phonePad` has no Return key, so let a tap anywhere outside the field dismiss the
             // keyboard. `simultaneousGesture` + `contentShape` keeps buttons/rows still tappable.
+            // Also drops focus from the friend search field on the same tap — it only ever
+            // resigns keyboard focus here, never collapses the field itself or touches
+            // `friendSearchText`, so it can't fight the field's own reveal/dismiss state.
             .contentShape(Rectangle())
-            .simultaneousGesture(TapGesture().onEnded { phoneFieldFocused = false })
+            .simultaneousGesture(TapGesture().onEnded {
+                phoneFieldFocused = false
+                friendSearchFieldFocused = false
+            })
         }
         .task { await vm.refresh() }
         .refreshable { await vm.refresh() }
@@ -366,7 +398,15 @@ struct FriendsView: View {
     // MARK: - Friend search
 
     /// Hand-rolled rather than `.searchable()`: this tab's `NavigationStack` has no title bar for
-    /// a system search field to attach to, and the chrome matches the phone field above.
+    /// a system search field to attach to, and the chrome matches the phone field above. Revealed
+    /// by the magnifier icon in the Friends header rather than shown always-on, so it doesn't read
+    /// as a second copy of `FriendsContactsImportView`'s full-width `.searchable` bar one tap away.
+    ///
+    /// The trailing button is clear-then-collapse: with text typed it just empties the field
+    /// (list stays visibly filterable); tapped again with nothing left to clear, it's the field's
+    /// only dismiss path, so it collapses `isFriendSearchActive` and hands focus back. Because
+    /// `friendSearchText` is always already empty by the time that collapse fires, no filter is
+    /// ever left silently applied on a hidden field.
     private var friendSearchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
@@ -376,17 +416,23 @@ struct FriendsView: View {
             TextField("Search friends", text: $friendSearchText)
                 .font(.system(size: 15))
                 .autocorrectionDisabled()
+                .focused($friendSearchFieldFocused)
 
-            if !friendSearchText.isEmpty {
-                Button {
+            Button {
+                if friendSearchText.isEmpty {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        isFriendSearchActive = false
+                    }
+                    friendSearchFieldFocused = false
+                } else {
                     friendSearchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary.opacity(0.5))
                 }
-                .buttonStyle(.plain)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary.opacity(0.5))
             }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
