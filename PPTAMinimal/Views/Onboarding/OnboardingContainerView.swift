@@ -13,6 +13,10 @@ struct OnboardingContainerView: View {
     var reconfigure: Bool = false
     @StateObject private var coordinator = OnboardingCoordinator()
     @EnvironmentObject var authViewModel: AuthViewModel
+    /// Onboarding lives outside `TabNavigator`, which owns the app's only other banner mount, so
+    /// anything `showInAppMessage` reports during the flow — e.g. the Firestore read behind
+    /// `fetchUser()` failing on the phone step — would otherwise be published and never rendered.
+    @ObservedObject private var notifications = NotificationManager.shared
 
     @State private var showPhoneVerificationSheet = false
     @State private var didConfigure = false
@@ -50,6 +54,14 @@ struct OnboardingContainerView: View {
                 // No global Skip: it marked onboarding complete without granting Screen Time,
                 // picking apps, or setting a limit, producing an account that looks set up but
                 // can't monitor anything. Only the final step is skippable, and it says so.
+            }
+        }
+        .overlay(alignment: .top) {
+            if let banner = notifications.inAppBanner {
+                InAppBannerView(title: banner.title, message: banner.body) {
+                    notifications.inAppBanner = nil
+                }
+                .padding(.top, 8)
             }
         }
         .onAppear(perform: configureIfPossible)

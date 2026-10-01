@@ -326,10 +326,65 @@ class AuthViewModel: ObservableObject {
             }
         } catch {
             print("DEBUG: fetchUser error: \(error.localizedDescription)")
-            DispatchQueue.main.async { self.userSession = nil }
+            await handleFetchUserFailure(error, uid: uid)
         }
     }
-    
+
+    /// Decides what a failed `users/<uid>` read means for the session.
+    ///
+    /// This used to clear `userSession` unconditionally, which signed the user out to `LoginView`
+    /// on any offline read, timeout or rules blip — and offline they can't sign back in, so a
+    /// dropped connection at launch was indistinguishable from the account being gone. A Firestore
+    /// failure is no evidence about the account; the only authority on that is Firebase Auth, so we
+    /// ask it before clearing anything.
+    private func handleFetchUserFailure(_ error: Error, uid: String) async {
+        if await accountNoLongerExists() {
+            self.currentUser = nil
+            self.userSession = nil
+            return
+        }
+        // Transient. Keep the session, and route from the device-local flag so an offline launch
+        // puts an already-set-up user back where they were instead of at the start of onboarding.
+        // `needsScreenTimeReconfigure` is deliberately left alone — raising it needs the Firestore
+        // settings we just failed to read.
+        let localFlag = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
+        isOnboardingComplete = Self.devManualFreshOnboard ? false : localFlag
+        // Running on a stale profile is "definitely broken", so it has to be visible — the old
+        // behaviour was the same failure with the session thrown away and nothing said.
+        NotificationManager.shared.showInAppMessage(
+            title: "Couldn't load your account",
+            body: Self.userFacingMessage(for: error),
+            dismissAfter: 5
+        )
+    }
+
+    /// Asks Firebase Auth whether the account behind this session is really gone — the only
+    /// condition that may end a session here.
+    ///
+    /// One `reload()`, no retry loop: it re-reads the account from the Auth backend and only its
+    /// "deleted / disabled / credentials revoked" codes count as terminal. A network error is the
+    /// same outage that broke the Firestore read, so it answers `false` and the session survives.
+    private func accountNoLongerExists() async -> Bool {
+        guard let user = authService.currentUser else { return true }
+        do {
+            try await user.reload()
+            return false
+        } catch {
+            let ns = error as NSError
+            guard ns.domain == "FIRAuthErrorDomain" else { return false }
+            return Self.accountGoneAuthCodes.contains(ns.code)
+        }
+    }
+
+    /// Auth codes that mean this session can never work again: account deleted (17011), disabled
+    /// (17005), token revoked (17017), refresh credentials expired (17021).
+    private static let accountGoneAuthCodes: Set<Int> = [
+        AuthErrorCode.userNotFound.rawValue,
+        AuthErrorCode.userDisabled.rawValue,
+        AuthErrorCode.invalidUserToken.rawValue,
+        AuthErrorCode.userTokenExpired.rawValue
+    ]
+
     func updateUserPhoneNumber(phoneNumber: String) async {
         guard let uid = authService.currentUser?.uid else { return }
         let normalized = UserRepository.normalizePhoneNumber(phoneNumber)
@@ -425,6 +480,7 @@ class AuthViewModel: ObservableObject {
         // Stop screen-time enforcement and lift any shield that is up: stopping monitoring alone
         // leaves a raised shield standing, with nothing left that would ever lower it.
         DeviceActivityManager.shared.stopAllMonitoring()
+        DeviceActivityManager.shared.clearShield()
 
         // Clear per-user onboarding flag and the shared app-group snapshot.
         UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(uid)")
@@ -480,7 +536,6 @@ class AuthViewModel: ObservableObject {
             default:
                 break
             }
-        DeviceActivityManager.shared.clearShield()
         }
         // Network/connectivity
         if ns.domain == NSURLErrorDomain || ns.domain == "FIRFirestoreErrorDomain" {
