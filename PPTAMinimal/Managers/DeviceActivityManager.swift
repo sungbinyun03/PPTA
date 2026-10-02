@@ -235,11 +235,42 @@ enum ShieldPolicy {
             .set(Date().timeIntervalSince1970, forKey: lastReleasedKey)
     }
 
+    private static let coachLockedByKey = "shield.coachLockedBy"
+
+    /// The coach whose lock is standing on this device (first name; "" if unnamed), else nil. A
+    /// durable marker of its own because `traineeStatus` / `ShieldContext.lockedByName` are wiped when
+    /// pressure goes Off, which is exactly when `ShieldLift` has to tell a coach lock from a limit
+    /// shield. Set by `handleRemoteLock`; dropped by `clear`, so any lift (Release, day boundary,
+    /// user-initiated) ends it.
+    static var coachLockedBy: String? {
+        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.string(forKey: coachLockedByKey)
+    }
+
+    static func recordCoachLock(by coach: String) {
+        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.set(coach, forKey: coachLockedByKey)
+    }
+
     /// Lifts the shield completely. Clears **both** properties — see the note above on why a
     /// half-cleared shield is the worst outcome available here.
     static func clear(_ store: ManagedSettingsStore) {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
+        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.removeObject(forKey: coachLockedByKey)
+    }
+}
+
+/// What a user-initiated Off or empty-selection save may lift. A limit-caused shield (Standard/Hardcore
+/// limit, snooze-ended re-raise) goes; a standing coach lock never does, only the coach's Release ends it.
+enum ShieldLift {
+    enum Decision: Equatable {
+        case lift
+        case keepCoachLock(by: String?)  // first name, nil when unknown
+    }
+
+    /// - Parameter coachLockedBy: `ShieldPolicy.coachLockedBy`.
+    static func decide(coachLockedBy: String?) -> Decision {
+        guard let coachLockedBy else { return .lift }
+        return .keepCoachLock(by: coachLockedBy.isEmpty ? nil : coachLockedBy)
     }
 }
 
@@ -377,6 +408,25 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
 
+    /// What the user turning pressure Off, or saving an empty selection, does to a standing shield:
+    /// lifts a limit-caused one (stamping the release so the Hardcore re-assert gate doesn't raise it
+    /// again) but never a coach lock, which stays until the coach Releases. Stopping monitoring does
+    /// neither, and nothing is armed afterwards to lower the shield.
+    @discardableResult
+    func liftUserClearableShield() -> ShieldLift.Decision {
+        let decision = ShieldLift.decide(coachLockedBy: ShieldPolicy.coachLockedBy)
+        switch decision {
+        case .lift:
+            ShieldPolicy.recordRelease()
+            ShieldPolicy.clear(store)
+        case .keepCoachLock(let coach):
+            NotificationManager.shared.showInAppMessage(
+                title: "Coach lock stays on",
+                body: "\(coach ?? "Your coach")'s lock stays on until they release it.")
+        }
+        return decision
+    }
+
     /// Lifts whatever shield is up, through `ShieldPolicy` like every other clear. Stopping
     /// monitoring does not do this: a shield already raised stays up with nothing left to lower it.
     func clearShield() {
@@ -408,7 +458,9 @@ class DeviceActivityManager {
         // A coach re-locking mid-grace ends the grace period outright.
         cancelUnlockGracePeriod()
 
-        ShieldPolicy.apply(settings.applications, to: store)
+        if ShieldPolicy.apply(settings.applications, to: store) {
+            ShieldPolicy.recordCoachLock(by: coach)
+        }
 
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(

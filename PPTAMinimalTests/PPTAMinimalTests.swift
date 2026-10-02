@@ -179,6 +179,21 @@ struct LimitFireGateTests {
     }
 }
 
+struct ShieldLiftTests {
+
+    @Test func noCoachLockMeansALimitShieldIsLifted() {
+        #expect(ShieldLift.decide(coachLockedBy: nil) == .lift)
+    }
+
+    @Test func aCoachLockIsKeptAndNamed() {
+        #expect(ShieldLift.decide(coachLockedBy: "Alex") == .keepCoachLock(by: "Alex"))
+    }
+
+    @Test func anUnnamedCoachLockIsStillKept() {
+        #expect(ShieldLift.decide(coachLockedBy: "") == .keepCoachLock(by: nil))
+    }
+}
+
 struct LaunchGateTests {
 
     @Test func holdsForMinimumDisplayEvenWhenReady() {

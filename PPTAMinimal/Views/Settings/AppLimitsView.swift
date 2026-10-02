@@ -448,6 +448,10 @@ struct AppLimitsView: View {
 
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
+        // An empty selection arms nothing, so a limit shield would have nothing left to lower it.
+        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
+            DeviceActivityManager.shared.liftUserClearableShield()
+        }
 
         var settings = userSettingsManager.userSettings
 
