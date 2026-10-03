@@ -4,6 +4,8 @@ Everything an agent needs to work on this codebase without asking questions.
 
 *Last verified against HEAD `bdd06cf` plus uncommitted action-messages work (2026-10-02).*
 
+**Persona (Sungbin only):** @~/agent-config/personas/ppta-chief.md
+
 ## Where to look
 
 This guide is split so an agent can read the core plus only the section it needs, instead of the
