@@ -18,7 +18,8 @@ Body:
   "uid": "<trainee_uid>",
   "status": "allClear|attentionNeeded|cutOff",
   "ts": 1234567890,
-  "sig": "<hex hmac>"
+  "sig": "<hex hmac>",
+  "message": "<optional snooze request text>"
 }
 ```
 
@@ -26,6 +27,7 @@ Signature:
 - `msg = "{uid}|{status}|{ts}"`
 - `sig = HMAC_SHA256(UNLOCK_SECRET, msg).hexdigest()`
 - **Important**: this matches iOS’s current approach: the HMAC key is the UTF-8 bytes of the secret string (not hex-decoded).
+- **`message` is unsigned** (cosmetic text only). Server sanitizes and truncates at 100 Unicode code points; client caps at 60 Characters. Omit if empty.
 
 Expiry:
 - reject if `now - ts > 5 minutes` (same as unlock).
@@ -38,6 +40,8 @@ Expiry:
 Update:
 - `userSettings/{uid}`:
   - `traineeStatus = <status>`
+  - `snoozeRequestMessages.<targetCoach> = <message>` (only for `mercyRequest` with non-empty message; use `{merge: true}`)
+  - `snoozeRequestMessages: FieldValue.delete()` (when status is non-cutOff, to clear all pending request messages)
   - optional: `lastStatusAt = SERVER_TIMESTAMP`
 
 ## Coach notifications (recommended)
@@ -143,6 +147,17 @@ def statusUpdate(req: https_fn.Request) -> https_fn.Response:
 ## iOS wiring points
 - **Monitor extension**: `AppMonitor/DeviceActivityMonitorExtension.swift` calls `statusUpdate` on warning/reach/interval start/end.
 - **Main app**: `PPTAMinimal/Managers/DeviceActivityManager.swift` calls `statusUpdate(allClear)` after remote unlock (best effort).
+
+## Server deploys required
+**Both `lockapp.py` and `statusupdate.js` must be deployed before end-to-end message delivery works.** Deploy in this order:
+1. `cloudrunfunctions/lockapp.py` — adds `message` param and field to `lockCommand`
+2. `cloudrunfunctions/statusupdate.js` — adds `message` param and `snoozeRequestMessages` map
+
+Old clients (without message param) work with new servers (params ignored). New clients work with old servers (message omitted). Mixed-version deployment is safe as long as servers deploy first so the first message-carrying requests don't hit servers that ignore the field.
+
+## Before deploy
+- [ ] Deploy `cloudrunfunctions/lockapp.py` and `cloudrunfunctions/statusupdate.js`.
+- [ ] In the Firebase console, confirm the Firestore rules allow reads/writes of `lockCommand.message` and `snoozeRequestMessages` (the rules file is not in this repo).
 
 ## TODO you must do after deploying
 Update these hardcoded URLs in iOS:

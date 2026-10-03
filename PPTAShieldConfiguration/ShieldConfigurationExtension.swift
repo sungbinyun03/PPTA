@@ -74,7 +74,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: Palette.title
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Open Peer Pressure the App and request more time from your coaches.",
+                text: subtitle(context: context),
                 color: Palette.subtitle
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
@@ -88,6 +88,15 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 ? ShieldConfiguration.Label(text: "Ask a coach for more time", color: Palette.title)
                 : nil
         )
+    }
+
+    /// A coach's note leads the subtitle, plain text; the standing hint follows so the way out stays visible.
+    private func subtitle(context: ShieldContext?) -> String {
+        let hint = "Open Peer Pressure the App and request more time from your coaches."
+        guard let locker = context?.lockedByName, !locker.isEmpty,
+              let note = context?.lockMessage, !note.isEmpty else { return hint }
+        let first = locker.split(separator: " ").first.map(String.init) ?? locker
+        return "\(first): \(note)\n\(hint)"
     }
 
     /// Names the reason. Copy uses first names only; the stored name is the coach's full name.

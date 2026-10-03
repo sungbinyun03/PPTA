@@ -89,13 +89,17 @@ final class LockReconciler {
         let byName: String?
         /// Server time. Nil for a command taken from a push payload, which is live by definition.
         let at: Date?
+        /// The coach's optional note, already cleaned (`ActionMessage.clean`). Display only: it never
+        /// takes part in any apply/ack decision.
+        let message: String?
 
-        init(id: String, action: Action, by: String?, byName: String?, at: Date?) {
+        init(id: String, action: Action, by: String?, byName: String?, at: Date?, message: String? = nil) {
             self.id = id
             self.action = action
             self.by = by
             self.byName = byName
             self.at = at
+            self.message = ActionMessage.clean(message)
         }
 
         init?(_ raw: Any?) {
@@ -110,7 +114,8 @@ final class LockReconciler {
                 action: action,
                 by: dict["by"] as? String,
                 byName: dict["byName"] as? String,
-                at: (dict["at"] as? Timestamp)?.dateValue()
+                at: (dict["at"] as? Timestamp)?.dateValue(),
+                message: dict["message"] as? String
             )
         }
     }
@@ -174,6 +179,7 @@ final class LockReconciler {
         let by = payload["by"] as? String
         let pushUID = payload["uid"] as? String
         let id = (payload["cmd"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let pushMessage = ActionMessage.clean(payload["message"] as? String)
 
         // The FCM token outlives the session that registered it, so a push can reach whoever is
         // signed in now. It carries the account it was sent to; anything else is not ours to apply.
@@ -221,13 +227,17 @@ final class LockReconciler {
                 guard let id else {
                     let coach = byName?.firstNameOnly ?? "Your coach"
                     if isLock {
-                        await DeviceActivityManager.shared.handleRemoteLock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner)
+                        LocalSettingsStore.lockMessage = pushMessage
+                        await DeviceActivityManager.shared.handleRemoteLock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner, message: pushMessage)
                     } else {
+                        LocalSettingsStore.lockMessage = nil
                         await DeviceActivityManager.shared.handleRemoteUnlock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner)
                     }
                     return
                 }
-                let command = Command(id: id, action: isLock ? .lock : .unlock, by: by, byName: byName, at: latest?.at)
+                // The durable copy wins when it is this command; the push payload is the fallback.
+                let message = latest?.id == id ? latest?.message : pushMessage
+                let command = Command(id: id, action: isLock ? .lock : .unlock, by: by, byName: byName, at: latest?.at, message: message)
                 await perform(command, existingAck: nil, pushShowsBanner: pushShowsBanner)
                 return
             }
@@ -346,9 +356,14 @@ final class LockReconciler {
         let outcome: LockOutcome
         switch command.action {
         case .lock:
+            // Stored before the lock runs: the status write inside it is what refreshes Home and the
+            // shield context, and both read this.
+            LocalSettingsStore.lockMessage = command.message
             outcome = await DeviceActivityManager.shared.handleRemoteLock(
-                from: coach, coachUID: command.by, pushShowsBanner: pushShowsBanner)
+                from: coach, coachUID: command.by, pushShowsBanner: pushShowsBanner, message: command.message)
+            if outcome != .applied { LocalSettingsStore.lockMessage = nil }
         case .unlock:
+            LocalSettingsStore.lockMessage = nil
             outcome = await DeviceActivityManager.shared.handleRemoteUnlock(
                 from: coach, coachUID: command.by, pushShowsBanner: pushShowsBanner)
         }

@@ -62,6 +62,30 @@ function readBodyAsObject(req) {
   return {};
 }
 
+const MAX_MESSAGE_CODE_POINTS = 100;
+
+// Mirror of `_clean_message` in lockapp.py (and ActionMessage.clean on the client): whitespace and
+// control characters (category Cc) collapse to single spaces, ends are trimmed, and the result is
+// capped at 100 code points. Format characters (e.g. U+200D ZWJ) are kept so emoji sequences
+// survive. Returns null when nothing is left.
+function cleanMessage(raw) {
+  if (typeof raw !== 'string') return null;
+  const out = [];
+  let lastWasSpace = true; // also drops leading whitespace
+  for (const ch of raw) {
+    if (/[\p{Z}\p{Cc}]/u.test(ch)) {
+      if (!lastWasSpace) out.push(' ');
+      lastWasSpace = true;
+    } else {
+      out.push(ch);
+      lastWasSpace = false;
+    }
+  }
+  // The cut can leave a trailing space.
+  const capped = out.slice(0, MAX_MESSAGE_CODE_POINTS).join('').replace(/ +$/, '');
+  return capped || null;
+}
+
 function firstName(name, fallback) {
   const first = String(name || '').trim().split(/\s+/)[0];
   return first || fallback;
@@ -147,7 +171,9 @@ functions.http('statusUpdate', async (req, res) => {
     // ▲ NEW (per-coach): targetCoach — the single coach a mercy request is addressed to.
     // ▲ NEW: change — what a settingsChanged event altered (appLimits | pressureLevel | both).
     //   Sent in the body but NOT signed; kept for the data payload only (copy is centralized).
-    const { uid, status, ts, sig, type, cause, by, targetCoach, change } = data;
+    // ▲ NEW: message — optional note on a mercyRequest. Sent in the body but NOT signed; sanitized
+    //   below and omitted when empty, so a request without one behaves exactly as before.
+    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message } = data;
 
     if (!uid || !status || ts === undefined || ts === null || !sig) {
       return bad(res, 400, 'missing params');
@@ -249,6 +275,7 @@ functions.http('statusUpdate', async (req, res) => {
     }
 
     const settingsRef = db.collection('userSettings').doc(uid);
+    const requestMessage = isMercyRequest ? cleanMessage(message) : null;
 
     if (requestType === 'status') {
       const settingsUpdate = {
@@ -257,7 +284,12 @@ functions.http('statusUpdate', async (req, res) => {
         // ▲ NEW (per-coach): any non-cutOff status ends ALL outstanding snooze requests — a
         //   snooze, a new-day allClear, or a drop to attentionNeeded empties the list. This is
         //   the authoritative clear that the trainee's coaches (who watch this doc live) react to.
-        ...(status !== 'cutOff' ? { snoozeRequestedCoachIds: [] } : {}),
+        ...(status !== 'cutOff'
+          ? {
+              snoozeRequestedCoachIds: [],
+              snoozeRequestMessages: admin.firestore.FieldValue.delete(),
+            }
+          : {}),
         ...(status === 'allClear'
           ? {
               lockedByUID: admin.firestore.FieldValue.delete(),
@@ -276,8 +308,13 @@ functions.http('statusUpdate', async (req, res) => {
       // ▲ NEW (per-coach): a mercy request never changes enforcement state (asking ≠ deciding),
       //   it just adds the chosen coach to the trainee's outstanding-request list. arrayUnion is
       //   idempotent, so re-asking the same coach is a no-op. Cleared by any non-cutOff status.
+      //   ▲ NEW: the optional note is stored per coach beside the list (a nested merge, so other
+      //   coaches' notes survive). Re-asking without a note leaves an earlier one in place.
       await settingsRef.set(
-        { snoozeRequestedCoachIds: admin.firestore.FieldValue.arrayUnion(targetCoach) },
+        {
+          snoozeRequestedCoachIds: admin.firestore.FieldValue.arrayUnion(targetCoach),
+          ...(requestMessage ? { snoozeRequestMessages: { [targetCoach]: requestMessage } } : {}),
+        },
         { merge: true }
       );
     }
@@ -309,10 +346,11 @@ functions.http('statusUpdate', async (req, res) => {
               type: 'mercyRequest',
               uid: String(uid),
               traineeName,
+              ...(requestMessage ? { message: requestMessage } : {}),
             },
             notification: {
               title: `${traineeName} is asking for more time`,
-              body: 'Open PPTA to snooze their lock.',
+              body: requestMessage ? `"${requestMessage}"` : 'Open PPTA to snooze their lock.',
             },
             apns: {
               headers: {

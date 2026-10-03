@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import time
+import unicodedata
 import uuid
 
 # Step 4 switch. False = the old silent background push (safe with any app build). Flip to True
@@ -22,6 +23,31 @@ def _command_ok(cmd_id, push=None):
     if push:
         body["push"] = push
     return (json.dumps(body), 200, {"Content-Type": "application/json"})
+
+
+# Server cap in Unicode code points. Looser than the client's 60 Characters so a counting
+# mismatch between the two can never fail an action; the server truncates, never rejects.
+MAX_MESSAGE_CODE_POINTS = 100
+
+
+def _clean_message(raw):
+    """Mirror of ActionMessage.clean on the client: whitespace and control characters (category
+    Cc) collapse to single spaces, ends are trimmed, and the result is capped. Format characters
+    (e.g. U+200D ZWJ) are kept so emoji sequences survive. Returns None when nothing is left."""
+    if not isinstance(raw, str):
+        return None
+    out = []
+    last_was_space = True  # also drops leading whitespace
+    for ch in raw:
+        if ch.isspace() or unicodedata.category(ch) == "Cc":
+            if not last_was_space:
+                out.append(" ")
+            last_was_space = True
+        else:
+            out.append(ch)
+            last_was_space = False
+    capped = "".join(out[:MAX_MESSAGE_CODE_POINTS]).strip(" ")  # the cut can leave a trailing space
+    return capped or None
 
 
 def _bad_request(reason, code):
@@ -70,6 +96,9 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
         print(f"Bad signature for UID: [{uid}]")
         return _bad_request("bad sig", 403)
 
+    # Unsigned and read only after the signature check; a missing or empty note changes nothing.
+    note = _clean_message(req.args.get("msg"))
+
     db = firestore.client()
 
     try:
@@ -95,18 +124,21 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
     # The command is the source of truth the trainee converges on, so a failed write must fail
     # the request (the coach sees the error) rather than push a lock that nothing records.
     cmd_id = uuid.uuid4().hex
+    lock_command = {
+        "id": cmd_id,
+        "action": "lock",
+        "by": coach,
+        "byName": coach_name,
+        "at": firestore.SERVER_TIMESTAMP,
+    }
+    if note:
+        lock_command["message"] = note
     try:
         db.collection("userSettings").document(uid).set(
             {
                 "lockedByUID": coach,
                 "lockedByName": coach_name,
-                "lockCommand": {
-                    "id": cmd_id,
-                    "action": "lock",
-                    "by": coach,
-                    "byName": coach_name,
-                    "at": firestore.SERVER_TIMESTAMP,
-                },
+                "lockCommand": lock_command,
             },
             merge=True,
         )
@@ -138,7 +170,7 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
                         title=f"Locked by {first} 🔒",
-                        body="Head to a coach's profile to ask them to snooze the lock.",
+                        body=note or "Head to a coach's profile to ask them to snooze the lock.",
                     ),
                     sound="default",
                     content_available=True,
@@ -156,15 +188,19 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
             ),
         )
 
+    push_data = {
+        "type": "lock",
+        "by": str(coach),
+        "byName": coach_name,
+        "cmd": cmd_id,
+        "uid": uid,
+    }
+    if note:
+        push_data["message"] = note
+
     message = messaging.Message(
         token=token,
-        data={
-            "type": "lock",
-            "by": str(coach),
-            "byName": coach_name,
-            "cmd": cmd_id,
-            "uid": uid,
-        },
+        data=push_data,
         apns=apns,
     )
 

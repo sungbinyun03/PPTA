@@ -226,3 +226,164 @@ struct LaunchGateTests {
         #expect(!gate.isVisible)
     }
 }
+
+struct ActionMessageTests {
+
+    @Test func nilAndEmptyAreAbsent() {
+        #expect(ActionMessage.clean(nil) == nil)
+        #expect(ActionMessage.clean("") == nil)
+    }
+
+    @Test func whitespaceOnlyIsAbsent() {
+        #expect(ActionMessage.clean("   \n\t  ") == nil)
+    }
+
+    @Test func trimsAndCollapsesNewlinesAndControlCharacters() {
+        #expect(ActionMessage.clean("  hi\n\nthere\r\n\u{0007}you  ") == "hi there you")
+    }
+
+    @Test func keepsExactlyMaxLength() {
+        let s = String(repeating: "a", count: ActionMessage.maxLength)
+        #expect(ActionMessage.clean(s) == s)
+    }
+
+    @Test func truncatesAtMaxLength() {
+        let s = String(repeating: "a", count: ActionMessage.maxLength + 1)
+        #expect(ActionMessage.clean(s) == String(repeating: "a", count: ActionMessage.maxLength))
+    }
+
+    @Test func emojiAtTheBoundaryIsNeverCutMidSequence() {
+        let family = "👨‍👩‍👧"
+        let s = String(repeating: "a", count: ActionMessage.maxLength - 1) + family + "zzz"
+        let out = ActionMessage.clean(s)
+        #expect(out?.count == ActionMessage.maxLength)
+        #expect(out?.hasSuffix(family) == true)
+    }
+
+    @Test func truncationDoesNotLeaveTrailingSpace() {
+        let s = String(repeating: "a", count: ActionMessage.maxLength - 1) + " bbb"
+        #expect(ActionMessage.clean(s) == String(repeating: "a", count: ActionMessage.maxLength - 1))
+    }
+}
+
+struct ActionMessageTransportTests {
+
+    private let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+    private func items(_ url: URL?) -> [String: String] {
+        let comps = URLComponents(url: url!, resolvingAgainstBaseURL: false)!
+        return Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+    }
+
+    @Test func lockURLWithoutMessageHasNoMsg() {
+        let q = items(UnlockService.makeLockURL(childUID: "kid", coachUID: "coach", now: now))
+        #expect(q["msg"] == nil)
+        #expect(q["uid"] == "kid" && q["coach"] == "coach" && q["sig"] != nil)
+    }
+
+    @Test func lockURLSignatureIgnoresMessage() {
+        let plain = items(UnlockService.makeLockURL(childUID: "kid", coachUID: "coach", now: now))
+        let noted = items(UnlockService.makeLockURL(childUID: "kid", coachUID: "coach", message: "hi", now: now))
+        #expect(plain["sig"] == noted["sig"])
+        #expect(plain["ts"] == noted["ts"])
+        #expect(noted["msg"] == "hi")
+    }
+
+    @Test func lockURLMessageIsCleanedAndPercentEncoded() {
+        let url = UnlockService.makeLockURL(childUID: "kid", coachUID: "coach",
+                                            message: "  a&b=c\n d  ", now: now)
+        #expect(items(url)["msg"] == "a&b=c d")
+        let query = url!.absoluteString.components(separatedBy: "?")[1]
+        #expect(query.contains("msg=a%26b%3Dc%20d") || query.contains("msg=a%26b=c%20d"))
+    }
+
+    @Test func lockURLBlankMessageIsOmitted() {
+        let q = items(UnlockService.makeLockURL(childUID: "kid", coachUID: "coach", message: " \n ", now: now))
+        #expect(q["msg"] == nil)
+    }
+
+    @Test func mercyExtraOnlyWhenPresent() {
+        #expect(DeviceActivityManager.mercyRequestExtra(message: nil).isEmpty)
+        #expect(DeviceActivityManager.mercyRequestExtra(message: "  ").isEmpty)
+        #expect(DeviceActivityManager.mercyRequestExtra(message: " more\ntime ") == ["message": "more time"])
+    }
+}
+
+struct LockMessageTests {
+
+    private func command(_ extra: [String: Any] = [:]) -> LockReconciler.Command? {
+        var raw: [String: Any] = ["id": "c1", "action": "lock", "by": "u1", "byName": "Alex Kim"]
+        raw.merge(extra) { $1 }
+        return LockReconciler.Command(raw)
+    }
+
+    @Test func commandWithMessageParsesIt() {
+        #expect(command(["message": "Go study"])?.message == "Go study")
+    }
+
+    @Test func commandWithoutMessageHasNone() {
+        #expect(command()?.message == nil)
+    }
+
+    @Test func commandWithEmptyOrWhitespaceMessageHasNone() {
+        #expect(command(["message": ""])?.message == nil)
+        #expect(command(["message": " \n "])?.message == nil)
+    }
+
+    @Test func commandWithNonStringMessageHasNone() {
+        #expect(command(["message": 42])?.message == nil)
+    }
+
+    @Test func commandMessageIsCleanedAndCapped() {
+        let long = String(repeating: "a", count: 100)
+        #expect(command(["message": "a\nb"])?.message == "a b")
+        #expect(command(["message": long])?.message?.count == ActionMessage.maxLength)
+    }
+
+    @Test func messageDoesNotAffectCommandIdentity() {
+        let c = command(["message": "hi"])
+        #expect(c?.id == "c1")
+        #expect(c?.action == .lock)
+    }
+
+    @Test func bannerTextNeedsAMessage() {
+        #expect(ActionMessage.lockBannerText(coachFirstName: "Alex", message: nil) == nil)
+        #expect(ActionMessage.lockBannerText(coachFirstName: "Alex", message: "  ") == nil)
+        #expect(ActionMessage.lockBannerText(coachFirstName: "Alex", message: "Go study") == "Alex: Go study")
+    }
+
+    @Test func notificationBodyQuotesMessageElseKeepsHint() {
+        #expect(ActionMessage.lockNotificationBody(message: "Go study") == "\u{201C}Go study\u{201D}")
+        #expect(ActionMessage.lockNotificationBody(message: nil).hasPrefix("Head to a coach"))
+    }
+
+    @Test func lockMessageStoreRoundTripsAndClears() {
+        let saved = LocalSettingsStore.lockMessage
+        defer { LocalSettingsStore.lockMessage = saved }
+        LocalSettingsStore.lockMessage = "Go study"
+        #expect(LocalSettingsStore.lockMessage == "Go study")
+        LocalSettingsStore.lockMessage = nil
+        #expect(LocalSettingsStore.lockMessage == nil)
+    }
+
+    @Test func snoozeRequestMessageNeedsCoachStillRequested() {
+        let data: [String: Any] = [
+            "snoozeRequestedCoachIds": ["c1"],
+            "snoozeRequestMessages": ["c1": "  one\nmore  ", "c2": "other"],
+        ]
+        #expect(ActionMessage.snoozeRequestMessage(from: data, coachUID: "c1") == "one more")
+        #expect(ActionMessage.snoozeRequestMessage(from: data, coachUID: "c2") == nil) // not requested
+        #expect(ActionMessage.snoozeRequestMessage(from: data, coachUID: nil) == nil)
+    }
+
+    @Test func snoozeRequestMessageIgnoresStaleOrMalformed() {
+        // Request cleared but map entry lingering.
+        #expect(ActionMessage.snoozeRequestMessage(
+            from: ["snoozeRequestedCoachIds": [String](), "snoozeRequestMessages": ["c1": "hi"]], coachUID: "c1") == nil)
+        #expect(ActionMessage.snoozeRequestMessage(from: ["snoozeRequestedCoachIds": ["c1"]], coachUID: "c1") == nil)
+        #expect(ActionMessage.snoozeRequestMessage(
+            from: ["snoozeRequestedCoachIds": ["c1"], "snoozeRequestMessages": ["c1": 5]], coachUID: "c1") == nil)
+        #expect(ActionMessage.snoozeRequestMessage(
+            from: ["snoozeRequestedCoachIds": ["c1"], "snoozeRequestMessages": ["c1": " "]], coachUID: "c1") == nil)
+    }
+}

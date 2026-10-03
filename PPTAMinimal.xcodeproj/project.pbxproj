@@ -194,6 +194,7 @@
 				Managers/NotificationManager.swift,
 				Managers/UnlockService.swift,
 				Managers/UserSettingsManager.swift,
+				Models/ActionMessage.swift,
 				Models/LocalSettingsStore.swift,
 				Models/ShieldSharedStore.swift,
 				Models/TraineeStatus.swift,

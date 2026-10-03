@@ -150,12 +150,14 @@ final class UserSettingsManager : ObservableObject{
     /// leftover name from a previous coach lock would get attributed to a later auto-lock.
     /// Static so the escaping Firestore closures don't have to capture `self`.
     private static func syncShieldContext(from settings: UserSettings) {
+        let lockedByName = settings.traineeStatus == .cutOff ? settings.lockedByName : nil
         ShieldContext.save(
             ShieldContext(
-                lockedByName: settings.traineeStatus == .cutOff ? settings.lockedByName : nil,
+                lockedByName: lockedByName,
                 isHardcore: settings.pressureLevel == .hardcore,
                 streakStart: settings.startDailyStreakDate,
-                hasCoaches: !settings.coachIds.isEmpty
+                hasCoaches: !settings.coachIds.isEmpty,
+                lockMessage: lockedByName?.isEmpty == false ? LocalSettingsStore.lockMessage : nil
             )
         )
     }

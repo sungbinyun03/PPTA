@@ -124,9 +124,7 @@ struct HomeView: View {
                 statusBanner(
                     icon: "lock.fill",
                     title: "Apps Locked",
-                    message: settings.pressureLevel == .hardcore
-                        ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
-                        : "A coach locked your apps. If you want more time, have a coach snooze the lock for you.",
+                    message: cutOffMessage(for: settings),
                     color: .red
                 )
             case .snoozedLock:
@@ -140,6 +138,19 @@ struct HomeView: View {
                 EmptyView()
             }
         }
+    }
+
+    /// A coach's note replaces the generic copy only for a coach lock (`lockedByName` is set only by
+    /// one), never a Hardcore auto-lock. The note comes from the App Group, which the lock path wrote
+    /// before the status write that re-renders this.
+    private func cutOffMessage(for settings: UserSettings) -> String {
+        if let locker = settings.lockedByName, !locker.isEmpty,
+           let note = ActionMessage.lockBannerText(coachFirstName: locker.firstNameOnly, message: LocalSettingsStore.lockMessage) {
+            return note
+        }
+        return settings.pressureLevel == .hardcore
+            ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
+            : "A coach locked your apps. If you want more time, have a coach snooze the lock for you."
     }
 
     /// Compact status strip: dot/icon + title, with the longer explanation as a small secondary line.

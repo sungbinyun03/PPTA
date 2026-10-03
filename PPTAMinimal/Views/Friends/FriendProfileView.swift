@@ -41,6 +41,8 @@ struct FriendProfileView: View {
     /// (Coach viewing trainee) True when this trainee is asking **me** to snooze their lock. Only
     /// surfaced while `traineeStatus == .cutOff` (see `isAskingForMoreTime`), so a stale flag never shows.
     var isRequestingSnoozeFromMe: Bool = false
+    /// The note that came with that request, shown under the pill. Plain text only.
+    var snoozeRequestMessage: String? = nil
 
     /// (Trainee viewing coach) Non-nil when I'm cut off and this person is my coach — shows the
     /// "Request to snooze lock" button. `hasRequestedSnooze` drives its "Requested" disabled state.
@@ -226,6 +228,13 @@ struct FriendProfileView: View {
                                 // shows only while they're cut off and actually asking.
                                 if isAskingForMoreTime {
                                     moreTimePill
+
+                                    if let note = snoozeRequestMessage {
+                                        Text("\u{201C}\(note)\u{201D}")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.secondary)
+                                            .multilineTextAlignment(.center)
+                                    }
                                 }
                             }
                         }

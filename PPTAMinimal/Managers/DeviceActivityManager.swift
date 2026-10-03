@@ -443,7 +443,7 @@ class DeviceActivityManager {
     /// (`notTracking`, `emptySelection`) must not read as applied.
     @MainActor
     @discardableResult
-    func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async -> LockOutcome {
+    func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false, message: String? = nil) async -> LockOutcome {
         let settings = LocalSettingsStore.load()
         guard settings.isTracking else {
             print("handleRemoteLock: pressure is Off; not locking.")
@@ -465,7 +465,7 @@ class DeviceActivityManager {
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
                 title: "Locked by \(coach) 🔒",
-                body: "Head to a coach's profile to ask them to snooze the lock."
+                body: ActionMessage.lockNotificationBody(message: message)
             )
         }
 
@@ -606,8 +606,19 @@ class DeviceActivityManager {
     /// Rides the existing `statusUpdate` endpoint rather than a new service: it already
     /// resolves `coachIds` and fans out FCM. The server does **not** write any status for
     /// this type — a trainee asking is not a trainee deciding — it only notifies.
-    func sendMercyRequest(uid: String?, targetCoach: String) {
-        postToStatusUpdate(uid: uid, status: .cutOff, type: "mercyRequest", targetCoach: targetCoach)
+    ///
+    /// - Parameter message: optional note for the coach. Cleaned here and sent as the unsigned
+    ///   `message` body field, only when non-empty.
+    func sendMercyRequest(uid: String?, targetCoach: String, message: String? = nil) {
+        postToStatusUpdate(
+            uid: uid, status: .cutOff, type: "mercyRequest", targetCoach: targetCoach,
+            extra: Self.mercyRequestExtra(message: message)
+        )
+    }
+
+    static func mercyRequestExtra(message: String?) -> [String: String] {
+        guard let cleaned = ActionMessage.clean(message) else { return [:] }
+        return ["message": cleaned]
     }
 
     /// What changed in a trainee's setup, for the coach-facing push copy.

@@ -47,6 +47,10 @@ final class FriendProfileViewModel: ObservableObject {
     /// `traineeStatus == .cutOff`. Cleared server-side on any non-cutOff status.
     @Published var isRequestingSnoozeFromMe = false
 
+    /// (Coach side) The note that came with the trainee's request to me, read from the live
+    /// listener's raw dict. Not in the `UserSettings` Codable, so a full-doc save can't clobber it.
+    @Published private(set) var snoozeRequestMessage: String?
+
     /// (Trainee side) True when *I* am currently cut off — used to offer the "Request to snooze"
     /// button on this person's profile when they're my coach.
     @Published var iAmCutOff = false
@@ -59,10 +63,11 @@ final class FriendProfileViewModel: ObservableObject {
     /// button to "Requested". The server arrayUnions this coach onto my settings and pushes only
     /// to them; the next `refresh()` reads that back. We only flip the local `@Published` here —
     /// no `UserSettingsManager` save, which would do a full-doc write and could clobber
-    /// server-set fields like `lockedByName`.
-    func requestSnooze() {
+    /// server-set fields like `lockedByName`. `message` is an optional note for the coach; nil or
+    /// empty sends exactly what a request without a note always did.
+    func requestSnooze(message: String? = nil) {
         guard let uid = myUid, !iHaveRequestedSnoozeFromThem else { return }
-        DeviceActivityManager.shared.sendMercyRequest(uid: uid, targetCoach: otherUserId)
+        DeviceActivityManager.shared.sendMercyRequest(uid: uid, targetCoach: otherUserId, message: message)
         iHaveRequestedSnoozeFromThem = true
     }
 
@@ -263,6 +268,8 @@ final class FriendProfileViewModel: ObservableObject {
     }
 
     private func applyLockState(_ data: [String: Any]) {
+        snoozeRequestMessage = ActionMessage.snoozeRequestMessage(from: data, coachUID: myUid)
+
         if let ack = data["lockAck"] as? [String: Any],
            let id = ack["id"] as? String, let result = ack["result"] as? String {
             latestAck = (id, result)

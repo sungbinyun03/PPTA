@@ -20,6 +20,7 @@ struct LocalSettingsStore {
     private static let pendingStatusKey = "PendingTraineeStatus"
     private static let pendingStreakKey = "PendingStreakStartDate"
     private static let lastLockCommandKey = "LastAppliedLockCommandId"
+    private static let lockMessageKey = "LockMessage"
 
     static func save(_ settings: UserSettings) {
         do {
@@ -44,6 +45,17 @@ struct LocalSettingsStore {
     static var lastAppliedLockCommandId: String? {
         get { suite?.string(forKey: lastLockCommandKey) }
         set { suite?.set(newValue, forKey: lastLockCommandKey) }
+    }
+
+    /// The coach's note on the lock standing on this device (`lockCommand.message`), else nil. Its own
+    /// key, never part of `UserSettings`, so a full-document save can't write a stale copy back.
+    /// Set when a lock is applied; cleared when an unlock is applied.
+    static var lockMessage: String? {
+        get { suite?.string(forKey: lockMessageKey) }
+        set {
+            if let newValue { suite?.set(newValue, forKey: lockMessageKey) }
+            else { suite?.removeObject(forKey: lockMessageKey) }
+        }
     }
 
     static func load() -> UserSettings {

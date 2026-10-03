@@ -13,6 +13,10 @@ struct FriendProfileSheetView: View {
 
     @StateObject private var vm: FriendProfileViewModel
     @State private var showUnfriendConfirm = false
+    @State private var showLockNote = false
+    @State private var lockNote = ""
+    @State private var showSnoozeNote = false
+    @State private var snoozeNote = ""
     @Environment(\.dismiss) private var dismiss
 
     init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init()) {
@@ -63,6 +67,7 @@ struct FriendProfileSheetView: View {
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
                     isRequestingSnoozeFromMe: vm.isRequestingSnoozeFromMe,
+                    snoozeRequestMessage: vm.snoozeRequestMessage,
                     onRequestSnooze: makeRequestSnoozeActionIfNeeded(),
                     hasRequestedSnooze: vm.iHaveRequestedSnoozeFromThem,
                     coachAction: vm.coachAction,
@@ -103,6 +108,18 @@ struct FriendProfileSheetView: View {
             .onChange(of: vm.didUnfriend) { _, didUnfriend in
                 if didUnfriend { dismiss() }
             }
+            .sheet(isPresented: $showLockNote) {
+                LockNoteSheet(name: vm.name, note: $lockNote) { note in
+                    lock(message: note)
+                }
+                .presentationDetents([.height(280)])
+            }
+            .sheet(isPresented: $showSnoozeNote) {
+                SnoozeRequestNoteSheet(name: vm.name, note: $snoozeNote) { note in
+                    vm.requestSnooze(message: note)
+                }
+                .presentationDetents([.height(280)])
+            }
             .task { await vm.refresh() }
             .onAppear { vm.startWatchingLockState() }
             .onDisappear { vm.stopWatchingLockState() }
@@ -116,14 +133,19 @@ struct FriendProfileSheetView: View {
         // can be taken back by locking.
         guard (vm.traineeStatus == .attentionNeeded && !vm.hasPendingLock) || vm.hasPendingUnlock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
-        // Signed when tapped, not here: the signature carries a timestamp the server rejects after
-        // 5 minutes, and this runs on every body evaluation, so a sheet left open would send a
-        // stale one.
-        let childUID = otherUserId
+        // Signed when the sheet's Lock is tapped, not here: the signature carries a timestamp the
+        // server rejects after 5 minutes, and this runs on every body evaluation, so a sheet left
+        // open would send a stale one.
         return {
-            guard let url = UnlockService.makeLockURL(childUID: childUID, coachUID: coachUID) else { return }
-            Task { await vm.performLock(url: url) }
+            lockNote = ""
+            showLockNote = true
         }
+    }
+
+    private func lock(message: String) {
+        guard let coachUID = Auth.auth().currentUser?.uid else { return }
+        guard let url = UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID, message: message) else { return }
+        Task { await vm.performLock(url: url) }
     }
 
     /// Trainee side: offer "Request to snooze" only when *I* am cut off and this person is my coach.
@@ -131,7 +153,10 @@ struct FriendProfileSheetView: View {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isCoach else { return nil }   // other is my coach
         guard vm.iAmCutOff else { return nil }
-        return { vm.requestSnooze() }
+        return {
+            snoozeNote = ""
+            showSnoozeNote = true
+        }
     }
 
     private func makeUnlockActionIfNeeded() -> (() -> Void)? {
@@ -147,5 +172,101 @@ struct FriendProfileSheetView: View {
             guard let url = UnlockService.makeUnlockURL(childUID: childUID, coachUID: coachUID) else { return }
             Task { await vm.performUnlock(url: url) }
         }
+    }
+}
+
+/// Optional note step before a coach lock. The URL is signed by the caller when Lock is tapped.
+private struct LockNoteSheet: View {
+    let name: String
+    @Binding var note: String
+    let onLock: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Text("Lock \(name.firstNameOnly)?")
+                    .font(.custom("BambiBold", size: 22))
+                    .foregroundColor(Color("primaryColor"))
+                Text("They'll see your note with the lock.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            ActionMessageField(text: $note)
+
+            HStack(spacing: 12) {
+                Button { dismiss() } label: {
+                    Text("Cancel")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(.systemGray5))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                Button {
+                    onLock(note)
+                    dismiss()
+                } label: {
+                    Text("Lock")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.orange)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+        }
+        .padding(24)
+    }
+}
+
+/// Optional note step before a snooze request to a coach. Sending with no note is the same as before.
+private struct SnoozeRequestNoteSheet: View {
+    let name: String
+    @Binding var note: String
+    let onSend: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Text("Ask \(name.firstNameOnly) for more time?")
+                    .font(.custom("BambiBold", size: 22))
+                    .foregroundColor(Color("primaryColor"))
+                Text("They'll see your note with the request.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            ActionMessageField(text: $note)
+
+            HStack(spacing: 12) {
+                Button { dismiss() } label: {
+                    Text("Cancel")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(.systemGray5))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                Button {
+                    onSend(note)
+                    dismiss()
+                } label: {
+                    Text("Send")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(TraineeStatus.snoozedLock.ringColor ?? .blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+        }
+        .padding(24)
     }
 }

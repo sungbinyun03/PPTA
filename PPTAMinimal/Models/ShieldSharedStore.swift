@@ -123,6 +123,10 @@ struct ShieldContext: Codable {
     /// button that has nobody to contact is worse than no button.
     var hasCoaches: Bool?
 
+    /// The locking coach's optional note. Optional so older payloads still decode. Only populated
+    /// alongside `lockedByName`, so it can't outlive the lock or ride a Hardcore auto-lock.
+    var lockMessage: String?
+
     /// Mirrors `StreakCalculator.daysSince` rather than importing it, to keep the extension
     /// target dependency-free. `StreakCalculator` remains the canonical implementation.
     var streakDays: Int {
