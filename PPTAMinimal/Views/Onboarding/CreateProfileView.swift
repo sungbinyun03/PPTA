@@ -2,12 +2,8 @@
 //  CreateProfileView.swift
 //  PPTAMinimal
 //
-//  Screen 2 of 5 — and often skipped entirely.
-//
-//  `OnboardingCoordinator.configure(hasDisplayName:)` drops this step from the flow when the user
-//  already has a usable name, which is the common case for Apple and Google sign-in. The step is
-//  removed from `steps` rather than auto-advanced at runtime, so `goBack()` can never land on a
-//  screen that immediately bounces forward again.
+//  Name + profile picture. Always shown — the name is pre-filled when sign-in (Apple / Google) or a
+//  returning account already has one, so it's one tap; the picture is never supplied by sign-in.
 //
 
 import SwiftUI

@@ -24,7 +24,7 @@ struct LaunchFacadeView: View {
     private var isReady: Bool {
         guard viewModel.userSession != nil else { return true }
         guard viewModel.currentUser != nil else { return false }
-        if !viewModel.isOnboardingComplete || viewModel.needsScreenTimeReconfigure { return true }
+        if !viewModel.isOnboardingComplete { return true }
         return gate.settingsLoaded && gate.peopleLoaded
     }
 

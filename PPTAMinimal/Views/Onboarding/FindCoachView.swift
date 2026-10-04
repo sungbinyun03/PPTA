@@ -9,9 +9,10 @@
 //  open their profile, and tap "Request as Coach" — a screen they had no reason to revisit. So the
 //  one thing that makes the app work was buried two navigations deep and never mentioned.
 //
-//  Here one tap does both. If they're already a friend, the coach request goes out immediately.
-//  If not, the friend request goes out and the coach request is parked in
-//  `PendingCoachRequestStore` until the friendship is accepted.
+//  The button now sends a *friend request only*. Pairing up as coach/trainee is a separate step
+//  done later from the friend's profile, matching steps 2 and 3 on `HowItWorksView`. (It used to
+//  send a coach request too — immediately for existing friends, or parked in
+//  `PendingCoachRequestStore` until acceptance — which the label couldn't honestly describe.)
 //
 //  Contacts access is requested from an explicit button, not from `.onAppear` — the old flow threw
 //  the system dialog up the instant the screen loaded, with no explanation of why PPTA wanted an
@@ -37,7 +38,6 @@ struct FindCoachView: View {
     @State private var didRequestNotifications = false
 
     private let firestoreService = FirestoreService()
-    private let roleRequests = RoleRequestRepository()
     private let primaryColor = Color("primaryColor")
 
     private var inviteMessage: String {
@@ -71,7 +71,7 @@ struct FindCoachView: View {
         case .ready:
             return appUsers.isEmpty
                 ? "Nobody in your contacts is on PPTA yet. Invite someone — you can add them as a coach once they join."
-                : "They'll get a request. Once they accept, they can lock and release your apps."
+                : "They'll get a friend request. Once they accept, ask them to be your coach from their profile."
         }
     }
 
@@ -154,8 +154,10 @@ struct FindCoachView: View {
 
     private func coachRow(_ candidate: User) -> some View {
         let targetId = candidate.id
-        let isRequested = requested.contains(targetId)
-        let isAlreadyCoach = UserSettingsManager.shared.userSettings.coachIds.contains(targetId)
+        let isFriend = friendsVM.friends.contains { $0.id == targetId }
+        let isSent = requested.contains(targetId)
+            || friendsVM.outgoingRequests.contains { $0.user.id == targetId }
+        let isDone = isFriend || isSent
 
         return HStack(spacing: 12) {
             InitialsProfilePicView(
@@ -169,7 +171,7 @@ struct FindCoachView: View {
                     .font(.custom("Satoshi-Variable", size: 15))
                     .foregroundColor(.primary)
                     .lineLimit(1)
-                Text(isAlreadyCoach ? "Already your coach" : (isRequested ? "Requested" : "On PPTA"))
+                Text(isFriend ? "Already friends" : (isSent ? "Request sent" : "On PPTA"))
                     .font(.custom("Satoshi-Variable", size: 12))
                     .foregroundColor(primaryColor.opacity(0.8))
             }
@@ -179,22 +181,22 @@ struct FindCoachView: View {
             Button {
                 ask(candidate)
             } label: {
-                Text(isRequested || isAlreadyCoach ? "Sent" : "Ask to coach me")
+                Text(isFriend ? "Friends" : (isSent ? "Sent" : "Send Friend Request"))
                     .font(.custom("Satoshi-Variable", size: 13))
                     .fontWeight(.semibold)
-                    .foregroundColor(isRequested || isAlreadyCoach ? .secondary : .white)
+                    .foregroundColor(isDone ? .secondary : .white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
                         Capsule().fill(
-                            isRequested || isAlreadyCoach
+                            isDone
                                 ? Color(.systemGray5)
                                 : primaryColor
                         )
                     )
             }
             .buttonStyle(.plain)
-            .disabled(isRequested || isAlreadyCoach)
+            .disabled(isDone)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -303,7 +305,8 @@ struct FindCoachView: View {
         }
     }
 
-    /// One tap = friend request + coach request, in whichever order the relationship allows.
+    /// Sends a friend request (or accepts theirs, if they already asked). No coach request — pairing
+    /// up happens later from the friend's profile.
     private func ask(_ candidate: User) {
         let targetId = candidate.id
         guard !requested.contains(targetId) else { return }
@@ -312,27 +315,15 @@ struct FindCoachView: View {
         Task {
             await requestNotificationsOnce()
 
-            if friendsVM.friends.contains(where: { $0.id == targetId }) {
-                // Already friends — the role request is allowed right now.
-                do {
-                    _ = try await roleRequests.createRoleRequest(targetId: targetId, role: .trainee)
-                } catch {
-                    print("FindCoachView: coach request failed for \(targetId): \(error)")
-                    await MainActor.run { requested.remove(targetId) }
-                }
-                return
-            }
+            if friendsVM.friends.contains(where: { $0.id == targetId }) { return }
 
-            // Not friends yet. `sendFriendRequest` has no duplicate guard — it writes a new
-            // document on every call — so skip it when a request is already in flight either way.
-            let alreadyPending =
-                friendsVM.outgoingRequests.contains { $0.user.id == targetId } ||
-                friendsVM.incomingRequests.contains { $0.user.id == targetId }
-
-            if !alreadyPending {
+            // They already asked us: accepting is the friend request. Otherwise send one, skipping
+            // it if ours is already out — `sendFriendRequest` has no duplicate guard.
+            if let incoming = friendsVM.incomingRequests.first(where: { $0.user.id == targetId }) {
+                await friendsVM.accept(incoming.friendship.id)
+            } else if !friendsVM.outgoingRequests.contains(where: { $0.user.id == targetId }) {
                 await friendsVM.addFriend(userId: targetId)
             }
-            PendingCoachRequestStore.queue(targetId)
         }
     }
 

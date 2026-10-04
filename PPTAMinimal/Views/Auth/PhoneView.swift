@@ -10,6 +10,7 @@ struct PhoneVerificationView: View {
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var isVerifying = false
+    @FocusState private var isCountryCodeFocused: Bool
     @FocusState private var isPhoneFocused: Bool
     @FocusState private var isCodeFocused: Bool
 
@@ -87,8 +88,9 @@ struct PhoneVerificationView: View {
                         Text("+")
                             .font(.body)
                             .foregroundColor(primaryColor)
-                        TextField("1", text: $countryCode)
+                        TextField("", text: $countryCode)
                             .keyboardType(.numberPad)
+                            .focused($isCountryCodeFocused)
                             .font(.body)
                             .frame(width: 32)
                             .multilineTextAlignment(.leading)
@@ -134,8 +136,9 @@ struct PhoneVerificationView: View {
             .padding(.bottom, 40)
         }
         .onAppear {
+            // Country code first — it starts empty, and the number is meaningless without it.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isPhoneFocused = true
+                isCountryCodeFocused = true
             }
         }
     }
@@ -259,6 +262,7 @@ struct PhoneVerificationView: View {
                 return
             }
         } catch {
+            print("PhoneView: phone-taken lookup failed: \(error)")
             errorMessage = AuthViewModel.userFacingMessage(for: error)
             return
         }
@@ -266,6 +270,7 @@ struct PhoneVerificationView: View {
         PhoneAuthProvider.provider().verifyPhoneNumber(e164, uiDelegate: nil) { id, error in
             DispatchQueue.main.async {
                 if let error {
+                    print("PhoneView: verifyPhoneNumber failed: \(error)")
                     self.errorMessage = AuthViewModel.userFacingMessage(for: error)
                     return
                 }

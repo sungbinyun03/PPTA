@@ -2,7 +2,8 @@
 //  IntroKeyView.swift
 //  PPTAMinimal
 //
-//  Screen 1 of 5 — the whole product in one picture.
+//  Screen 1 of the fresh flow — what the app is for, in one picture. `HowItWorksView` follows
+//  with the steps.
 //
 //  This replaced a three-screen concept carousel. Explaining coach / trainee / pressure levels /
 //  lock-out as abstract slides, before the user has done anything, is the least persuasive place
@@ -20,8 +21,8 @@ struct IntroKeyView: View {
             coordinator: coordinator,
             illustration: "onb-the-key",
             illustrationHeight: 270,
-            title: "You set the limit.\nA friend holds the key.",
-            message: "Screen Time lets you tap \"ignore limit\" whenever you feel like it. PPTA hands that decision to someone you trust instead.",
+            title: "Better screen time habits,\nenforced by friends.",
+            message: "Team up with friends as coaches and trainees. Go over your daily limit and your coaches can lock your apps - and you do the same for your trainees.",
             primaryTitle: "Get Started",
             onPrimary: { coordinator.advance() }
         )

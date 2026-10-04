@@ -24,7 +24,8 @@ struct OnboardingScaffold<Content: View>: View {
     let title: String
     var message: String?
 
-    let primaryTitle: String
+    /// nil hides the button (e.g. How It Works pushed from Settings, where Back is enough).
+    let primaryTitle: String?
     var primaryDisabled: Bool = false
     let onPrimary: () -> Void
 
@@ -39,7 +40,7 @@ struct OnboardingScaffold<Content: View>: View {
         illustrationHeight: CGFloat = 250,
         title: String,
         message: String? = nil,
-        primaryTitle: String,
+        primaryTitle: String?,
         primaryDisabled: Bool = false,
         secondaryTitle: String? = nil,
         onSecondary: (() -> Void)? = nil,
@@ -100,8 +101,10 @@ struct OnboardingScaffold<Content: View>: View {
             .scrollBounceBehavior(.basedOnSize)
 
             VStack(spacing: 14) {
-                PrimaryButton(title: primaryTitle, isDisabled: primaryDisabled, action: onPrimary)
-                    .padding(.horizontal, 24)
+                if let primaryTitle {
+                    PrimaryButton(title: primaryTitle, isDisabled: primaryDisabled, action: onPrimary)
+                        .padding(.horizontal, 24)
+                }
 
                 if let secondaryTitle, let onSecondary {
                     Button(action: onSecondary) {
@@ -129,7 +132,7 @@ extension OnboardingScaffold where Content == EmptyView {
         illustrationHeight: CGFloat = 250,
         title: String,
         message: String? = nil,
-        primaryTitle: String,
+        primaryTitle: String?,
         primaryDisabled: Bool = false,
         secondaryTitle: String? = nil,
         onSecondary: (() -> Void)? = nil,

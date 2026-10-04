@@ -8,9 +8,6 @@
 import SwiftUI
 
 struct OnboardingContainerView: View {
-    /// When true, run the trimmed post-reinstall flow (re-grant Screen Time + confirm apps +
-    /// re-set limit/pressure), pre-seeded from Firestore, instead of full first-time onboarding.
-    var reconfigure: Bool = false
     @StateObject private var coordinator = OnboardingCoordinator()
     @EnvironmentObject var authViewModel: AuthViewModel
     /// Onboarding lives outside `TabNavigator`, which owns the app's only other banner mount, so
@@ -74,7 +71,8 @@ struct OnboardingContainerView: View {
             // asked for at the step where it matters. Previously this sheet could appear over any
             // step — including Welcome — the moment `currentUser` loaded without a phone, with
             // `interactiveDismissDisabled(true)` making it an unskippable wall.
-            if step == .findCoach, authViewModel.currentUser?.phoneNumber == nil {
+            // Returning users (reinstall / re-login) already verified, so they never see this.
+            if step == .findCoach, (authViewModel.currentUser?.phoneNumber ?? "").isEmpty {
                 showPhoneVerificationSheet = true
             }
         }
@@ -90,12 +88,14 @@ struct OnboardingContainerView: View {
         switch coordinator.currentStep {
         case .intro:
             IntroKeyView(coordinator: coordinator)
+        case .howItWorks:
+            HowItWorksView(coordinator: coordinator)
         case .profile:
             CreateProfileView(coordinator: coordinator)
         case .appLimits:
             // Reuses the Settings App Limits screen in onboarding mode: "Save & Continue", always
             // enabled, no confirm alert, ensures Screen Time auth, marks onboarding complete, then
-            // advances the flow. Reconfigure pre-fills from existing settings.
+            // advances the flow. Returning users see their saved settings pre-filled.
             AppLimitsView(onboarding: true, onContinue: { coordinator.advance() })
         case .findCoach:
             FindCoachView(coordinator: coordinator)
@@ -104,21 +104,11 @@ struct OnboardingContainerView: View {
         }
     }
 
-    /// Decides whether the profile step is part of this run, and restores an abandoned run.
-    ///
-    /// Re-evaluated while still on the first screen because `currentUser` loads asynchronously —
-    /// a name arriving a moment after launch should still be able to drop the profile step. Once
-    /// past `.intro` the flow shape is fixed, so the page indicator can't change length mid-run.
+    /// Restores an abandoned run once the signed-in user is known.
     private func configureIfPossible() {
-        guard !didConfigure || coordinator.currentStep == .intro else { return }
-        let name = authViewModel.currentUser?.name ?? ""
-        let hasDisplayName = !name.isEmpty && name != "Unknown"
-        didConfigure = authViewModel.currentUser != nil
-        coordinator.configure(
-            hasDisplayName: hasDisplayName,
-            flow: reconfigure ? .reconfigure : .fresh,
-            seed: reconfigure ? UserSettingsManager.shared.userSettings : nil
-        )
+        guard !didConfigure, authViewModel.currentUser != nil else { return }
+        didConfigure = true
+        coordinator.configure()
     }
 }
 

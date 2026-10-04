@@ -31,10 +31,12 @@ class AuthViewModel: ObservableObject {
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
     @Published var isOnboardingComplete: Bool = false
-    /// True only on a reinstall of an already-set-up account: the local onboarding flag is gone
-    /// (the app sandbox was wiped) but Firestore shows real setup. Drives the trimmed re-grant
-    /// flow instead of full onboarding, so coaches/trainees are preserved.
-    @Published var needsScreenTimeReconfigure: Bool = false
+
+    /// The uid whose onboarding route has already been decided this session. Routing is decided
+    /// once per sign-in, not on every `fetchUser()` — which also runs on phone verification, FCM
+    /// token refreshes, etc. Re-deciding mid-run once skipped Find Coach by swapping the flow
+    /// partway through; one decision per sign-in keeps a run stable.
+    private var routedUID: String?
 
     private let authService: AuthService
     private let userRepository: UserRepository
@@ -247,54 +249,24 @@ class AuthViewModel: ObservableObject {
         guard let uid = userSession?.uid else { return }
         UserDefaults.standard.set(true, forKey: "onboardingComplete_\(uid)")
         isOnboardingComplete = true
-        // Completing (or re-completing after a reinstall) onboarding ends the re-grant flow.
-        needsScreenTimeReconfigure = false
     }
 
-    /// Loads the user's Firestore settings into `UserSettingsManager` and derives the
-    /// reinstall-aware onboarding routing.
+    /// Loads the user's Firestore settings into `UserSettingsManager`. Hydrates `coachIds`/`traineeIds`
+    /// early so onboarding's App Limits save writes the *real* settings object instead of
+    /// overwriting relationships with empties (that screen also re-checks before saving).
     ///
-    /// The load matters for two reasons:
-    /// 1. It hydrates `coachIds`/`traineeIds` before onboarding can commit, so a re-run of the
-    ///    flow saves the *real* settings object instead of overwriting relationships with empties.
-    /// 2. `UserSettings.onboardingCompleted` (plus real setup state) survives a reinstall, unlike
-    ///    the per-device `onboardingComplete_<uid>` UserDefaults flag, which iOS wipes on uninstall.
-    private func hydrateSettingsAndRouteOnboarding(uid: String, localFlag: Bool) {
+    /// Routing no longer depends on this: every user without the per-device onboarding flag —
+    /// brand-new account, reinstall, or a new phone — gets the same full flow. (There used to be a
+    /// trimmed "reconfigure" flow for reinstalls.) The reinstall notice to coaches is independent —
+    /// `ReinstallDetector`, keyed off a Keychain marker.
+    private func hydrateSettings(uid: String) {
         let manager = UserSettingsManager.shared
-        // `id == uid` means the in-memory copy already belongs to this user (loaded from Firestore,
-        // where @DocumentID is the uid). Anything else — a default (nil id) or a previous account —
-        // triggers a fresh load. For a brand-new user with no doc yet, `loadSettings` may not call
-        // back at all; that's fine, the synchronous baseline already routes them to full onboarding.
-        if manager.userSettings.id == uid {
-            applyOnboardingRoute(settings: manager.userSettings, localFlag: localFlag)
-        } else {
-            manager.loadSettings { loaded in
-                Task { @MainActor [weak self] in
-                    manager.userSettings = loaded
-                    self?.applyOnboardingRoute(settings: loaded, localFlag: localFlag)
-                }
-            }
+        // `id == uid` means the in-memory copy already belongs to this user. For a brand-new user
+        // with no doc yet, `loadSettings` may not call back at all — there's nothing to hydrate.
+        guard manager.userSettings.id != uid else { return }
+        manager.loadSettings { loaded in
+            Task { @MainActor in manager.userSettings = loaded }
         }
-    }
-
-    private func applyOnboardingRoute(settings: UserSettings, localFlag: Bool) {
-        if Self.devManualFreshOnboard {
-            // Dev: pretend this is a brand-new user so the full fresh onboarding flow runs.
-            isOnboardingComplete = false
-            needsScreenTimeReconfigure = false
-            return
-        }
-        let accountIsSetUp =
-            settings.onboardingCompleted
-            || settings.hasViableAppLimits
-            || !settings.coachIds.isEmpty
-            || !settings.traineeIds.isEmpty
-        isOnboardingComplete = accountIsSetUp || localFlag
-        // A reinstall is exactly: real setup in Firestore, but the local completion flag is gone.
-        // Gating on the flag (rather than Screen Time `authorizationStatus`) avoids a launch-timing
-        // race and keeps a manual permission revoke — where the flag is still present — out of this
-        // flow (HomeView's "Not Tracking" banner handles that case).
-        needsScreenTimeReconfigure = accountIsSetUp && !localFlag
     }
 
     func fetchUser() async {
@@ -308,13 +280,15 @@ class AuthViewModel: ObservableObject {
                 // Firestore doc was deleted (e.g. data reset) — clear stale onboarding flag
                 UserDefaults.standard.removeObject(forKey: "onboardingComplete_\(uid)")
                 isOnboardingComplete = false
-            } else {
+            } else if routedUID != uid {
+                // First successful load for this account this session: decide the route once.
+                routedUID = uid
                 let localFlag = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
-                // Synchronous baseline (unchanged for existing installs). Refined below once the
-                // Firestore settings load resolves — that is what lets a reinstall be recognized.
-                // The dev fresh-onboard toggle forces the full flow even for a set-up account.
+                // The per-device flag alone decides: no flag → the full onboarding flow, whether
+                // this is a new account, a reinstall, or a new phone. The dev fresh-onboard toggle
+                // forces the full flow even when the flag is set.
                 isOnboardingComplete = Self.devManualFreshOnboard ? false : localFlag
-                hydrateSettingsAndRouteOnboarding(uid: uid, localFlag: localFlag)
+                hydrateSettings(uid: uid)
 
                 // If this launch is a reinstall by the same user, quietly report it to their coaches.
                 // Runs at most once per launch even though fetchUser() is called repeatedly.
@@ -345,8 +319,6 @@ class AuthViewModel: ObservableObject {
         }
         // Transient. Keep the session, and route from the device-local flag so an offline launch
         // puts an already-set-up user back where they were instead of at the start of onboarding.
-        // `needsScreenTimeReconfigure` is deliberately left alone — raising it needs the Firestore
-        // settings we just failed to read.
         let localFlag = UserDefaults.standard.bool(forKey: "onboardingComplete_\(uid)")
         isOnboardingComplete = Self.devManualFreshOnboard ? false : localFlag
         // Running on a stale profile is "definitely broken", so it has to be visible — the old
@@ -395,8 +367,11 @@ class AuthViewModel: ObservableObject {
     
     func updateFCMToken(_ token: String) async {
         guard let uid = authService.currentUser?.uid else { return }
-        // Merge-write so this succeeds even if the user doc was just created (or not yet fully written).
-        try? await userRepository.setUserFields(uid: uid, ["fcmToken": token])
+        // `updateData`, not a merge-write: this fires whenever Firebase rotates the token, including
+        // after an account was just deleted, and a merge-write would recreate `users/<uid>` holding
+        // only `fcmToken`. If the doc doesn't exist yet at signup, `registerFCMToken()` (called right
+        // after the doc is created on every signup path) writes the token instead.
+        try? await userRepository.updateUserField(uid: uid, field: "fcmToken", value: token)
         print(" Firestore ✅: Successfully updated FCM token for UID \(uid) to: \(token)")
         await fetchUser()
     }
@@ -423,7 +398,7 @@ class AuthViewModel: ObservableObject {
         let uid = authService.currentUser?.uid
         Task { @MainActor in
             await clearFCMToken(uid: uid)
-            do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil }
+            do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil; self.routedUID = nil }
             catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
         }
     }
@@ -437,7 +412,8 @@ class AuthViewModel: ObservableObject {
         guard let uid else { return }
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
-                try? await self.userRepository.setUserFields(uid: uid, ["fcmToken": FieldValue.delete()])
+                // `updateData` so clearing never creates an empty doc for a deleted account.
+                try? await self.userRepository.updateUserField(uid: uid, field: "fcmToken", value: FieldValue.delete())
             }
             group.addTask { try? await Task.sleep(nanoseconds: 3_000_000_000) }
             await group.next()
@@ -445,17 +421,24 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    /// "Cancel sign up". Runs the same full deletion as Settings → Delete Account.
+    ///
+    /// It used to delete the two docs and call `firebaseUser.delete()` client-side, which (a) usually
+    /// failed silently with "requires recent login", orphaning the Auth account, (b) never signed out
+    /// of Firebase Auth, so the Keychain-persisted session lived on and the next FCM token refresh
+    /// recreated `users/<uid>` holding only `fcmToken`, and (c) by this point in onboarding left the
+    /// profile picture, App Limits and running Screen Time monitoring behind. The server function
+    /// cascades everything and deletes the Auth record with admin rights; `finishAccountDeletion`
+    /// stops monitoring, clears local state and signs out.
     func deleteIncompleteAccount() {
-        Task {
-            guard let firebaseUser = Auth.auth().currentUser else { signOut(); return }
-            let uid = firebaseUser.uid
-            try? await userRepository.deleteUser(uid: uid)
-            try? await Firestore.firestore().collection("userSettings").document(uid).delete()
-            try? await firebaseUser.delete()
-            await MainActor.run {
-                googleSignInService.signOut()
-                self.userSession = nil
-                self.currentUser = nil
+        Task { @MainActor in
+            do {
+                try await deleteAccount()
+            } catch {
+                // Couldn't reach the server: at least end the session so nothing keeps writing.
+                print("DEBUG: deleteIncompleteAccount failed: \(error)")
+                DeviceActivityManager.shared.stopAllMonitoring()
+                signOut()
             }
         }
     }
@@ -495,6 +478,7 @@ class AuthViewModel: ObservableObject {
         self.userSession = nil
         self.currentUser = nil
         self.isOnboardingComplete = false
+        self.routedUID = nil
     }
 
     /// Returns a short, user-friendly error message (no codes or technical jargon).
@@ -510,8 +494,10 @@ class AuthViewModel: ObservableObject {
             return msg
         }
         // Only interpret as Firebase Auth errors when from Auth domain (avoid passing Firestore/other errors into AuthErrorCode)
-        if ns.domain == "FIRAuthErrorDomain" {
-            let authCode = AuthErrorCode(_bridgedNSError: ns)
+        // Look the code up by raw value. `AuthErrorCode(_bridgedNSError:)` returns nil for these
+        // errors in Firebase 11 (`AuthErrorCode` is a plain Int enum whose bridged domain isn't
+        // "FIRAuthErrorDomain"), which silently sent every case below to the generic message.
+        if ns.domain == "FIRAuthErrorDomain", let authCode = AuthErrorCode(rawValue: ns.code) {
             switch authCode {
             case .wrongPassword:
                 return "Incorrect password. Please try again."
@@ -524,7 +510,7 @@ class AuthViewModel: ObservableObject {
             case .weakPassword:
                 return "Password should be at least 6 characters."
             case .tooManyRequests:
-                return "Too many attempts. Please try again later."
+                return "Too many verification attempts from this device. Please wait a while and try again."
             case .networkError:
                 return "Check your connection and try again."
             case .invalidVerificationCode:
@@ -533,6 +519,14 @@ class AuthViewModel: ObservableObject {
                 return "Verification expired. Please request a new code."
             case .credentialAlreadyInUse:
                 return "This phone number is already linked to another account."
+            case .invalidPhoneNumber, .missingPhoneNumber:
+                return "That phone number doesn't look right. Check the country code and number."
+            case .quotaExceeded:
+                return "We've hit our text message limit for now. Please try again later."
+            case .captchaCheckFailed, .webContextCancelled:
+                return "Verification was interrupted. Please try again."
+            case .appNotAuthorized, .invalidAppCredential, .missingAppCredential, .notificationNotForwarded:
+                return "Phone verification couldn't start on this device. Please try again in a moment."
             default:
                 break
             }
@@ -541,7 +535,12 @@ class AuthViewModel: ObservableObject {
         if ns.domain == NSURLErrorDomain || ns.domain == "FIRFirestoreErrorDomain" {
             return "Check your connection and try again."
         }
+        #if DEBUG
+        // Surface the real cause while testing; release builds keep the friendly copy.
+        return "Something went wrong (\(ns.domain) \(ns.code)). Please try again."
+        #else
         return "Something went wrong. Please try again."
+        #endif
     }
     
     func updateUserDisplayName(displayName: String) async {

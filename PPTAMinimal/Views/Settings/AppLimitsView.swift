@@ -12,6 +12,7 @@
 import SwiftUI
 import FamilyControls
 import DeviceActivity
+import FirebaseAuth
 
 struct AppLimitsView: View {
     /// Onboarding mode: reuse this screen as the onboarding app-limits/pressure step. Relabels the
@@ -29,6 +30,8 @@ struct AppLimitsView: View {
     @State private var showSaveConfirm = false
     /// Shown when a non-Off pressure level is chosen without viable limits (time + at least one app).
     @State private var showViableRequiredAlert = false
+    /// Onboarding save aborted because this user's saved settings couldn't be loaded first.
+    @State private var showLoadFailedAlert = false
 
     /// A Hardcore trainee who is cut off can't edit limits (that would be an escape hatch). The
     /// explanatory banner was removed per design, but the guard stays — controls are disabled.
@@ -123,8 +126,18 @@ struct AppLimitsView: View {
             title: "Set up App Limits first",
             message: "Set a daily time limit and pick at least one app before choosing Standard or Hardcore."
         )
+        .appAlert(
+            isPresented: $showLoadFailedAlert,
+            title: "Couldn't load your settings",
+            message: "Check your connection and try again."
+        )
         .onAppear {
             loadFromUserSettings()
+            // Onboarding can open before a returning user's settings finish loading. If they land
+            // now, show the real values instead of defaults.
+            if onboarding {
+                Task { if await hydrateIfNeeded() == .loaded { loadFromUserSettings() } }
+            }
         }
     }
 
@@ -206,8 +219,8 @@ struct AppLimitsView: View {
         }
     }
 
-    /// Presents the FamilyActivityPicker. In onboarding (reconfigure re-grants after uninstall drops
-    /// the Screen Time grant) we ensure authorization first so the picker actually appears.
+    /// Presents the FamilyActivityPicker. In onboarding (a reinstall or new phone drops the Screen
+    /// Time grant) we ensure authorization first so the picker actually appears.
     private func presentAppPicker() {
         guard onboarding else {
             isPickerPresented = true
@@ -416,8 +429,9 @@ struct AppLimitsView: View {
         draftPressureLevel = s.pressureLevel
 
         // Fresh onboarding users have no saved settings — seed sensible defaults (Standard, 1h, blank
-        // app selection). Reconfigure users are hydrated from their pre-uninstall settings, so their
-        // non-empty values are preserved untouched. The Save gate still requires ≥1 app before saving.
+        // app selection). Returning users (reinstall / new phone) are hydrated from their saved
+        // settings, so their non-empty values are preserved untouched. The Save gate still requires
+        // ≥1 app before saving.
         if onboarding {
             let noAppsPicked = selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty
             if noAppsPicked && draftThresholdHour == 0 && draftThresholdMinutes == 0 {
@@ -509,15 +523,44 @@ struct AppLimitsView: View {
     private func attemptOnboardingSave() {
         ensureScreenTimeAuthorization { granted in
             guard granted else { return }
-            if saveToFirebase() {
-                onContinue?()
+            Task { @MainActor in
+                // Never save onto an unloaded copy: the save writes the whole document, so a
+                // returning user's coaches/trainees would be overwritten with empties.
+                guard await hydrateIfNeeded() != .failed else {
+                    showLoadFailedAlert = true
+                    return
+                }
+                if saveToFirebase() {
+                    onContinue?()
+                }
             }
         }
     }
 
+    private enum HydrateResult { case alreadyLoaded, loaded, noSavedSettings, failed }
+
+    /// Makes sure `userSettingsManager.userSettings` is this user's saved copy before onboarding
+    /// shows or saves it. The full flow now runs for returning users too, and can reach this screen
+    /// before `AuthViewModel`'s background load lands.
+    @MainActor
+    private func hydrateIfNeeded() async -> HydrateResult {
+        guard let uid = Auth.auth().currentUser?.uid else { return .failed }
+        guard userSettingsManager.userSettings.id != uid else { return .alreadyLoaded }
+        do {
+            // nil = no saved settings doc yet (a brand-new account): nothing to preserve.
+            guard let remote = try await UserSettingsRepository().fetchSettings(for: uid) else {
+                return .noSavedSettings
+            }
+            userSettingsManager.userSettings = remote
+            return .loaded
+        } catch {
+            return .failed
+        }
+    }
+
     /// Requests Screen Time (FamilyControls) authorization if it isn't already approved. Uninstalling
-    /// clears the grant, so the reconfigure flow — which pre-fills app tokens the user may never tap
-    /// into the picker to re-pick — still needs this before saving. Completion runs on the main actor.
+    /// clears the grant, so a returning user — whose saved app tokens are pre-filled and who may
+    /// never tap into the picker to re-pick — still needs this before saving. Completion runs on the main actor.
     private func ensureScreenTimeAuthorization(_ completion: @escaping (Bool) -> Void) {
         let center = AuthorizationCenter.shared
         if center.authorizationStatus == .approved {

@@ -17,6 +17,7 @@ import FirebaseAuth
 /// flow the way they did when each view hardcoded its own `page:` index.
 enum OnboardingStep: String, CaseIterable {
     case intro
+    case howItWorks
     case profile
     case appLimits
     case findCoach
@@ -36,19 +37,6 @@ final class OnboardingCoordinator: ObservableObject {
     /// Next. Owned here rather than in the view because every screen calls `advance()` itself.
     @Published private(set) var isGoingBack: Bool = false
 
-    /// Whether the profile step is part of this run. Apple / Google sign-in usually supplies a
-    /// display name already, and re-asking for it is a dead tap.
-    private(set) var includesProfile: Bool = true
-
-    /// Which flow this run is.
-    /// - `fresh`: a first-time setup (the full flow).
-    /// - `reconfigure`: a post-reinstall re-grant. Screen Time authorization does not survive an
-    ///   uninstall, so the user must re-grant it and re-confirm apps + limit/pressure — but their
-    ///   account (coaches, trainees, everything in Firestore) is preserved. Intro/profile/find-coach
-    ///   are skipped and the config steps are pre-seeded from the existing settings.
-    enum Flow { case fresh, reconfigure }
-    private(set) var flow: Flow = .fresh
-
     private var uid: String? { Auth.auth().currentUser?.uid }
     private var stepKey: String? { uid.map { "onboardingStep_\($0)" } }
 
@@ -56,18 +44,10 @@ final class OnboardingCoordinator: ObservableObject {
 
     /// The steps this run will walk, in order. `.completed` is deliberately excluded — it is a
     /// terminal state, not a screen, so it never counts toward progress.
-    var steps: [OnboardingStep] {
-        switch flow {
-        case .reconfigure:
-            // Only the step a reinstall actually invalidates: re-grant Screen Time + re-confirm
-            // apps/limit/pressure. Coaches/trainees are untouched, so no find-coach.
-            return [.appLimits]
-        case .fresh:
-            var all: [OnboardingStep] = [.intro, .profile, .appLimits, .findCoach]
-            if !includesProfile { all.removeAll { $0 == .profile } }
-            return all
-        }
-    }
+    /// One flow for everyone — new accounts, reinstalls and new phones alike. Returning users see
+    /// their saved App Limits pre-filled. The profile step always shows (pre-filled when the name is
+    /// known): it also sets the profile picture, which Apple/Google sign-in never supplies.
+    let steps: [OnboardingStep] = [.intro, .howItWorks, .profile, .appLimits, .findCoach]
 
     /// Zero-based position of the current step, for the page indicator.
     var progressIndex: Int {
@@ -82,24 +62,9 @@ final class OnboardingCoordinator: ObservableObject {
 
     // MARK: - Configuration
 
-    /// Called once by the container before the first render.
-    ///
-    /// - Parameter hasDisplayName: whether the signed-in user already has a usable name. When
-    ///   true the profile step is dropped from `steps` entirely rather than being auto-skipped
-    ///   at runtime, which keeps `goBack()` from landing on a screen that immediately advances
-    ///   again.
-    func configure(hasDisplayName: Bool, flow: Flow = .fresh, seed: UserSettings? = nil) {
-        self.flow = flow
-        switch flow {
-        case .reconfigure:
-            // Jump straight to the app-limits step. It reads the user's existing settings from
-            // `UserSettingsManager` itself (hydrated on reinstall), so no draft seeding is needed.
-            // No `restoreStep()` — a reconfigure always starts at the top.
-            currentStep = .appLimits
-        case .fresh:
-            includesProfile = !hasDisplayName
-            restoreStep()
-        }
+    /// Called once by the container before the first render: restores an abandoned run.
+    func configure() {
+        restoreStep()
     }
 
     // MARK: - Navigation

@@ -345,16 +345,8 @@ struct PPTAMinimalApp: App {
                     .environmentObject(viewModel)
             }
         } else if viewModel.isOnboardingComplete {
-            if viewModel.needsScreenTimeReconfigure {
-                // Reinstall of a set-up account: run the trimmed re-grant flow (Screen Time +
-                // confirm apps + limit/pressure) instead of dropping them straight on Home with
-                // monitoring silently off. Coaches/trainees are preserved.
-                OnboardingContainerView(reconfigure: true)
-                    .environmentObject(viewModel)
-            } else {
-                TabNavigator()
-                    .environmentObject(viewModel)
-            }
+            TabNavigator()
+                .environmentObject(viewModel)
         } else {
             OnboardingContainerView()
                 .environmentObject(viewModel)
