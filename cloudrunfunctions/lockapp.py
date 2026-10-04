@@ -140,7 +140,9 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
                 "lockedByName": coach_name,
                 "lockCommand": lock_command,
             },
-            merge=True,
+            # Field-path merge, not merge=True: that deep-merges maps, so a stale `message` (or an
+            # unlock's `lockNote`) would survive in lockCommand. Listing the path replaces the whole map.
+            merge=["lockedByUID", "lockedByName", "lockCommand"],
         )
     except Exception as e:
         print(f"Error writing lockCommand to userSettings: {e}")

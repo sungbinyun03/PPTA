@@ -143,6 +143,10 @@ def good_args(**extra):
     return a
 
 
+def data_only(sets):
+    return [s[:3] for s in sets]
+
+
 def lock_command_write(db):
     w = [s for s in db.sets if s[0] == "userSettings"]
     assert len(w) == 1, db.sets
@@ -184,7 +188,7 @@ class WithoutMessageUnchanged(unittest.TestCase):
         self.assertEqual(r_new, r_old)
         # byte-for-byte: serialise with sorted keys and compare the strings
         dump = lambda o: json.dumps(o, sort_keys=True, default=repr)
-        self.assertEqual(dump(db_new.sets), dump(db_old.sets))
+        self.assertEqual(dump(data_only(db_new.sets)), dump(data_only(db_old.sets)))
         self.assertEqual(dump(fm_new.sent), dump(fm_old.sent))
         return db_new, fm_new
 
@@ -203,8 +207,19 @@ class WithoutMessageUnchanged(unittest.TestCase):
         _, db_old, fm_old = call(head, good_args())
         _, db_new, fm_new = call(lockapp, good_args(msg=""))
         dump = lambda o: json.dumps(o, sort_keys=True, default=repr)
-        self.assertEqual(dump(db_new.sets), dump(db_old.sets))
+        self.assertEqual(dump(data_only(db_new.sets)), dump(data_only(db_old.sets)))
         self.assertEqual(dump(fm_new.sent), dump(fm_old.sent))
+
+
+class LockCommandReplaced(unittest.TestCase):
+    """merge=True deep-merges maps, so a stale `message` survived a later lock sent without a note.
+    Listing the field paths makes Firestore replace lockCommand as a whole."""
+
+    def test_lock_command_written_with_field_path_merge(self):
+        for extra in ({}, {"msg": "hi"}):
+            _, db, _ = call(lockapp, good_args(**extra))
+            (_, _, _, kw), = [s for s in db.sets if s[0] == "userSettings"]
+            self.assertEqual(kw, {"merge": ["lockedByUID", "lockedByName", "lockCommand"]})
 
 
 class Signature(unittest.TestCase):
