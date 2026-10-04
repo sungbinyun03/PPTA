@@ -116,6 +116,8 @@ struct TraineeCoachView: View {
 
     private func presentAskCoachInfoIfRequested() {
         guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
+        // Coach lock vs limit lock isn't known until the own-settings snapshot lands (re-runs then).
+        guard viewModel.hasOwnSettingsSnapshot else { return }
         // A coach lock is on but that coach isn't loaded yet: wait (re-runs when the coaches arrive).
         if coachLockActive && lockHolderId == nil { return }
         guard notifications.consumeCoachesPopoverRequest() else { return }
@@ -187,6 +189,7 @@ struct TraineeCoachView: View {
             .onReceive(notifications.$coachesPopoverRequestedAt) { _ in presentAskCoachInfoIfRequested() }
             .onChange(of: viewModel.isCurrentUserCutOff) { _, _ in presentAskCoachInfoIfRequested() }
             .onChange(of: viewModel.coaches.map(\.id)) { _, _ in presentAskCoachInfoIfRequested() }
+            .onChange(of: viewModel.hasOwnSettingsSnapshot) { _, _ in presentAskCoachInfoIfRequested() }
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
                     ForEach(sortedTrainees) { trainee in

@@ -35,6 +35,11 @@ final class StatusCenterViewModel: ObservableObject {
     /// read-only listener on my own `userSettings` doc.
     @Published private(set) var coachActions: [String: CoachActionDisplay] = [:]
 
+    /// True once the own-settings listener has delivered, so `coachActions` is real rather than the
+    /// empty default. `refresh()` can set `isCurrentUserCutOff` first; callers that branch on "is this
+    /// a coach lock" wait for this.
+    @Published private(set) var hasOwnSettingsSnapshot = false
+
     private let usersRepo = UserRepository()
     private let settingsRepo = UserSettingsRepository()
     private let firestoreService = FirestoreService() // for phone->uid fallback
@@ -143,6 +148,7 @@ final class StatusCenterViewModel: ObservableObject {
                     from: data, uid: uid, cache: LockNoteCache.load(uid: uid), now: now
                 )
                 if self.coachActions != actions { self.coachActions = actions }
+                if !self.hasOwnSettingsSnapshot { self.hasOwnSettingsSnapshot = true }
 
                 let isCutOff = (TraineeStatus(rawValue: data["traineeStatus"] as? String ?? "") ?? .noStatus) == .cutOff
                 if self.isCurrentUserCutOff != isCutOff { self.isCurrentUserCutOff = isCutOff }
@@ -154,6 +160,7 @@ final class StatusCenterViewModel: ObservableObject {
         ownSettingsListener = nil
         ownSettingsListenerUid = nil
         coachActions = [:]
+        hasOwnSettingsSnapshot = false
     }
 
     // MARK: - Real-time trainee status listeners
