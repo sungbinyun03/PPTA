@@ -507,12 +507,20 @@ struct CoachActionDisplayTests {
         #expect(!r.values.contains { $0.lock == .active })
     }
 
-    @Test func lockerWhoAlsoSnoozedIsOneEntryWithHaloAndGreyBadge() {
+    @Test func lockerWhoAlsoSnoozedIsOneEntryWithHaloAndNoGreyLock() {
         let r = derive(["traineeStatus": "snoozedLock",
-                        "lockCommand": unlockCommand(["by": "A", "byName": "Alex Kim", "lockNote": note])])
+                        "lockCommand": unlockCommand(["by": "A", "byName": "Alex Kim", "message": "go", "lockNote": note])])
         #expect(r.count == 1)
         #expect(r["A"]?.halo == true)
-        #expect(r["A"]?.lock == .snoozed)
+        #expect(r["A"]?.lock == nil)
+        #expect(r["A"]?.haloTooltip == "exam at 4\n\ngo")
+    }
+
+    @Test func sameCoachHaloSkipsAMissingNote() {
+        let r = derive(["traineeStatus": "snoozedLock",
+                        "lockCommand": unlockCommand(["by": "A", "byName": "Alex Kim", "lockNote": note])])
+        #expect(r["A"]?.lock == nil)
+        #expect(r["A"]?.haloTooltip == "exam at 4")
     }
 
     @Test func allClearAndNoStatusShowNothing() {
@@ -560,6 +568,8 @@ struct CoachActionDisplayTests {
         #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: nil)
                 == "Sam is asking for more time — open their profile to snooze their lock for 10 minutes.")
         #expect(CoachActionDisplay(lock: nil, halo: true).tooltip(coachFirstName: "Bea") == nil)
+        #expect(CoachActionDisplay(lock: nil, halo: true, snoozeNote: "go").haloTooltip == "go")
+        #expect(CoachActionDisplay(lock: nil, halo: true).haloTooltip == nil)
     }
 
     // MARK: default-open tooltip selection

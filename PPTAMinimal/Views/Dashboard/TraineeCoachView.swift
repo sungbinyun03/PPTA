@@ -273,7 +273,7 @@ struct TraineeCoachView: View {
                                 lockBadge: action?.lock,
                                 lockTooltip: action?.tooltip(coachFirstName: coach.name.firstNameOnly),
                                 halo: action?.halo ?? false,
-                                haloTooltip: action?.snoozeNote,
+                                haloTooltip: action?.haloTooltip,
                                 autoOpenKey: lockTooltipKey?.coachId == coach.id ? lockTooltipKey?.key
                                     : snoozeTooltipKey?.coachId == coach.id ? snoozeTooltipKey?.key : nil,
                                 onAutoOpenDismiss: tooltipDismissed

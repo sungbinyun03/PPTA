@@ -2,7 +2,7 @@
 //  CoachActionDisplay.swift
 //  PPTAMinimal
 //
-//  What the trainee's coach row shows per coach: a lock badge, a snooze halo, and the coach's lock
+//  What the trainee's coach row shows per coach: a lock badge, a snooze halo badge (which replaces the lock badge of a coach who did both), and the coach's lock
 //  note. Pure: it turns the raw `userSettings/{me}` dictionary into display state, and never writes.
 //
 
@@ -114,6 +114,8 @@ struct CoachActionDisplay: Equatable {
         if let note {
             result[note.by, default: CoachActionDisplay()].lock = .snoozed
             result[note.by]?.lockNote = note.message
+            // The same coach locked and snoozed: the halo badge replaces their grey lock and carries both notes.
+            if result[note.by]?.halo == true { result[note.by]?.lock = nil }
             if let command, command.action == .unlock { result[note.by]?.snoozedByName = command.byName }
         }
         return result
@@ -145,6 +147,14 @@ struct CoachActionDisplay: Equatable {
     /// Notes to show on this coach's profile, in the order they were sent: their lock note, then what
     /// they said when they snoozed me. Received only (both come from my own settings doc).
     var receivedNotes: [String] { [lockNote, snoozeNote].compactMap { $0 } }
+
+    /// Tooltip text behind the halo badge: the received notes as paragraphs (lock note first when the same
+    /// coach locked and snoozed), or nil when there is no halo or no note to show.
+    var haloTooltip: String? {
+        guard halo else { return nil }
+        let notes = receivedNotes
+        return notes.isEmpty ? nil : notes.joined(separator: "\n\n")
+    }
 
     /// Tooltip text behind the lock badge, or nil when there is no badge. A note shows as the bare
     /// message (no prefix, no quotes); without one, the fallback sentence. `coachFirstName` is already

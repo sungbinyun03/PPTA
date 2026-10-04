@@ -59,32 +59,6 @@ struct TraineeCircleView: View {
                     Circle()
                         .stroke((status == .noStatus) ? .clear : Color(.systemBackground), lineWidth: 5)
                 }
-                // Soft blue ring + glow: this coach snoozed the user's lock. A tap target only when they left
-                // a note, which the tooltip shows; the ring itself is the hit area, so the avatar still opens the profile.
-                .overlay {
-                    if halo {
-                        Circle()
-                            .inset(by: -5)
-                            .stroke(snoozeBlue.opacity(0.35), lineWidth: 6)
-                            .shadow(color: snoozeBlue.opacity(0.6), radius: 8)
-                            .allowsHitTesting(false)
-                        if let haloTooltip {
-                            HaloRing()
-                                .fill(Color.clear)
-                                .contentShape(HaloRing())
-                                .onTapGesture { showHaloPopover = true }
-                                .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
-                                    Text(haloTooltip)
-                                        .font(.subheadline)
-                                        .multilineTextAlignment(.leading)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(16)
-                                        .frame(width: 260)
-                                        .presentationCompactAdaptation(.popover)
-                                }
-                        }
-                    }
-                }
                 .overlay(alignment: .bottom) {
                     if showSetupWarning {
                         Button { showWarningPopover = true } label: {
@@ -134,10 +108,33 @@ struct TraineeCircleView: View {
                         }
                     }
                 }
+                // The snooze counterpart of the lock badge, in the same slot: this coach snoozed the user's
+                // lock. It replaces that coach's lock badge, so the two never overlap. A tap target only when
+                // there is a note for the tooltip; the avatar itself still opens the profile.
+                .overlay(alignment: .bottom) {
+                    if halo {
+                        if let haloTooltip {
+                            Button { showHaloPopover = true } label: { haloBadge }
+                                .buttonStyle(.plain)
+                                .offset(y: 10)
+                                .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
+                                    Text(haloTooltip)
+                                        .font(.subheadline)
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(16)
+                                        .frame(width: 260)
+                                        .presentationCompactAdaptation(.popover)
+                                }
+                        } else {
+                            haloBadge.offset(y: 10)
+                        }
+                    }
+                }
                 // The coach-lock counterpart of the hand badge: red while this coach's lock is on, grey
                 // while it is snoozed. Only ever set for a coach row, so it never overlaps the others.
                 .overlay(alignment: .bottom) {
-                    if let lockBadge, let lockTooltip {
+                    if !halo, let lockBadge, let lockTooltip {
                         Button { showLockPopover = true } label: {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 11, weight: .bold))
@@ -206,13 +203,25 @@ struct TraineeCircleView: View {
         ActionMessage.snoozeRequestTooltip(firstName: firstName, note: snoozeRequestNote)
     }
 
+    /// Snooze-blue circle with a white halo glyph, sized and ringed like the lock badge.
+    private var haloBadge: some View {
+        HaloGlyph()
+            .frame(width: 21, height: 21)
+            .background(Circle().fill(snoozeBlue))
+            .shadow(color: snoozeBlue.opacity(0.6), radius: 4)
+            .background(Circle().fill(Color(.systemBackground)).padding(-2))
+    }
+
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 }
 
-/// Hit area of the snooze halo: a band over its ring, so a tap there doesn't hit the avatar's own button.
-private struct HaloRing: Shape {
-    func path(in rect: CGRect) -> Path {
-        Circle().inset(by: -5).path(in: rect).strokedPath(StrokeStyle(lineWidth: 14))
+/// Angel halo glyph: a flat ellipse tilted a little, like a halo seen from slightly above.
+private struct HaloGlyph: View {
+    var body: some View {
+        Ellipse()
+            .stroke(Color.white, lineWidth: 2)
+            .frame(width: 13, height: 5.5)
+            .rotationEffect(.degrees(-16))
     }
 }
 
@@ -229,6 +238,6 @@ private struct HaloRing: Shape {
     HStack(spacing: 40) {
         TraineeCircleView(status: .noStatus, name: "Alex Kim", lockBadge: .snoozed,
                           lockTooltip: "Put it down, exam at 4")
-        TraineeCircleView(status: .noStatus, name: "Bea Lee", halo: true)
+        TraineeCircleView(status: .noStatus, name: "Bea Lee", halo: true, haloTooltip: "10 min, go")
     }
 }
