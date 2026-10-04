@@ -8,7 +8,6 @@
 
 import SwiftUI
 import PhotosUI
-import FirebaseStorage
 
 struct SettingsView: View {
     // MARK: – Dependencies
@@ -19,6 +18,8 @@ struct SettingsView: View {
     @State private var selectedTab     = "Settings"
     @State private var pickerItem: PhotosPickerItem?
     @State private var isUploading     = false
+    /// The photo just picked, shown immediately while it uploads (and after, until the URL takes over).
+    @State private var localPreview:   UIImage?
     @State private var uploadError:    String?
     @State private var isEditingName   = false
     @State private var editedName      = ""
@@ -74,20 +75,16 @@ struct SettingsView: View {
             uploadError = "Could not read image data."
             return
         }
-        
+        localPreview = await ProfilePhotoUploader.previewImage(from: data)
+        guard let uid = viewModel.currentUser?.id else { return }
+
         do {
-            let uid = viewModel.currentUser?.id ?? UUID().uuidString   // fallback
-            let ref = Storage.storage()
-                .reference(withPath: "profilePictures/\(uid).jpg")
-            
-            _ = try await ref.putDataAsync(data, metadata: nil)
-            let url = try await ref.downloadURL()
-            
-            await UserSettingsManager.shared.update { settings in
+            let url = try await ProfilePhotoUploader.upload(data, uid: uid)
+            UserSettingsManager.shared.update { settings in
                 settings.profileImageURL = url
             }
-                        
         } catch {
+            localPreview = nil
             uploadError = error.localizedDescription
         }
     }
@@ -166,6 +163,15 @@ struct SettingsView: View {
     
     /// Avatar that shows either the stored profile picture or the default icon
     private var avatarImage: some View {
+        if let localPreview {
+            return AnyView(
+                Image(uiImage: localPreview)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 118, height: 118)
+                    .clipShape(Circle())
+            )
+        }
         if let url = settingsMgr.userSettings.profileImageURL {
             return AnyView(
                 AsyncImage(url: url) { phase in

@@ -8,7 +8,6 @@
 
 import SwiftUI
 import PhotosUI
-import FirebaseStorage
 import UIKit
 
 struct CreateProfileView: View {
@@ -20,7 +19,7 @@ struct CreateProfileView: View {
 
     // Profile picture picked/uploaded right here, on the same screen as the name.
     @State private var pickerItem: PhotosPickerItem?
-    @State private var pickedImageData: Data?
+    @State private var pickedImage: UIImage?
     @State private var isUploadingPhoto = false
 
     private var trimmedName: String {
@@ -66,10 +65,11 @@ struct CreateProfileView: View {
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
             Task {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    await MainActor.run { pickedImageData = data }
-                }
-                await uploadProfileImage(from: item)
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                // Show the pick right away, then upload in the background.
+                let preview = await ProfilePhotoUploader.previewImage(from: data)
+                await MainActor.run { pickedImage = preview }
+                await uploadProfileImage(data)
             }
         }
     }
@@ -106,8 +106,8 @@ struct CreateProfileView: View {
 
     @ViewBuilder
     private var avatarContent: some View {
-        if let data = pickedImageData, let uiImage = UIImage(data: data) {
-            Image(uiImage: uiImage)
+        if let pickedImage {
+            Image(uiImage: pickedImage)
                 .resizable()
                 .scaledToFill()
                 .frame(width: 116, height: 116)
@@ -142,17 +142,14 @@ struct CreateProfileView: View {
         }
     }
 
-    /// Same upload path as Settings: Photos item → Firebase Storage → `profileImageURL`.
-    private func uploadProfileImage(from item: PhotosPickerItem) async {
+    /// Same upload path as Settings (`ProfilePhotoUploader`): compress → Storage → `profileImageURL`.
+    private func uploadProfileImage(_ data: Data) async {
         await MainActor.run { isUploadingPhoto = true }
         defer { Task { @MainActor in isUploadingPhoto = false } }
 
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        guard let uid = viewModel.currentUser?.id else { return }
         do {
-            let uid = viewModel.currentUser?.id ?? UUID().uuidString
-            let ref = Storage.storage().reference(withPath: "profilePictures/\(uid).jpg")
-            _ = try await ref.putDataAsync(data, metadata: nil)
-            let url = try await ref.downloadURL()
+            let url = try await ProfilePhotoUploader.upload(data, uid: uid)
             await UserSettingsManager.shared.update { settings in
                 settings.profileImageURL = url
             }

@@ -153,7 +153,8 @@ struct CoachActionDisplay: Equatable {
     func haloTooltip(coachFirstName: String) -> String? {
         guard halo else { return nil }
         // No note: still say what the halo means, so the badge always opens something.
-        return snoozeNote ?? "\(coachFirstName) snoozed your lock. Enjoy the break!"
+        if let snoozeNote { return ActionMessage.quoted(snoozeNote) }
+        return "\(coachFirstName) snoozed your lock. Enjoy the break!"
     }
 
     /// Tooltip text behind the lock badge, or nil only when there is no badge. A note shows as the bare
@@ -162,11 +163,12 @@ struct CoachActionDisplay: Equatable {
     func tooltip(coachFirstName: String) -> String? {
         switch lock {
         case .active:
-            if let lockNote { return lockNote }
+            if let lockNote { return ActionMessage.quoted(lockNote) }
             return "\(coachFirstName) locked your apps. Open their profile to ask for a snooze."
         case .snoozed:
             // Normally carries the note that put it there; the sentence keeps the badge tappable regardless.
-            return lockNote ?? "\(coachFirstName) locked your apps, then snoozed the lock."
+            if let lockNote { return ActionMessage.quoted(lockNote) }
+            return "\(coachFirstName) locked your apps, then snoozed the lock."
         case nil:
             return nil
         }

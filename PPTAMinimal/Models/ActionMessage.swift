@@ -34,17 +34,21 @@ enum ActionMessage {
         return capped.isEmpty ? nil : capped
     }
 
+    /// A person's note as shown back to anyone: wrapped in curly quotes, so it reads as their voice
+    /// rather than app copy. One definition for notifications and the lock / snooze tooltips.
+    static func quoted(_ note: String) -> String { "\u{201C}\(note)\u{201D}" }
+
     /// Body of the local "Locked by ..." notification: the coach's note when there is one, else the
     /// standing hint.
     static func lockNotificationBody(message: String?) -> String {
-        if let message = clean(message) { return "\u{201C}\(message)\u{201D}" }
+        if let message = clean(message) { return quoted(message) }
         return "Head to a coach's profile to ask them to snooze the lock."
     }
 
     /// Body of the local "Lock snoozed by ..." notification: the coach's note when there is one, else
     /// the standing grace-period line.
     static func snoozeNotificationBody(message: String?, minutes: Int) -> String {
-        if let message = clean(message) { return "\u{201C}\(message)\u{201D}" }
+        if let message = clean(message) { return quoted(message) }
         return "You've got \(minutes) minutes before your apps lock again — make them count!"
     }
 
@@ -68,10 +72,10 @@ enum ActionMessage {
         return clean(messages[coachUID] as? String)
     }
 
-    /// Tooltip on the coach-side hand badge: the trainee's note as the bare message, else the standing
-    /// sentence. `firstName` is already reduced with `firstNameOnly`.
+    /// Tooltip on the coach-side hand badge: the trainee's note in quotes, else the standing sentence.
+    /// `firstName` is already reduced with `firstNameOnly`.
     static func snoozeRequestTooltip(firstName: String, note: String?) -> String {
-        if let note { return note }
+        if let note { return quoted(note) }
         return "\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes."
     }
 }

@@ -59,6 +59,12 @@ private final class AvatarImageLoader: ObservableObject {
         }
     }
 
+    /// Puts an image we already have (a just-uploaded profile photo) in the cache for its URL, so
+    /// every avatar showing that URL renders it without a download.
+    static func seed(_ image: UIImage, for url: URL) {
+        cache.setObject(image, forKey: url as NSURL)
+    }
+
     /// One attempt, no retry: warms the cache so the avatar is there on first render. A miss falls
     /// back to the view's own loader, which retries.
     static func prefetch(_ url: URL) async {
@@ -75,6 +81,12 @@ private final class AvatarImageLoader: ObservableObject {
 }
 
 extension InitialsProfilePicView {
+    /// See `AvatarImageLoader.seed` — used by `ProfilePhotoUploader` after an upload.
+    @MainActor
+    static func seedCache(_ image: UIImage, for url: URL) {
+        AvatarImageLoader.seed(image, for: url)
+    }
+
     /// Downloads the avatars into the shared cache ahead of the views that show them (cold-launch
     /// facade). Never throws; an unreachable URL just leaves that avatar to load as usual.
     @MainActor
