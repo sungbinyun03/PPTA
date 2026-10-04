@@ -150,10 +150,11 @@ struct CoachActionDisplay: Equatable {
 
     /// Tooltip text behind the halo badge: the received notes as paragraphs (lock note first when the same
     /// coach locked and snoozed), or nil when there is no halo or no note to show.
-    var haloTooltip: String? {
+    func haloTooltip(coachFirstName: String) -> String? {
         guard halo else { return nil }
         let notes = receivedNotes
-        return notes.isEmpty ? nil : notes.joined(separator: "\n\n")
+        // No notes: still say what the halo means, so the badge always opens something.
+        return notes.isEmpty ? "\(coachFirstName) snoozed your lock. Enjoy the break!" : notes.joined(separator: "\n\n")
     }
 
     /// Tooltip text behind the lock badge, or nil when there is no badge. A note shows as the bare
