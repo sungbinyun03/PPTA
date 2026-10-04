@@ -162,13 +162,17 @@ struct TraineeCoachView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
                     ForEach(viewModel.coaches) { coach in
+                        let action = viewModel.coachActions[coach.id]
                         Button {
                             selectedPerson = coach
                         } label: {
                             TraineeCircleView(
                                 status: .noStatus,
                                 name: coach.name,
-                                profilePicUrl: coach.profileImageURL?.absoluteString
+                                profilePicUrl: coach.profileImageURL?.absoluteString,
+                                lockBadge: action?.lock,
+                                lockTooltip: action?.tooltip(coachFirstName: coach.name.firstNameOnly),
+                                halo: action?.halo ?? false
                             )
                         }
                         .buttonStyle(.plain)
