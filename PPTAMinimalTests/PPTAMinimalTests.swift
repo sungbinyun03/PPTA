@@ -387,3 +387,136 @@ struct LockMessageTests {
             from: ["snoozeRequestedCoachIds": ["c1"], "snoozeRequestMessages": ["c1": " "]], coachUID: "c1") == nil)
     }
 }
+
+struct CoachActionDisplayTests {
+
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private let yesterday = Date(timeIntervalSince1970: 1_800_000_000 - 2 * 86_400)
+    private let note = ["message": "exam at 4", "by": "A", "byName": "Alex Kim", "lockId": "L1"]
+
+    private func lockCommand(_ extra: [String: Any] = [:]) -> [String: Any] {
+        var c: [String: Any] = ["id": "L1", "action": "lock", "by": "A", "byName": "Alex Kim"]
+        c.merge(extra) { $1 }
+        return c
+    }
+
+    private func unlockCommand(_ extra: [String: Any] = [:]) -> [String: Any] {
+        var c: [String: Any] = ["id": "U1", "action": "unlock", "by": "B", "byName": "Bea Lee"]
+        c.merge(extra) { $1 }
+        return c
+    }
+
+    private func derive(_ data: [String: Any], cache: LockNoteCache? = nil) -> [String: CoachActionDisplay] {
+        CoachActionDisplay.derive(from: data, uid: "me", cache: cache, now: now)
+    }
+
+    private func cache(by: String = "A", at: Date? = nil, uid: String = "me") -> LockNoteCache {
+        LockNoteCache(uid: uid, lockId: "L1", by: by, byName: "Alex Kim", message: "cached note", at: at ?? now)
+    }
+
+    @Test func coachLockBadgesTheLockerOnlyWithItsNote() {
+        let r = derive(["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand(["message": "exam at 4"])])
+        #expect(r == ["A": CoachActionDisplay(lock: .active, lockNote: "exam at 4")])
+    }
+
+    @Test func coachLockWithoutNoteHasBadgeButNoNote() {
+        let r = derive(["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand()])
+        #expect(r["A"]?.lock == .active)
+        #expect(r["A"]?.lockNote == nil)
+    }
+
+    @Test func hardcoreAutoLockHasNoBadgeEvenWithStaleLockCommand() {
+        let r = derive(["traineeStatus": "cutOff", "lockCommand": lockCommand(["message": "old"])])
+        #expect(r.isEmpty)
+    }
+
+    @Test func snoozeWithServerLockNoteBadgesLockerGreyAndHalosSnoozer() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand(["lockNote": note])])
+        #expect(r["A"] == CoachActionDisplay(lock: .snoozed, halo: false, lockNote: "exam at 4", snoozedByName: "Bea Lee"))
+        #expect(r["B"] == CoachActionDisplay(lock: nil, halo: true))
+    }
+
+    @Test func snoozeWithoutServerNoteFallsBackToTodaysPhoneCache() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand()], cache: cache())
+        #expect(r["A"]?.lock == .snoozed)
+        #expect(r["A"]?.lockNote == "cached note")
+        #expect(r["B"]?.halo == true)
+    }
+
+    @Test func serverNoteWinsOverCache() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand(["lockNote": note])],
+                       cache: cache(by: "C"))
+        #expect(r["A"]?.lockNote == "exam at 4")
+        #expect(r["C"] == nil)
+    }
+
+    @Test func yesterdaysCacheShowsNothingButTheHalo() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand()], cache: cache(at: yesterday))
+        #expect(r["A"] == nil)
+        #expect(r["B"]?.halo == true)
+    }
+
+    @Test func cacheForAnotherUserIsIgnored() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand()], cache: cache(uid: "someoneElse"))
+        #expect(r["A"] == nil)
+    }
+
+    @Test func lockNoteOnALockCommandIsIgnored() {
+        let r = derive(["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand(["lockNote": note])])
+        #expect(r == ["A": CoachActionDisplay(lock: .active)])
+    }
+
+    @Test func snoozeEndedAutoRelockKeepsGreyBadgeAndHaloWithoutActiveBadge() {
+        let r = derive(["traineeStatus": "cutOff", "lockCommand": unlockCommand(["lockNote": note])])
+        #expect(r["A"]?.lock == .snoozed)
+        #expect(r["B"]?.halo == true)
+        #expect(!r.values.contains { $0.lock == .active })
+    }
+
+    @Test func lockerWhoAlsoSnoozedIsOneEntryWithHaloAndGreyBadge() {
+        let r = derive(["traineeStatus": "snoozedLock",
+                        "lockCommand": unlockCommand(["by": "A", "byName": "Alex Kim", "lockNote": note])])
+        #expect(r.count == 1)
+        #expect(r["A"]?.halo == true)
+        #expect(r["A"]?.lock == .snoozed)
+    }
+
+    @Test func allClearAndNoStatusShowNothing() {
+        #expect(derive(["traineeStatus": "allClear", "lockCommand": unlockCommand(["lockNote": note])]).isEmpty)
+        #expect(derive(["traineeStatus": "noStatus"]).isEmpty)
+        #expect(derive(["traineeStatus": "attentionNeeded", "lockedByUID": "A"]).isEmpty)
+    }
+
+    // MARK: cache updates
+
+    @Test func cacheIsSetByACoachLockWithANote() {
+        let u = CoachActionDisplay.cacheUpdate(
+            from: ["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand(["message": "exam at 4"])],
+            uid: "me", now: now)
+        #expect(u == .set(LockNoteCache(uid: "me", lockId: "L1", by: "A", byName: "Alex Kim", message: "exam at 4", at: now)))
+    }
+
+    @Test func cacheIsKeptThroughASnoozeAndAnUnnotedLock() {
+        #expect(CoachActionDisplay.cacheUpdate(from: ["traineeStatus": "snoozedLock"], uid: "me", now: now) == .keep)
+        #expect(CoachActionDisplay.cacheUpdate(
+            from: ["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand()], uid: "me", now: now) == .keep)
+    }
+
+    @Test func cacheIsClearedWhenTheEpisodeEnds() {
+        for status in ["allClear", "noStatus", "attentionNeeded"] {
+            #expect(CoachActionDisplay.cacheUpdate(from: ["traineeStatus": status], uid: "me", now: now) == .clear)
+        }
+    }
+
+    // MARK: tooltip copy
+
+    @Test func tooltipCopy() {
+        #expect(CoachActionDisplay(lock: .active, lockNote: "hi").tooltip(coachFirstName: "Alex")
+                == "Alex locked your apps:\n\u{201C}hi\u{201D}")
+        #expect(CoachActionDisplay(lock: .active).tooltip(coachFirstName: "Alex")
+                == "Alex locked your apps. Open their profile to ask for a snooze.")
+        #expect(CoachActionDisplay(lock: .snoozed, lockNote: "hi", snoozedByName: "Bea Lee").tooltip(coachFirstName: "Alex")
+                == "Alex's note (snoozed by Bea):\n\u{201C}hi\u{201D}")
+        #expect(CoachActionDisplay(lock: nil, halo: true).tooltip(coachFirstName: "Bea") == nil)
+    }
+}
