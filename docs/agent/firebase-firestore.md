@@ -15,7 +15,8 @@ Covers §9 Firebase/Firestore from PPTAMinimal's agent guide. Back to [`../../CL
 **Important:** `pressureLevel` is stored under the key `"selectedMode"` (CodingKeys migration artifact).
 
 **New fields (action messages):**
-- `lockCommand` = `{id, action, by, byName, at, message?}` — coach lock command. `message` is an optional cosmetic string (≤100 code points server-side, set by lock endpoint, cleared by unlock). **Read from raw dict only; never add to `UserSettings` Codable.**
+- `lockCommand` = `{id, action, by, byName, at, message?, lockNote?}` — the latest lock or unlock command. `message` is an optional cosmetic string (≤100 code points server-side), only meaningful when `action == lock`. `lockNote` = `{message, by, byName, lockId}` is written only by `unlockapp.py`: it carries the previous lock's note (or an earlier snooze's) through a snooze so the trainee can still read it; clients ignore it on a lock command. **Read from raw dict only; never add to `UserSettings` Codable.**
+- **Merge gotcha:** `set(..., merge=True)` deep-merges maps key by key, so it never removes an old `lockCommand.message`. `unlockapp.py` therefore replaces `lockCommand` inside a transaction (`update` with the whole map), and `lockapp.py` uses a field-path merge (`merge=["lockedByUID", "lockedByName", "lockCommand"]`), which also replaces the map. A new command always overwrites the old one; `message` is not "cleared by unlock" except by that replacement.
 - `snoozeRequestMessages` = `{coachUid: text, ...}` — trainee's snooze request message to each coach (max 100 code points each), written with `{merge:true}`, cleared alongside `snoozeRequestedCoachIds` on any non-cutOff status. **Read from raw dict only; never add to `UserSettings` Codable.**
 
 ### Auth providers

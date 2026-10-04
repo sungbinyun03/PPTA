@@ -2,7 +2,7 @@
 
 Everything an agent needs to work on this codebase without asking questions.
 
-*Last verified against HEAD `bdd06cf` plus uncommitted action-messages work (2026-10-02).*
+*Last verified against HEAD `876dfa3` plus this docs commit (2026-10-03).*
 
 **Persona (Sungbin only):** @~/agent-config/personas/ppta-chief.md
 

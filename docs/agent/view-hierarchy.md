@@ -16,10 +16,10 @@ PPTAMinimalApp
     │   ├── ProfileView                     (header)
     │   ├── SetupCardView                   → NoAppLimits / NoCoaches / NoTrainees / PressureOff cards
     │   ├── statusCard                      (status banner)
-    │   ├── reportSection                   (Commitment Streak + inline DeviceActivityReport ring)
-    │   │   └── ReportView                  (sheet)
-    │   └── TraineeCoachView                (coach/trainee grid of TraineeCircleView)
-    │       └── FriendProfileSheetView      (sheet)
+    │   ├── TraineeCoachView                (Trainees then Coaches grid of TraineeCircleView; coach avatars carry the lock badge / snooze halo)
+    │   │   └── FriendProfileSheetView      (sheet)
+    │   └── reportSection                   (Commitment Streak + inline DeviceActivityReport ring)
+    │       └── ReportView                  (sheet)
     └── FriendsView                         tag 1, badged with incoming friend + role requests
         ├── FriendsContactsImportView / FriendsContactsPickerView
         ├── Role request cards (Accept/Decline)

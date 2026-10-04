@@ -19,6 +19,9 @@ SwiftUI Views (auto re-render)
 - `markOnboardingComplete()`, `deleteAccount()`, `deleteIncompleteAccount()`, `userFacingMessage(for:)`
 
 **StatusCenterViewModel**: `trainees`, `coaches` (`[StatusCenterPerson]`), `isCurrentUserCutOff`,
+`coachActions` (`[coachUid: CoachActionDisplay]`), a read-only raw listener on the user's own
+`userSettings` doc (feeds `coachActions` + the live `isCurrentUserCutOff`; never writes, because
+`lockedByUID` is in the `UserSettings` Codable and a full-doc save could write a stale locker back),
 plus real-time per-trainee Firestore listeners and `performAction(url:traineeId:)` for lock/release.
 
 **FriendProfileViewModel**: the big one — `traineeStatus`, `pressureLevel`, `lockedByName`,

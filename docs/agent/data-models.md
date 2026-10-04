@@ -11,6 +11,15 @@ enum ActionMessage {
 ```
 Used to sanitize user-entered text for lock/snooze request messages. Server-side cap is 100 Unicode code points (slightly looser, so client/server counting can't cause action failures). Message is cosmetic text only, never instructions, markdown, or logging.
 
+### CoachActionDisplay / LockNoteCache (`Models/CoachActionDisplay.swift`)
+```swift
+struct CoachActionDisplay { enum Lock { case active, snoozed }; var lock: Lock?; var halo: Bool; var lockNote: String?; var snoozedByName: String? }
+static func derive(from raw: [String: Any], uid:, cache:, now:) -> [String: CoachActionDisplay]   // keyed by coach UID
+static func cacheUpdate(from raw: [String: Any], uid:, now:) -> CacheUpdate                       // .keep / .clear / .set
+struct LockNoteCache: Codable   // {uid, lockId, by, byName, message, at}
+```
+Pure; turns the raw `userSettings/{me}` doc into the trainee's per-coach lock badge (red active, grey while snoozed), snooze halo, and RECEIVED lock note (server `lockCommand.lockNote` first, phone cache as fallback for an old server, today only). `LockNoteCache` lives in `UserDefaults.standard` keyed by UID: never Codable into `UserSettings`, never in the App Group (the shield could show a stale note).
+
 ### PressureLevel
 ```swift
 enum PressureLevel: String, Codable, CaseIterable {
