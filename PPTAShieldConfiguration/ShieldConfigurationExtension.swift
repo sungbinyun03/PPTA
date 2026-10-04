@@ -90,13 +90,13 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         )
     }
 
-    /// A coach's note leads the subtitle, plain text; the standing hint follows so the way out stays visible.
+    /// A coach's note is the whole subtitle, quoted; the title already names the coach, and the
+    /// "Ask a coach" button keeps the way out visible. Without a note, the standing hint.
     private func subtitle(context: ShieldContext?) -> String {
         let hint = "Open Peer Pressure the App and request more time from your coaches."
-        guard let locker = context?.lockedByName, !locker.isEmpty,
+        guard context?.lockedByName?.isEmpty == false,
               let note = context?.lockMessage, !note.isEmpty else { return hint }
-        let first = locker.split(separator: " ").first.map(String.init) ?? locker
-        return "\(first): \(note)\n\(hint)"
+        return "\u{201C}\(note)\u{201D}"
     }
 
     /// Names the reason. Copy uses first names only; the stored name is the coach's full name.
