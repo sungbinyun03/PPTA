@@ -458,6 +458,14 @@ class DeviceActivityManager {
         // A coach re-locking mid-grace ends the grace period outright.
         cancelUnlockGracePeriod()
 
+        // The shield extension reads the App Group context when iOS (re)draws the shield, which can
+        // be the instant the shield below is applied. The status write further down is too late for
+        // that draw, so the coach's name and note go in first.
+        var lockedView = settings
+        lockedView.traineeStatus = .cutOff
+        lockedView.lockedByName = coach
+        UserSettingsManager.syncShieldContext(from: lockedView)
+
         if ShieldPolicy.apply(settings.applications, to: store) {
             ShieldPolicy.recordCoachLock(by: coach)
         }
@@ -500,6 +508,13 @@ class DeviceActivityManager {
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
         // don't notify or arm grace in that case: you can only be unlocked if you were locked, and
         // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
+        // Drop the coach's name and note from the shield context with the lift, not after the status
+        // write: that write is skipped when pressure is Off and can lag the next shield by seconds.
+        var releasedView = settings
+        releasedView.traineeStatus = .snoozedLock
+        releasedView.lockedByName = nil
+        UserSettingsManager.syncShieldContext(from: releasedView)
+
         ShieldPolicy.recordRelease()
         ShieldPolicy.clear(store)
 

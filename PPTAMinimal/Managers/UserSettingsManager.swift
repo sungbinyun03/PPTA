@@ -149,7 +149,7 @@ final class UserSettingsManager : ObservableObject{
     /// `lockedByName` is only passed through while the user is actually cut off — otherwise a
     /// leftover name from a previous coach lock would get attributed to a later auto-lock.
     /// Static so the escaping Firestore closures don't have to capture `self`.
-    private static func syncShieldContext(from settings: UserSettings) {
+    static func syncShieldContext(from settings: UserSettings) {
         let lockedByName = settings.traineeStatus == .cutOff ? settings.lockedByName : nil
         ShieldContext.save(
             ShieldContext(
