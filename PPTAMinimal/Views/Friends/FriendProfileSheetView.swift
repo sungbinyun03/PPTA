@@ -11,8 +11,7 @@ import FirebaseAuth
 struct FriendProfileSheetView: View {
     let otherUserId: String
     /// The note this person (my coach) sent with their lock or snooze, when the presenter knows it.
-    var receivedNote: String? = nil
-    var receivedNoteIsLock = false
+    var receivedNotes: [String] = []
 
     @StateObject private var vm: FriendProfileViewModel
     @State private var showUnfriendConfirm = false
@@ -24,11 +23,9 @@ struct FriendProfileSheetView: View {
     @State private var grantNote = ""
     @Environment(\.dismiss) private var dismiss
 
-    init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init(), receivedNote: String? = nil,
-         receivedNoteIsLock: Bool = false) {
+    init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init(), receivedNotes: [String] = []) {
         self.otherUserId = otherUserId
-        self.receivedNote = receivedNote
-        self.receivedNoteIsLock = receivedNoteIsLock
+        self.receivedNotes = receivedNotes
         _vm = StateObject(wrappedValue: FriendProfileViewModel(otherUserId: otherUserId, snapshot: snapshot))
     }
 
@@ -76,8 +73,7 @@ struct FriendProfileSheetView: View {
                     monitoredAppStats: vm.monitoredAppStats,
                     isRequestingSnoozeFromMe: vm.isRequestingSnoozeFromMe,
                     snoozeRequestMessage: vm.snoozeRequestMessage,
-                    receivedNote: receivedNote,
-                    receivedNoteIsLock: receivedNoteIsLock,
+                    receivedNotes: receivedNotes,
                     onRequestSnooze: makeRequestSnoozeActionIfNeeded(),
                     hasRequestedSnooze: vm.iHaveRequestedSnoozeFromThem,
                     coachAction: vm.coachAction,

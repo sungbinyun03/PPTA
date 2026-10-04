@@ -142,9 +142,9 @@ struct CoachActionDisplay: Equatable {
 
     // MARK: - Copy
 
-    /// The note to show on this coach's profile: what they said when they snoozed me, else the note of
-    /// their lock. Received only (both come from my own settings doc).
-    var receivedNote: String? { snoozeNote ?? lockNote }
+    /// Notes to show on this coach's profile, in the order they were sent: their lock note, then what
+    /// they said when they snoozed me. Received only (both come from my own settings doc).
+    var receivedNotes: [String] { [lockNote, snoozeNote].compactMap { $0 } }
 
     /// Tooltip text behind the lock badge, or nil when there is no badge. A note shows as the bare
     /// message (no prefix, no quotes); without one, the fallback sentence. `coachFirstName` is already

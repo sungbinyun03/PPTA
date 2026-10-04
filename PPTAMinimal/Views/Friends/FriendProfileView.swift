@@ -45,9 +45,7 @@ struct FriendProfileView: View {
     var snoozeRequestMessage: String? = nil
     /// (Trainee viewing coach) The note this coach sent me with their lock or snooze. Received only; never
     /// my own request note. Shown in quotes under the status pills.
-    var receivedNote: String? = nil
-    /// True when `receivedNote` is a lock note (red lock icon), false for a snooze note (blue hand).
-    var receivedNoteIsLock: Bool = false
+    var receivedNotes: [String] = []
 
     /// (Trainee viewing coach) Non-nil when I'm cut off and this person is my coach — shows the
     /// "Request to snooze lock" button. `hasRequestedSnooze` drives its "Requested" disabled state.
@@ -239,12 +237,12 @@ struct FriendProfileView: View {
                         .padding(.top, 4)
 
                         // MARK: Their note — its own block under the hero, same 20pt gutter as the CTAs
-                        if let receivedNote {
-                            MessageCard(message: receivedNote, sender: name.firstNameOnly)
+                        if !receivedNotes.isEmpty {
+                            MessageCard(messages: receivedNotes)
                         }
 
                         if isAskingForMoreTime, let note = snoozeRequestMessage {
-                            MessageCard(message: note, sender: name.firstNameOnly)
+                            MessageCard(messages: [note])
                         }
 
                         // MARK: Lock / Unlock CTAs (coach actions)
@@ -656,11 +654,11 @@ struct FriendProfileView: View {
     )
 }
 
-/// A note someone attached to a lock, snooze or snooze request, set as a centered pull quote:
-/// typography only, no card, so it reads as a person's voice rather than a UI element.
+/// Notes someone attached to a lock, snooze or snooze request, set as a centered pull quote:
+/// typography only, no card, so it reads as a person's voice rather than a UI element. Several notes
+/// (a lock note, then the snooze note) stack under one quote mark, oldest first.
 private struct MessageCard: View {
-    let message: String
-    let sender: String
+    let messages: [String]
 
     var body: some View {
         VStack(spacing: 4) {
@@ -668,17 +666,17 @@ private struct MessageCard: View {
                 .font(.system(size: 40, weight: .light, design: .serif))
                 .foregroundColor(Color("primaryColor").opacity(0.25))
                 .frame(height: 24)
-            Text(message)
-                .font(.system(size: 17, weight: .medium))
-                .italic()
-                .foregroundColor(Color("primaryColor"))
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("\u{2014} \(sender)")
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
-                .padding(.top, 6)
+            VStack(spacing: 10) {
+                ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
+                    Text(message)
+                        .font(.system(size: 17, weight: .medium))
+                        .italic()
+                        .foregroundColor(Color("primaryColor"))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .frame(maxWidth: 280)
         .padding(.horizontal, 20)

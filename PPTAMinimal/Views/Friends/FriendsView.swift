@@ -261,8 +261,7 @@ struct FriendsView: View {
             FriendProfileSheetView(
                 otherUserId: target.id,
                 snapshot: .init(name: target.name, profilePicUrl: target.profilePicUrl?.absoluteString),
-                receivedNote: statusCenter.coachActions[target.id]?.receivedNote,
-                receivedNoteIsLock: statusCenter.coachActions[target.id]?.snoozeNote == nil
+                receivedNotes: statusCenter.coachActions[target.id]?.receivedNotes ?? []
             )
         }
         .alert("Contacts Permission Required", isPresented: $showContactsPermissionAlert) {

@@ -293,8 +293,7 @@ struct TraineeCoachView: View {
         // the circles on dismiss instead of waiting for `.task` to run again on next appear.
         .sheet(item: $selectedPerson, onDismiss: { Task { await viewModel.refresh() } }) { person in
             FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot,
-                                   receivedNote: viewModel.coachActions[person.id]?.receivedNote,
-                                   receivedNoteIsLock: viewModel.coachActions[person.id]?.snoozeNote == nil)
+                                   receivedNotes: viewModel.coachActions[person.id]?.receivedNotes ?? [])
         }
     }
 }
