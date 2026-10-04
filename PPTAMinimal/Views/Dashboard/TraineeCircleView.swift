@@ -203,26 +203,20 @@ struct TraineeCircleView: View {
         ActionMessage.snoozeRequestTooltip(firstName: firstName, note: snoozeRequestNote)
     }
 
-    /// Snooze-blue circle with a white halo glyph, sized and ringed like the lock badge.
+    /// Snooze-blue circle with a white heart.badge.bolt, sized and ringed like the lock badge.
     private var haloBadge: some View {
-        HaloGlyph()
+        Image(systemName: Self.haloSymbol)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white)
             .frame(width: 21, height: 21)
             .background(Circle().fill(snoozeBlue))
-            .shadow(color: snoozeBlue.opacity(0.6), radius: 4)
             .background(Circle().fill(Color(.systemBackground)).padding(-2))
     }
 
-    private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
-}
+    /// heart.badge.bolt may be missing on older iOS 17 symbol sets; fall back to a plain heart.
+    private static let haloSymbol = UIImage(systemName: "heart.badge.bolt") != nil ? "heart.badge.bolt" : "heart.fill"
 
-/// Angel halo glyph: a flat ellipse tilted a little, like a halo seen from slightly above.
-private struct HaloGlyph: View {
-    var body: some View {
-        Ellipse()
-            .stroke(Color.white, lineWidth: 2)
-            .frame(width: 13, height: 5.5)
-            .rotationEffect(.degrees(-16))
-    }
+    private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 }
 
 #Preview {
