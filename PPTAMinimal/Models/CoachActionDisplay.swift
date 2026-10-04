@@ -157,7 +157,7 @@ struct CoachActionDisplay: Equatable {
         return notes.isEmpty ? "\(coachFirstName) snoozed your lock. Enjoy the break!" : notes.joined(separator: "\n\n")
     }
 
-    /// Tooltip text behind the lock badge, or nil when there is no badge. A note shows as the bare
+    /// Tooltip text behind the lock badge, or nil only when there is no badge. A note shows as the bare
     /// message (no prefix, no quotes); without one, the fallback sentence. `coachFirstName` is already
     /// reduced with `firstNameOnly`.
     func tooltip(coachFirstName: String) -> String? {
@@ -166,7 +166,8 @@ struct CoachActionDisplay: Equatable {
             if let lockNote { return lockNote }
             return "\(coachFirstName) locked your apps. Open their profile to ask for a snooze."
         case .snoozed:
-            return lockNote
+            // Normally carries the note that put it there; the sentence keeps the badge tappable regardless.
+            return lockNote ?? "\(coachFirstName) locked your apps, then snoozed the lock."
         case nil:
             return nil
         }

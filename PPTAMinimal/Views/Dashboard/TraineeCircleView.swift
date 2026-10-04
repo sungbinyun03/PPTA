@@ -112,32 +112,28 @@ struct TraineeCircleView: View {
                     }
                 }
                 // The snooze counterpart of the lock badge, in the same slot: this coach snoozed the user's
-                // lock. It replaces that coach's lock badge, so the two never overlap. A tap target only when
-                // there is a note for the tooltip; the avatar itself still opens the profile.
+                // lock. It replaces that coach's lock badge, so the two never overlap. Always a tap target
+                // (the model supplies a sentence when there is no note); the avatar itself still opens the profile.
                 .overlay(alignment: .bottom) {
                     if halo {
-                        if let haloTooltip {
-                            Button { showHaloPopover = true } label: { haloBadge }
-                                .buttonStyle(.plain)
-                                .offset(y: 10)
-                                .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
-                                    Text(haloTooltip)
-                                        .font(.subheadline)
-                                        .multilineTextAlignment(.leading)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(16)
-                                        .frame(width: 260)
-                                        .presentationCompactAdaptation(.popover)
-                                }
-                        } else {
-                            haloBadge.offset(y: 10)
-                        }
+                        Button { showHaloPopover = true } label: { haloBadge }
+                            .buttonStyle(.plain)
+                            .offset(y: 10)
+                            .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
+                                Text(haloTooltip ?? "\(firstName) snoozed your lock. Enjoy the break!")
+                                    .font(.subheadline)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(16)
+                                    .frame(width: 260)
+                                    .presentationCompactAdaptation(.popover)
+                            }
                     }
                 }
                 // The coach-lock counterpart of the hand badge: red while this coach's lock is on, grey
                 // while it is snoozed. Only ever set for a coach row, so it never overlaps the others.
                 .overlay(alignment: .bottom) {
-                    if !halo, let lockBadge, let lockTooltip {
+                    if !halo, let lockBadge {
                         Button { showLockPopover = true } label: {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 11, weight: .bold))
@@ -149,7 +145,7 @@ struct TraineeCircleView: View {
                         .buttonStyle(.plain)
                         .offset(y: 10)
                         .popover(isPresented: $showLockPopover, arrowEdge: .bottom) {
-                            Text(lockTooltip)
+                            Text(lockTooltip ?? "\(firstName) locked your apps. Open their profile to ask for a snooze.")
                                 .font(.subheadline)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
