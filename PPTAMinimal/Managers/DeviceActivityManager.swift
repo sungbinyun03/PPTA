@@ -494,7 +494,7 @@ class DeviceActivityManager {
     /// See `handleRemoteLock` for `pushShowsBanner` and why this is awaitable.
     @MainActor
     @discardableResult
-    func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false) async -> LockOutcome {
+    func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false, message: String? = nil) async -> LockOutcome {
         let settings = LocalSettingsStore.load()
 
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
@@ -508,7 +508,7 @@ class DeviceActivityManager {
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
                 title: "Lock snoozed by \(coach)! ⏳",
-                body: "You've got \(UnlockGrace.durationMinutes) minutes before your apps lock again — make them count!"
+                body: ActionMessage.snoozeNotificationBody(message: message, minutes: UnlockGrace.durationMinutes)
             )
         }
 

@@ -231,7 +231,7 @@ final class LockReconciler {
                         await DeviceActivityManager.shared.handleRemoteLock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner, message: pushMessage)
                     } else {
                         LocalSettingsStore.lockMessage = nil
-                        await DeviceActivityManager.shared.handleRemoteUnlock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner)
+                        await DeviceActivityManager.shared.handleRemoteUnlock(from: coach, coachUID: by, pushShowsBanner: pushShowsBanner, message: pushMessage)
                     }
                     return
                 }
@@ -365,7 +365,7 @@ final class LockReconciler {
         case .unlock:
             LocalSettingsStore.lockMessage = nil
             outcome = await DeviceActivityManager.shared.handleRemoteUnlock(
-                from: coach, coachUID: command.by, pushShowsBanner: pushShowsBanner)
+                from: coach, coachUID: command.by, pushShowsBanner: pushShowsBanner, message: command.message)
         }
 
         // An unlock is final whatever happened (re-running it would re-arm grace). A lock that

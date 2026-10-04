@@ -41,6 +41,13 @@ enum ActionMessage {
         return "Head to a coach's profile to ask them to snooze the lock."
     }
 
+    /// Body of the local "Lock snoozed by ..." notification: the coach's note when there is one, else
+    /// the standing grace-period line.
+    static func snoozeNotificationBody(message: String?, minutes: Int) -> String {
+        if let message = clean(message) { return "\u{201C}\(message)\u{201D}" }
+        return "You've got \(minutes) minutes before your apps lock again — make them count!"
+    }
+
     /// Secondary line for the Home "Apps Locked" banner, or nil to keep the default copy.
     /// - Parameter coachFirstName: already reduced with `String.firstNameOnly` (not available to every
     ///   target that compiles this file).
