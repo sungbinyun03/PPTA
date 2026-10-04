@@ -43,6 +43,11 @@ struct FriendProfileView: View {
     var isRequestingSnoozeFromMe: Bool = false
     /// The note that came with that request, shown under the pill. Plain text only.
     var snoozeRequestMessage: String? = nil
+    /// (Trainee viewing coach) The note this coach sent me with their lock or snooze. Received only; never
+    /// my own request note. Shown in quotes under the status pills.
+    var receivedNote: String? = nil
+    /// True when `receivedNote` is a lock note (red lock icon), false for a snooze note (blue hand).
+    var receivedNoteIsLock: Bool = false
 
     /// (Trainee viewing coach) Non-nil when I'm cut off and this person is my coach — shows the
     /// "Request to snooze lock" button. `hasRequestedSnooze` drives its "Requested" disabled state.
@@ -224,16 +229,19 @@ struct FriendProfileView: View {
                                     statusPill
                                 }
 
+                                if let receivedNote {
+                                    MessageCard(message: receivedNote,
+                                                icon: receivedNoteIsLock ? "lock.fill" : "hand.raised.fill",
+                                                accent: receivedNoteIsLock ? .red : snoozeBlue)
+                                }
+
                                 // A bubble alongside the status pills rather than a big banner —
                                 // shows only while they're cut off and actually asking.
                                 if isAskingForMoreTime {
                                     moreTimePill
 
                                     if let note = snoozeRequestMessage {
-                                        Text(note)
-                                            .font(.system(size: 13))
-                                            .foregroundColor(.secondary)
-                                            .multilineTextAlignment(.center)
+                                        MessageCard(message: note, icon: "hand.raised.fill", accent: snoozeBlue)
                                     }
                                 }
                             }
@@ -647,4 +655,39 @@ struct FriendProfileView: View {
         onTraineePrimary: {},
         onTraineeSecondary: {}
     )
+}
+
+/// A note someone attached to a lock, snooze or snooze request, shown in quotes on their profile.
+private struct MessageCard: View {
+    let message: String
+    let icon: String
+    let accent: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 21, height: 21)
+                .background(Circle().fill(accent))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("THEIR MESSAGE")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color("primaryColor").opacity(0.6))
+                Text("\u{201C}\(message)\u{201D}")
+                    .font(.custom("Satoshi-Variable", size: 15))
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color("primaryColor").opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+    }
 }

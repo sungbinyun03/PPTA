@@ -289,7 +289,9 @@ struct TraineeCoachView: View {
         // The sheet can end the relationship (unfriend, remove as coach/trainee), so re-read
         // the circles on dismiss instead of waiting for `.task` to run again on next appear.
         .sheet(item: $selectedPerson, onDismiss: { Task { await viewModel.refresh() } }) { person in
-            FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot)
+            FriendProfileSheetView(otherUserId: person.id, snapshot: person.profileSnapshot,
+                                   receivedNote: viewModel.coachActions[person.id]?.receivedNote,
+                                   receivedNoteIsLock: viewModel.coachActions[person.id]?.snoozeNote == nil)
         }
     }
 }
