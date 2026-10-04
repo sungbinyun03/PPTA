@@ -516,11 +516,15 @@ struct CoachActionDisplayTests {
 
     @Test func tooltipCopy() {
         #expect(CoachActionDisplay(lock: .active, lockNote: "hi").tooltip(coachFirstName: "Alex")
-                == "Alex locked your apps:\n\u{201C}hi\u{201D}")
+                == "hi")
         #expect(CoachActionDisplay(lock: .active).tooltip(coachFirstName: "Alex")
                 == "Alex locked your apps. Open their profile to ask for a snooze.")
         #expect(CoachActionDisplay(lock: .snoozed, lockNote: "hi", snoozedByName: "Bea Lee").tooltip(coachFirstName: "Alex")
-                == "Alex's note (snoozed by Bea):\n\u{201C}hi\u{201D}")
+                == "hi")
+        #expect(CoachActionDisplay(lock: .snoozed).tooltip(coachFirstName: "Alex") == nil)
+        #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: "please, 10 min") == "please, 10 min")
+        #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: nil)
+                == "Sam is asking for more time — open their profile to snooze their lock for 10 minutes.")
         #expect(CoachActionDisplay(lock: nil, halo: true).tooltip(coachFirstName: "Bea") == nil)
     }
 }

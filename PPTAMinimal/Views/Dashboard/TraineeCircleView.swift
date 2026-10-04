@@ -138,11 +138,8 @@ struct TraineeCircleView: View {
         }
     }
 
-    /// The request note is one the coach RECEIVED, so it is quoted here; the trainee never sees their own.
     private var snoozeRequestText: String {
-        let base = "\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes."
-        guard let snoozeRequestNote else { return base }
-        return base + "\n\u{201C}\(snoozeRequestNote)\u{201D}"
+        ActionMessage.snoozeRequestTooltip(firstName: firstName, note: snoozeRequestNote)
     }
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
@@ -154,13 +151,13 @@ struct TraineeCircleView: View {
 
 #Preview("Coach locked") {
     TraineeCircleView(status: .noStatus, name: "Alex Kim", lockBadge: .active,
-                      lockTooltip: "Alex locked your apps:\n\u{201C}Put it down, exam at 4\u{201D}")
+                      lockTooltip: "Put it down, exam at 4")
 }
 
 #Preview("Coach snoozed") {
     HStack(spacing: 40) {
         TraineeCircleView(status: .noStatus, name: "Alex Kim", lockBadge: .snoozed,
-                          lockTooltip: "Alex's note (snoozed by Bea):\n\u{201C}Put it down, exam at 4\u{201D}")
+                          lockTooltip: "Put it down, exam at 4")
         TraineeCircleView(status: .noStatus, name: "Bea Lee", halo: true)
     }
 }

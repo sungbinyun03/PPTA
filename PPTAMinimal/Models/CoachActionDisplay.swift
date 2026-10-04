@@ -131,17 +131,16 @@ struct CoachActionDisplay: Equatable {
 
     // MARK: - Copy
 
-    /// Tooltip text behind the lock badge, or nil when there is no badge. `coachFirstName` is already
+    /// Tooltip text behind the lock badge, or nil when there is no badge. A note shows as the bare
+    /// message (no prefix, no quotes); without one, the fallback sentence. `coachFirstName` is already
     /// reduced with `firstNameOnly`.
     func tooltip(coachFirstName: String) -> String? {
         switch lock {
         case .active:
-            if let lockNote { return "\(coachFirstName) locked your apps:\n\u{201C}\(lockNote)\u{201D}" }
+            if let lockNote { return lockNote }
             return "\(coachFirstName) locked your apps. Open their profile to ask for a snooze."
         case .snoozed:
-            guard let lockNote else { return nil }
-            let suffix = snoozedByName.map { " (snoozed by \($0.firstNameOnly))" } ?? ""
-            return "\(coachFirstName)'s note\(suffix):\n\u{201C}\(lockNote)\u{201D}"
+            return lockNote
         case nil:
             return nil
         }

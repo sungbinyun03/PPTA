@@ -60,4 +60,11 @@ enum ActionMessage {
               let messages = data["snoozeRequestMessages"] as? [String: Any] else { return nil }
         return clean(messages[coachUID] as? String)
     }
+
+    /// Tooltip on the coach-side hand badge: the trainee's note as the bare message, else the standing
+    /// sentence. `firstName` is already reduced with `firstNameOnly`.
+    static func snoozeRequestTooltip(firstName: String, note: String?) -> String {
+        if let note { return note }
+        return "\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes."
+    }
 }

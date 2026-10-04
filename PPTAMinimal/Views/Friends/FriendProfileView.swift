@@ -230,7 +230,7 @@ struct FriendProfileView: View {
                                     moreTimePill
 
                                     if let note = snoozeRequestMessage {
-                                        Text("\u{201C}\(note)\u{201D}")
+                                        Text(note)
                                             .font(.system(size: 13))
                                             .foregroundColor(.secondary)
                                             .multilineTextAlignment(.center)
