@@ -120,8 +120,10 @@ struct CoachActionDisplay: Equatable {
         case .cutOff:
             guard let lockedBy = (data["lockedByUID"] as? String).flatMap({ $0.isEmpty ? nil : $0 }),
                   let command = LockReconciler.Command(data["lockCommand"]),
-                  command.action == .lock, command.by == lockedBy,
-                  let message = command.message else { return .keep }
+                  command.action == .lock, command.by == lockedBy else { return .keep }
+            // A note-less lock is a new lock too: drop the previous coach's note rather than let it
+            // resurface as the grey badge during this lock's snooze.
+            guard let message = command.message else { return .clear }
             return .set(LockNoteCache(uid: uid, lockId: command.id, by: lockedBy,
                                       byName: command.byName ?? "", message: message, at: command.at ?? now))
         }

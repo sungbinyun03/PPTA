@@ -496,10 +496,14 @@ struct CoachActionDisplayTests {
         #expect(u == .set(LockNoteCache(uid: "me", lockId: "L1", by: "A", byName: "Alex Kim", message: "exam at 4", at: now)))
     }
 
-    @Test func cacheIsKeptThroughASnoozeAndAnUnnotedLock() {
+    @Test func cacheIsKeptThroughASnooze() {
         #expect(CoachActionDisplay.cacheUpdate(from: ["traineeStatus": "snoozedLock"], uid: "me", now: now) == .keep)
+    }
+
+    @Test func cacheIsClearedByAnUnnotedLock() {
+        // Otherwise an earlier coach's note resurfaces as the grey badge during this lock's snooze.
         #expect(CoachActionDisplay.cacheUpdate(
-            from: ["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand()], uid: "me", now: now) == .keep)
+            from: ["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand()], uid: "me", now: now) == .clear)
     }
 
     @Test func cacheIsClearedWhenTheEpisodeEnds() {
