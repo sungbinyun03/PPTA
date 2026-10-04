@@ -31,16 +31,26 @@ final class StatusCenterViewModel: ObservableObject {
     /// Used by the Coaches list to enable "Request Mercy" when the current user is cut off.
     @Published var isCurrentUserCutOff = false
 
+    /// Per-coach lock badge / snooze halo / received lock note, keyed by coach UID. Fed by the
+    /// read-only listener on my own `userSettings` doc.
+    @Published private(set) var coachActions: [String: CoachActionDisplay] = [:]
+
     private let usersRepo = UserRepository()
     private let settingsRepo = UserSettingsRepository()
     private let firestoreService = FirestoreService() // for phone->uid fallback
     private let db = Firestore.firestore()
     private var traineeListeners: [ListenerRegistration] = []
+    private var ownSettingsListener: ListenerRegistration?
+    private var ownSettingsListenerUid: String?
 
     private var currentUserId: String? { Auth.auth().currentUser?.uid }
 
     func refresh() async {
-        guard let uid = currentUserId else { return }
+        guard let uid = currentUserId else {
+            detachOwnSettingsListener()
+            return
+        }
+        attachOwnSettingsListener(for: uid)
         isLoading = true
         defer { isLoading = false }
         errorMessage = nil
@@ -103,6 +113,47 @@ final class StatusCenterViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Real-time own-settings listener
+
+    /// Read-only: it never writes, and never goes through `UserSettingsManager`. `lockedByUID` is in
+    /// the `UserSettings` Codable, so a full-doc save from here could write a stale locker back.
+    /// Reads the raw dictionary because `lockCommand` and its note are not in the Codable.
+    private func attachOwnSettingsListener(for uid: String) {
+        guard ownSettingsListenerUid != uid else { return }
+        detachOwnSettingsListener()
+        ownSettingsListenerUid = uid
+
+        ownSettingsListener = db.collection("userSettings").document(uid)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self, let snapshot, let data = snapshot.data() else { return }
+                let now = Date()
+
+                // A cached snapshot may predate the lock, so it must not rewrite the note cache.
+                if !snapshot.metadata.isFromCache {
+                    switch CoachActionDisplay.cacheUpdate(from: data, uid: uid, now: now) {
+                    case .keep: break
+                    case .clear: LockNoteCache.save(nil, uid: uid)
+                    case .set(let cache): LockNoteCache.save(cache, uid: uid)
+                    }
+                }
+
+                let actions = CoachActionDisplay.derive(
+                    from: data, uid: uid, cache: LockNoteCache.load(uid: uid), now: now
+                )
+                if self.coachActions != actions { self.coachActions = actions }
+
+                let isCutOff = (TraineeStatus(rawValue: data["traineeStatus"] as? String ?? "") ?? .noStatus) == .cutOff
+                if self.isCurrentUserCutOff != isCutOff { self.isCurrentUserCutOff = isCutOff }
+            }
+    }
+
+    private func detachOwnSettingsListener() {
+        ownSettingsListener?.remove()
+        ownSettingsListener = nil
+        ownSettingsListenerUid = nil
+        coachActions = [:]
     }
 
     // MARK: - Real-time trainee status listeners
