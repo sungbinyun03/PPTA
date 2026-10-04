@@ -16,13 +16,14 @@ struct TraineeCircleView: View {
     private let lockBadge: CoachActionDisplay.Lock?
     private let lockTooltip: String?
     private let halo: Bool
+    private let snoozeRequestNote: String?
 
     @State private var showWarningPopover = false
     @State private var showSnoozePopover = false
     @State private var showLockPopover = false
 
     init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false,
-         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false) {
+         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, snoozeRequestNote: String? = nil) {
         self.status = status
         self.name = name
         self.profilePicUrl = profilePicUrl
@@ -31,6 +32,7 @@ struct TraineeCircleView: View {
         self.lockBadge = lockBadge
         self.lockTooltip = lockTooltip
         self.halo = halo
+        self.snoozeRequestNote = snoozeRequestNote
     }
 
     private var firstName: String {
@@ -96,7 +98,7 @@ struct TraineeCircleView: View {
                         .buttonStyle(.plain)
                         .offset(y: 10)
                         .popover(isPresented: $showSnoozePopover) {
-                            Text("\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes.")
+                            Text(snoozeRequestText)
                                 .font(.subheadline)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -134,6 +136,13 @@ struct TraineeCircleView: View {
             Text(name)
                 .font(.custom("SatoshiVariable-Bold_Light", size: 15))
         }
+    }
+
+    /// The request note is one the coach RECEIVED, so it is quoted here; the trainee never sees their own.
+    private var snoozeRequestText: String {
+        let base = "\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes."
+        guard let snoozeRequestNote else { return base }
+        return base + "\n\u{201C}\(snoozeRequestNote)\u{201D}"
     }
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }

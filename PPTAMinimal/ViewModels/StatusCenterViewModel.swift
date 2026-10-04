@@ -175,6 +175,7 @@ final class StatusCenterViewModel: ObservableObject {
                     let lockedByName = data["lockedByName"] as? String
                     let requestedCoachIds = data["snoozeRequestedCoachIds"] as? [String] ?? []
                     let isRequestingSnoozeFromMe = self.currentUserId.map(requestedCoachIds.contains) ?? false
+                    let snoozeRequestMessage = ActionMessage.snoozeRequestMessage(from: data, coachUID: self.currentUserId)
 
                     // Update in-place without a full re-fetch.
                     if let idx = self.trainees.firstIndex(where: { $0.id == traineeId }) {
@@ -182,7 +183,8 @@ final class StatusCenterViewModel: ObservableObject {
                         let newLockedByName = lockedByName ?? existing.lockedByName
                         if existing.traineeStatus != effectiveStatus
                             || existing.lockedByName != newLockedByName
-                            || existing.isRequestingSnoozeFromMe != isRequestingSnoozeFromMe {
+                            || existing.isRequestingSnoozeFromMe != isRequestingSnoozeFromMe
+                            || existing.snoozeRequestMessage != snoozeRequestMessage {
                             self.trainees[idx] = StatusCenterPerson(
                                 id: existing.id,
                                 name: existing.name,
@@ -194,7 +196,8 @@ final class StatusCenterViewModel: ObservableObject {
                                 timeLimitMinutes: existing.timeLimitMinutes,
                                 pressureLevel: existing.pressureLevel,
                                 lockedByName: newLockedByName,
-                                isRequestingSnoozeFromMe: isRequestingSnoozeFromMe
+                                isRequestingSnoozeFromMe: isRequestingSnoozeFromMe,
+                                snoozeRequestMessage: snoozeRequestMessage
                             )
                         }
                     }

@@ -40,6 +40,10 @@ struct StatusCenterPerson: Identifiable, Equatable {
     /// gate on that. Defaulted for existing sites.
     var isRequestingSnoozeFromMe: Bool = false
 
+    /// The short note that request carries (a RECEIVED note: the current user is the coach). Set by
+    /// the view model's trainee listener, not `fetchPeople`, so it fills in with the first snapshot.
+    var snoozeRequestMessage: String?
+
     /// Apps this person is monitoring, if they opted into sharing them. Defaulted so existing
     /// construction sites are unaffected; empty means "not shared" or "none learned yet".
     var monitoredAppNames: [String] = []

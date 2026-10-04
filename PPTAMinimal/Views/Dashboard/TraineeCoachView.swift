@@ -106,7 +106,8 @@ struct TraineeCoachView: View {
                                 name: trainee.name,
                                 profilePicUrl: trainee.profileImageURL?.absoluteString,
                                 showSetupWarning: status == .noStatus || trainee.timeLimitMinutes == 0,
-                                showSnoozeRequest: status == .cutOff && trainee.isRequestingSnoozeFromMe
+                                showSnoozeRequest: status == .cutOff && trainee.isRequestingSnoozeFromMe,
+                                snoozeRequestNote: status == .cutOff ? trainee.snoozeRequestMessage : nil
                             )
                         }
                         .buttonStyle(.plain)
