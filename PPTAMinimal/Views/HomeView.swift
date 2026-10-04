@@ -32,7 +32,7 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 ProfileView(headerPart1: "Welcome Back, ", headerPart2: nil, subHeader: "Ready to lock in?")
                 ScrollView {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 8) {
                         SetupCardView()
                         statusCard
                         TraineeCoachView()
@@ -40,7 +40,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.top, 12)
+                .padding(.top, 6)
                 .refreshable {
                     await withCheckedContinuation { continuation in
                         UserSettingsManager.shared.loadSettings { loadedSettings in
@@ -184,7 +184,7 @@ struct HomeView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .background(color.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 24)
@@ -253,7 +253,7 @@ struct HomeView: View {
     }
 
     private var reportSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text("Daily Screen Time")
                         .font(.custom("BambiBold", size: 22))
@@ -326,7 +326,7 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 215)
+                .frame(height: 178)
 
                 // Only this label opens the full report — the card itself is not tappable.
                 Button { isReportViewPresented = true } label: {
@@ -343,7 +343,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
         }
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)

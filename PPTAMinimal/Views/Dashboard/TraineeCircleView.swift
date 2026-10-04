@@ -40,8 +40,8 @@ struct TraineeCircleView: View {
     }
 
     var body: some View {
-        VStack(alignment: .center, spacing: 20) {
-            InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 75)
+        VStack(alignment: .center, spacing: 14) {
+            InitialsProfilePicView(name: name, profilePicUrl: profilePicUrl, size: 64)
                 .overlay {
                     Circle()
                         .inset(by: -5)

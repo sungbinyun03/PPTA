@@ -114,7 +114,7 @@ struct TraineeCoachView: View {
                     }
                 }
                 .padding(.horizontal, 35)
-                .padding(.vertical, 20)
+                .padding(.vertical, 14)
             }
             .scrollIndicators(.hidden)
             HStack(spacing: 6) {
@@ -180,7 +180,7 @@ struct TraineeCoachView: View {
                     }
                 }
                 .padding(.horizontal, 35)
-                .padding(.vertical, 20)
+                .padding(.vertical, 14)
             }
             .scrollIndicators(.hidden)
         }
