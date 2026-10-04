@@ -527,4 +527,28 @@ struct CoachActionDisplayTests {
                 == "Sam is asking for more time — open their profile to snooze their lock for 10 minutes.")
         #expect(CoachActionDisplay(lock: nil, halo: true).tooltip(coachFirstName: "Bea") == nil)
     }
+
+    // MARK: default-open tooltip selection
+
+    @Test func defaultOpenPicksLatestArrivalAndStaysClosedOnceDismissed() {
+        var arrival = TooltipDefaultOpen.updatedArrival([], candidates: ["a", "b"])
+        #expect(TooltipDefaultOpen.pick(candidates: ["a", "b"], arrival: arrival, dismissed: []) == "b")
+        arrival = TooltipDefaultOpen.updatedArrival(arrival, candidates: ["a", "b", "c"])
+        #expect(arrival == ["a", "b", "c"])
+        #expect(TooltipDefaultOpen.pick(candidates: ["c", "a", "b"], arrival: arrival, dismissed: ["b"]) == "c")
+        // The latest being dismissed does not hand the popover to an older one.
+        #expect(TooltipDefaultOpen.pick(candidates: ["a", "b", "c"], arrival: arrival, dismissed: ["c"]) == nil)
+        #expect(TooltipDefaultOpen.pick(candidates: [], arrival: arrival, dismissed: []) == nil)
+    }
+
+    @Test func defaultOpenArrivalDropsGoneKeys() {
+        #expect(TooltipDefaultOpen.updatedArrival(["a", "b"], candidates: ["b", "c"]) == ["b", "c"])
+    }
+
+    @Test func activeLockCarriesLockIdForDefaultOpen() {
+        let data: [String: Any] = ["traineeStatus": "cutOff", "lockedByUID": "c1",
+                                   "lockCommand": ["id": "L1", "action": "lock", "by": "c1", "message": "hi"]]
+        let d = CoachActionDisplay.derive(from: data, uid: "me", cache: nil, now: Date())
+        #expect(d["c1"]?.lockId == "L1")
+    }
 }

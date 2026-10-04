@@ -14,6 +14,12 @@ struct TraineeCoachView: View {
     @State private var showAttentionInfo = false
     @State private var showCoachesInfo = false
     @State private var showAskCoachInfo = false
+    /// Default-open tooltips: keys already dismissed, and the order snooze requests first arrived in
+    /// (a request has no timestamp). See `TooltipDefaultOpen`.
+    @State private var dismissedTooltipKeys: Set<String> = []
+    @State private var requestArrival: [String] = []
+    /// A shield-notification handoff is on its way or showing: it wins, so no default-open tooltip.
+    @State private var askCoachWins = false
     @ObservedObject private var notifications = NotificationManager.shared
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
@@ -35,9 +41,51 @@ struct TraineeCoachView: View {
             .map(\.element)
     }
 
+    /// Snooze requests that carry a note, keyed by trainee + note so a changed note counts as new.
+    private var requestKeys: [String: String] {
+        var keys: [String: String] = [:]
+        for t in viewModel.trainees where t.traineeStatus == .cutOff && t.isRequestingSnoozeFromMe {
+            if let note = t.snoozeRequestMessage { keys[t.id] = "request|\(t.id)|\(note)" }
+        }
+        return keys
+    }
+
+    /// Key of the coach whose lock note should be open: the coach holding my lock, with a note.
+    private var lockTooltipKey: (coachId: String, key: String)? {
+        guard !askCoachWins, !showAskCoachInfo else { return nil }
+        for coach in viewModel.coaches {
+            if let a = viewModel.coachActions[coach.id], a.lock == .active, a.lockNote != nil, let id = a.lockId,
+               !dismissedTooltipKeys.contains("lock|\(id)") {
+                return (coach.id, "lock|\(id)")
+            }
+        }
+        return nil
+    }
+
+    /// Trainee id and key of the latest snooze request to open. One popover at a time: my own lock note
+    /// (or the ask-a-coach popover) takes precedence.
+    private var requestTooltipKey: (traineeId: String, key: String)? {
+        guard !askCoachWins, !showAskCoachInfo, lockTooltipKey == nil else { return nil }
+        let keys = requestKeys
+        guard let key = TooltipDefaultOpen.pick(candidates: Array(keys.values).sorted(), arrival: requestArrival,
+                                                dismissed: dismissedTooltipKeys),
+              let id = keys.first(where: { $0.value == key })?.key else { return nil }
+        return (id, key)
+    }
+
+    private func trackRequests() {
+        let ordered = sortedTrainees.compactMap { requestKeys[$0.id] }
+        requestArrival = TooltipDefaultOpen.updatedArrival(requestArrival, candidates: ordered)
+        // A request that is gone may be asked again with the same note; that is a new request.
+        dismissedTooltipKeys = dismissedTooltipKeys.filter { !$0.hasPrefix("request|") || ordered.contains($0) }
+    }
+
     private func presentAskCoachInfoIfRequested() {
         guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
         guard notifications.consumeCoachesPopoverRequest() else { return }
+        // Wins over a default-open tooltip, which then stays closed for this lock/request.
+        if let key = lockTooltipKey?.key ?? requestTooltipKey?.key { dismissedTooltipKeys.insert(key) }
+        askCoachWins = true
         // The launch facade covers Home on a cold start; a popover presented under it is lost, so
         // wait for it to go. Consumed above, so the 15s window only has to cover reaching here.
         // Short delay: a popover presented mid tab/launch transition is dropped.
@@ -45,6 +93,7 @@ struct TraineeCoachView: View {
             await LaunchGate.shared.waitUntilDismissed()
             try? await Task.sleep(nanoseconds: 600_000_000)
             showAskCoachInfo = true
+            askCoachWins = false
         }
     }
 
@@ -107,7 +156,9 @@ struct TraineeCoachView: View {
                                 profilePicUrl: trainee.profileImageURL?.absoluteString,
                                 showSetupWarning: status == .noStatus || trainee.timeLimitMinutes == 0,
                                 showSnoozeRequest: status == .cutOff && trainee.isRequestingSnoozeFromMe,
-                                snoozeRequestNote: status == .cutOff ? trainee.snoozeRequestMessage : nil
+                                snoozeRequestNote: status == .cutOff ? trainee.snoozeRequestMessage : nil,
+                                autoOpenKey: requestTooltipKey?.traineeId == trainee.id ? requestTooltipKey?.key : nil,
+                                onAutoOpenDismiss: { dismissedTooltipKeys.insert($0) }
                             )
                         }
                         .buttonStyle(.plain)
@@ -173,7 +224,9 @@ struct TraineeCoachView: View {
                                 profilePicUrl: coach.profileImageURL?.absoluteString,
                                 lockBadge: action?.lock,
                                 lockTooltip: action?.tooltip(coachFirstName: coach.name.firstNameOnly),
-                                halo: action?.halo ?? false
+                                halo: action?.halo ?? false,
+                                autoOpenKey: lockTooltipKey?.coachId == coach.id ? lockTooltipKey?.key : nil,
+                                onAutoOpenDismiss: { dismissedTooltipKeys.insert($0) }
                             )
                         }
                         .buttonStyle(.plain)
@@ -185,6 +238,7 @@ struct TraineeCoachView: View {
             .scrollIndicators(.hidden)
         }
         .task { await viewModel.refresh() }
+        .onChange(of: requestKeys, initial: true) { _, _ in trackRequests() }
         // The sheet can end the relationship (unfriend, remove as coach/trainee), so re-read
         // the circles on dismiss instead of waiting for `.task` to run again on next appear.
         .sheet(item: $selectedPerson, onDismiss: { Task { await viewModel.refresh() } }) { person in

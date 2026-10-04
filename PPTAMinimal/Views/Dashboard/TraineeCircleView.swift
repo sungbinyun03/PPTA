@@ -17,13 +17,18 @@ struct TraineeCircleView: View {
     private let lockTooltip: String?
     private let halo: Bool
     private let snoozeRequestNote: String?
+    private let autoOpenKey: String?
+    private let onAutoOpenDismiss: (String) -> Void
 
     @State private var showWarningPopover = false
     @State private var showSnoozePopover = false
     @State private var showLockPopover = false
+    /// True while the open popover was opened by `autoOpenKey` rather than a tap.
+    @State private var autoOpened = false
 
     init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false,
-         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, snoozeRequestNote: String? = nil) {
+         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, snoozeRequestNote: String? = nil,
+         autoOpenKey: String? = nil, onAutoOpenDismiss: @escaping (String) -> Void = { _ in }) {
         self.status = status
         self.name = name
         self.profilePicUrl = profilePicUrl
@@ -33,6 +38,8 @@ struct TraineeCircleView: View {
         self.lockTooltip = lockTooltip
         self.halo = halo
         self.snoozeRequestNote = snoozeRequestNote
+        self.autoOpenKey = autoOpenKey
+        self.onAutoOpenDismiss = onAutoOpenDismiss
     }
 
     private var firstName: String {
@@ -136,6 +143,42 @@ struct TraineeCircleView: View {
             Text(name)
                 .font(.custom("SatoshiVariable-Bold_Light", size: 15))
         }
+        // Default-open: the parent names the one tooltip that should be open (a coach's lock note, or
+        // the latest snooze request) and withdraws the key to close it. The badge shows either the
+        // lock or the hand, never both, so one key drives whichever exists.
+        .onChange(of: autoOpenKey, initial: true) { _, key in
+            if key != nil { presentAutoOpen(key) } else if autoOpened { closeAutoOpen() }
+        }
+        .onChange(of: showLockPopover) { _, open in autoOpenClosed(open) }
+        .onChange(of: showSnoozePopover) { _, open in autoOpenClosed(open) }
+    }
+
+    private var autoOpenIsLock: Bool { lockBadge != nil && lockTooltip != nil }
+
+    private func presentAutoOpen(_ key: String?) {
+        guard let key else { return }
+        // Same wait as the shield handoff popover: one presented under the launch facade or mid
+        // tab transition is dropped. Re-checks the key after the wait; the parent may have withdrawn it.
+        Task { @MainActor in
+            await LaunchGate.shared.waitUntilDismissed()
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard autoOpenKey == key, !showLockPopover, !showSnoozePopover else { return }
+            autoOpened = true
+            if autoOpenIsLock { showLockPopover = true } else { showSnoozePopover = true }
+        }
+    }
+
+    private func closeAutoOpen() {
+        autoOpened = false
+        showLockPopover = false
+        showSnoozePopover = false
+    }
+
+    /// The user closed the popover: report the key so it stays closed for this lock or request.
+    private func autoOpenClosed(_ open: Bool) {
+        guard !open, let key = autoOpenKey else { return }
+        autoOpened = false
+        onAutoOpenDismiss(key)
     }
 
     private var snoozeRequestText: String {

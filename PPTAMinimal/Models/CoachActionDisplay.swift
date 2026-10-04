@@ -49,6 +49,8 @@ struct CoachActionDisplay: Equatable {
     var halo = false
     /// A RECEIVED note only: the coach's lock note. Never the user's own snooze-request note.
     var lockNote: String?
+    /// Id of the lock command behind an active badge; keys the default-open tooltip so a new lock reopens it.
+    var lockId: String?
     /// Full name of the coach who snoozed, for the grey badge's tooltip.
     var snoozedByName: String?
 
@@ -73,6 +75,7 @@ struct CoachActionDisplay: Equatable {
             var entry = CoachActionDisplay(lock: .active)
             if let command, command.action == .lock, command.by == lockedBy {
                 entry.lockNote = command.message
+                entry.lockId = command.id
             }
             result[lockedBy] = entry
             return result
@@ -144,5 +147,24 @@ struct CoachActionDisplay: Equatable {
         case nil:
             return nil
         }
+    }
+}
+
+/// Which note tooltip opens by itself on Home. Pure bookkeeping over opaque keys (a lock id, or a
+/// trainee id plus request note); the views own the state. A dismissed key stays closed until it
+/// leaves the candidates, so a NEW lock or request (new key) opens again.
+enum TooltipDefaultOpen {
+    /// Arrival order with keys that are gone dropped and new ones appended (in `candidates` order).
+    /// Requests carry no timestamp, so first-seen order is the best "most recent" available.
+    static func updatedArrival(_ arrival: [String], candidates: [String]) -> [String] {
+        arrival.filter(candidates.contains) + candidates.filter { !arrival.contains($0) }
+    }
+
+    /// The most recently arrived candidate, or nil when it was dismissed. Older candidates never
+    /// take over once the latest is dismissed.
+    static func pick(candidates: [String], arrival: [String], dismissed: Set<String>) -> String? {
+        let latest = candidates.max { (arrival.firstIndex(of: $0) ?? -1) < (arrival.firstIndex(of: $1) ?? -1) }
+        guard let latest, !dismissed.contains(latest) else { return nil }
+        return latest
     }
 }
