@@ -144,10 +144,12 @@ class Req:
         self.args = args
 
 
-def call(settings, mod=unlockapp, **dbkw):
+def call(settings, mod=unlockapp, msg=None, **dbkw):
     db = FakeDB(settings, **dbkw)
     fm = FakeMessaging()
     args = {"uid": UID, "coach": COACH, "ts": str(NOW), "sig": sign()}
+    if msg is not None:
+        args["msg"] = msg
     with mock.patch.object(mod, "firestore", FakeFirestoreMod(db)), \
             mock.patch.object(mod, "messaging", fm), \
             mock.patch.object(mod, "ALERT_PUSH", False), \
@@ -221,6 +223,44 @@ class WriteShape(unittest.TestCase):
         self.assertEqual(op, "set")
         self.assertEqual(list(data), ["lockCommand"])
         self.assertNotIn("lockNote", cmd)
+
+
+class SnoozeMessage(unittest.TestCase):
+    def test_message_stored_beside_lock_note(self):
+        _, db, _ = call({"lockCommand": LOCK_WITH_NOTE}, msg="  take 10 \n min ")
+        cmd = written_command(db)[2]
+        self.assertEqual(cmd["message"], "take 10 min")
+        self.assertEqual(cmd["lockNote"], NOTE)
+
+    def test_message_stored_when_doc_missing(self):
+        _, db, _ = call(None, msg="hi")
+        self.assertEqual(written_command(db)[2]["message"], "hi")
+
+    def test_blank_or_absent_message_changes_nothing(self):
+        for m in (None, "", " \n\t "):
+            _, db, fm = call({"lockCommand": LOCK_WITH_NOTE}, msg=m)
+            self.assertNotIn("message", written_command(db)[2])
+            self.assertNotIn("message", fm.sent[0][1]["data"])
+
+    def test_message_capped(self):
+        _, db, _ = call({}, msg="x" * 500)
+        self.assertEqual(len(written_command(db)[2]["message"]), unlockapp.MAX_MESSAGE_CODE_POINTS)
+
+    def test_message_in_push_data(self):
+        _, _, fm = call({}, msg="hi")
+        self.assertEqual(fm.sent[0][1]["data"]["message"], "hi")
+
+    def test_unsigned_and_checked_after_signature(self):
+        resp, db, _ = call({}, msg="hi")
+        self.assertEqual(resp[1], 200)  # sign() does not cover msg
+
+
+class RequestClearing(unittest.TestCase):
+    def test_snooze_clears_pending_requests(self):
+        _, db, _ = call({"lockCommand": LOCK_WITH_NOTE, "snoozeRequestedCoachIds": ["coachA"]})
+        _, data, _ = written_command(db)
+        self.assertEqual(data["snoozeRequestedCoachIds"], [])
+        self.assertEqual(data["snoozeRequestMessages"], DELETE)
 
 
 class Failure(unittest.TestCase):

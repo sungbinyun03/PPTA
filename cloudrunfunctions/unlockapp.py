@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import time
+import unicodedata
 import uuid
 
 # Step 4 switch. False = the old silent background push (safe with any app build). Flip to True
@@ -15,6 +16,31 @@ ALERT_PUSH = False
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app()
+
+
+# Server cap in Unicode code points. Looser than the client's 60 Characters so a counting
+# mismatch between the two can never fail an action; the server truncates, never rejects.
+MAX_MESSAGE_CODE_POINTS = 100
+
+
+def _clean_message(raw):
+    """Same sanitiser as lockapp._clean_message (and ActionMessage.clean on the client): whitespace
+    and control characters (category Cc) collapse to single spaces, ends are trimmed, and the result
+    is capped. Format characters (e.g. ZWJ) are kept so emoji sequences survive. None when empty."""
+    if not isinstance(raw, str):
+        return None
+    out = []
+    last_was_space = True  # also drops leading whitespace
+    for ch in raw:
+        if ch.isspace() or unicodedata.category(ch) == "Cc":
+            if not last_was_space:
+                out.append(" ")
+            last_was_space = True
+        else:
+            out.append(ch)
+            last_was_space = False
+    capped = "".join(out[:MAX_MESSAGE_CODE_POINTS]).strip(" ")
+    return capped or None
 
 
 def _command_ok(cmd_id, push=None):
@@ -48,7 +74,7 @@ def _lock_note_for(prev):
     return None
 
 
-def _record_unlock(transaction, ref, cmd_id, coach, coach_name):
+def _record_unlock(transaction, ref, cmd_id, coach, coach_name, note=None):
     """Writes the unlock command in one transaction so a lock landing mid-write can't be overwritten
     by an unlock carrying an older note. `update` with a map value replaces the whole lockCommand
     (set(merge=True) deep-merges maps, which would leave the lock's `message` behind)."""
@@ -60,6 +86,9 @@ def _record_unlock(transaction, ref, cmd_id, coach, coach_name):
         "byName": coach_name,
         "at": firestore.SERVER_TIMESTAMP,
     }
+    if note:
+        # The snoozing coach's own note. Separate from `lockNote`, the preserved lock note.
+        command["message"] = note
     if not snap.exists:
         transaction.set(ref, {"lockCommand": command})
         return
@@ -69,6 +98,10 @@ def _record_unlock(transaction, ref, cmd_id, coach, coach_name):
     transaction.update(ref, {
         "lockedByUID": firestore.DELETE_FIELD,
         "lockedByName": firestore.DELETE_FIELD,
+        # Granting a snooze answers every outstanding request, so the coaches' hand badges clear
+        # now rather than when the trainee's phone next reports a non-cutOff status.
+        "snoozeRequestedCoachIds": [],
+        "snoozeRequestMessages": firestore.DELETE_FIELD,
         "lockCommand": command,
     })
 
@@ -115,6 +148,9 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
         print(f"Bad signature for UID: [{uid}]")
         return _bad_request("bad sig", 403)
 
+    # Unsigned and read only after the signature check; a missing or empty note changes nothing.
+    note = _clean_message(req.args.get("msg"))
+
     db = firestore.client()
     print(f"Firestore client obtained successfully for UID: [{uid}]")
 
@@ -142,7 +178,7 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
     cmd_id = uuid.uuid4().hex
     try:
         ref = db.collection("userSettings").document(uid)
-        firestore.transactional(_record_unlock)(db.transaction(), ref, cmd_id, coach, coach_name)
+        firestore.transactional(_record_unlock)(db.transaction(), ref, cmd_id, coach, coach_name, note)
         print(f"Recorded unlock command [{cmd_id}] for UID: [{uid}]")
     except Exception as e:
         print(f"Error writing lockCommand for UID [{uid}]: {e}")
@@ -200,15 +236,19 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
             ),
         )
 
+    push_data = {
+        "type": "unlock",
+        "by": str(coach),
+        "byName": coach_name,
+        "cmd": cmd_id,
+        "uid": uid,
+    }
+    if note:
+        push_data["message"] = note
+
     message = messaging.Message(
         token=token,
-        data={
-            "type": "unlock",
-            "by": str(coach),
-            "byName": coach_name,
-            "cmd": cmd_id,
-            "uid": uid,
-        },
+        data=push_data,
         apns=apns,
     )
 
