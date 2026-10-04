@@ -218,7 +218,7 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
                         title=f"Lock snoozed by {first}! ⏳",
-                        body="You've got 10 minutes before your apps lock again — make them count!",
+                        body=f"\u201c{note}\u201d" if note else "You've got 10 minutes before your apps lock again — make them count!",
                     ),
                     sound="default",
                     content_available=True,
