@@ -34,8 +34,8 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         SetupCardView()
                         statusCard
-                        reportSection
                         TraineeCoachView()
+                        reportSection
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
