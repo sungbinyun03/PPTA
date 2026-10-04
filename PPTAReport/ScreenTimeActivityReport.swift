@@ -48,7 +48,8 @@ extension TimeInterval {
         let totalMinutes = Int(self) / 60
         let hours = totalMinutes / 60
         let mins = totalMinutes % 60
-        if hours > 0 { return mins > 0 ? "\(hours)h \(mins)m" : "\(hours)h" }
+        // Four-per-em space (U+2005, between thin and regular): BambiBold's regular space reads as a gap between "2h" and "19m".
+        if hours > 0 { return mins > 0 ? "\(hours)h\u{2005}\(mins)m" : "\(hours)h" }
         return "\(mins)m"
     }
 }
