@@ -13,6 +13,7 @@ import FirebaseAuth
 
 struct HomeView: View {
     @EnvironmentObject var viewModel: AuthViewModel
+    @EnvironmentObject var statusCenter: StatusCenterViewModel
     @ObservedObject var userSettingsManager = UserSettingsManager.shared
     @State private var isReportViewPresented = false
     @State private var showPressureLevelInfo = false
@@ -140,13 +141,22 @@ struct HomeView: View {
         }
     }
 
-    /// A coach's note replaces the generic copy only for a coach lock (`lockedByName` is set only by
-    /// one), never a Hardcore auto-lock. The note comes from the App Group, which the lock path wrote
-    /// before the status write that re-renders this.
+    /// Coach lock (`lockedByName` is set only by one, never a Hardcore auto-lock): the note itself lives
+    /// behind the lock badge on the coach's avatar below, so the banner only points there. If that coach
+    /// isn't in the coach list (removed, or the list hasn't loaded) there is no avatar to point at, so the
+    /// note stays here as before; it comes from the App Group, which the lock path wrote before the status
+    /// write that re-renders this.
     private func cutOffMessage(for settings: UserSettings) -> String {
-        if let locker = settings.lockedByName, !locker.isEmpty,
-           let note = ActionMessage.lockBannerText(coachFirstName: locker.firstNameOnly, message: LocalSettingsStore.lockMessage) {
-            return note
+        if let locker = settings.lockedByName, !locker.isEmpty {
+            let first = locker.firstNameOnly
+            if let uid = settings.lockedByUID, statusCenter.coaches.contains(where: { $0.id == uid }) {
+                return statusCenter.coachActions[uid]?.lockNote != nil
+                    ? "\(first) locked your apps. Tap the lock on their avatar below for their note."
+                    : "\(first) locked your apps. Tap their avatar to ask for a snooze."
+            }
+            if let note = ActionMessage.lockBannerText(coachFirstName: first, message: LocalSettingsStore.lockMessage) {
+                return note
+            }
         }
         return settings.pressureLevel == .hardcore
             ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
@@ -436,5 +446,6 @@ struct HomeView_Previews: PreviewProvider {
         
         return HomeView(previewMode: true)
             .environmentObject(auth)
+            .environmentObject(StatusCenterViewModel())
     }
 }
