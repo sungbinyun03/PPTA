@@ -13,16 +13,24 @@ struct TraineeCircleView: View {
     private let profilePicUrl: String?
     private let showSetupWarning: Bool
     private let showSnoozeRequest: Bool
+    private let lockBadge: CoachActionDisplay.Lock?
+    private let lockTooltip: String?
+    private let halo: Bool
 
     @State private var showWarningPopover = false
     @State private var showSnoozePopover = false
+    @State private var showLockPopover = false
 
-    init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false) {
+    init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false,
+         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false) {
         self.status = status
         self.name = name
         self.profilePicUrl = profilePicUrl
         self.showSetupWarning = showSetupWarning
         self.showSnoozeRequest = showSnoozeRequest
+        self.lockBadge = lockBadge
+        self.lockTooltip = lockTooltip
+        self.halo = halo
     }
 
     private var firstName: String {
@@ -38,6 +46,16 @@ struct TraineeCircleView: View {
                         .stroke(status.ringColor ?? .clear, lineWidth: 15)
                     Circle()
                         .stroke((status == .noStatus) ? .clear : Color(.systemBackground), lineWidth: 5)
+                }
+                // Soft blue ring + glow: this coach snoozed the user's lock. Decorative, not a tap target.
+                .overlay {
+                    if halo {
+                        Circle()
+                            .inset(by: -5)
+                            .stroke(snoozeBlue.opacity(0.35), lineWidth: 6)
+                            .shadow(color: snoozeBlue.opacity(0.6), radius: 8)
+                            .allowsHitTesting(false)
+                    }
                 }
                 .overlay(alignment: .bottom) {
                     if showSetupWarning {
@@ -88,12 +106,52 @@ struct TraineeCircleView: View {
                         }
                     }
                 }
+                // The coach-lock counterpart of the hand badge: red while this coach's lock is on, grey
+                // while it is snoozed. Only ever set for a coach row, so it never overlaps the others.
+                .overlay(alignment: .bottom) {
+                    if let lockBadge, let lockTooltip {
+                        Button { showLockPopover = true } label: {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 21, height: 21)
+                                .background(Circle().fill(lockBadge == .active ? Color.red : Color(.systemGray)))
+                                .background(Circle().fill(Color(.systemBackground)).padding(-2))
+                        }
+                        .buttonStyle(.plain)
+                        .offset(y: 10)
+                        .popover(isPresented: $showLockPopover, arrowEdge: .bottom) {
+                            Text(lockTooltip)
+                                .font(.subheadline)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(16)
+                                .frame(width: 260)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                    }
+                }
             Text(name)
                 .font(.custom("SatoshiVariable-Bold_Light", size: 15))
         }
     }
+
+    private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
 }
 
 #Preview {
     TraineeCircleView(status: TraineeStatus.attentionNeeded, name: "Sungbin")
+}
+
+#Preview("Coach locked") {
+    TraineeCircleView(status: .noStatus, name: "Alex Kim", lockBadge: .active,
+                      lockTooltip: "Alex locked your apps:\n\u{201C}Put it down, exam at 4\u{201D}")
+}
+
+#Preview("Coach snoozed") {
+    HStack(spacing: 40) {
+        TraineeCircleView(status: .noStatus, name: "Alex Kim", lockBadge: .snoozed,
+                          lockTooltip: "Alex's note (snoozed by Bea):\n\u{201C}Put it down, exam at 4\u{201D}")
+        TraineeCircleView(status: .noStatus, name: "Bea Lee", halo: true)
+    }
 }
