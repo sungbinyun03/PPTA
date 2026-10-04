@@ -27,6 +27,9 @@ struct TraineeCircleView: View {
     @State private var showHaloPopover = false
     /// True while the open popover was opened by `autoOpenKey` rather than a tap.
     @State private var autoOpened = false
+    /// Set while re-presenting on foreground, so closing the stale popover isn't reported as a dismissal.
+    @State private var suppressDismissReport = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false,
          lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, haloTooltip: String? = nil, snoozeRequestNote: String? = nil,
@@ -168,6 +171,16 @@ struct TraineeCircleView: View {
         .onChange(of: showLockPopover) { _, open in autoOpenClosed(open) }
         .onChange(of: showSnoozePopover) { _, open in autoOpenClosed(open) }
         .onChange(of: showHaloPopover) { _, open in autoOpenClosed(open) }
+        // A lock that lands while the app is backgrounded (silent push) sets the key off-screen, where a
+        // popover can't present; open it when the app comes back.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, let key = autoOpenKey else { return }
+            if autoOpened {
+                suppressDismissReport = true
+                closeAutoOpen()
+            }
+            presentAutoOpen(key)
+        }
     }
 
     private func presentAutoOpen(_ key: String?) {
@@ -178,6 +191,8 @@ struct TraineeCircleView: View {
             await LaunchGate.shared.waitUntilDismissed()
             try? await Task.sleep(nanoseconds: 600_000_000)
             guard autoOpenKey == key, !showLockPopover, !showSnoozePopover, !showHaloPopover else { return }
+            // Not on screen yet: the scenePhase handler retries when the app becomes active.
+            guard UIApplication.shared.applicationState == .active else { return }
             autoOpened = true
             if key.hasPrefix("lock|") { showLockPopover = true }
             else if key.hasPrefix("snooze|") { showHaloPopover = true }
@@ -194,7 +209,9 @@ struct TraineeCircleView: View {
 
     /// The user closed the popover: report the key so it stays closed for this lock or request.
     private func autoOpenClosed(_ open: Bool) {
-        guard !open, let key = autoOpenKey else { return }
+        guard !open else { return }
+        if suppressDismissReport { suppressDismissReport = false; return }
+        guard let key = autoOpenKey else { return }
         autoOpened = false
         onAutoOpenDismiss(key)
     }
