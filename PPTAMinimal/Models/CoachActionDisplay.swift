@@ -148,13 +148,12 @@ struct CoachActionDisplay: Equatable {
     /// they said when they snoozed me. Received only (both come from my own settings doc).
     var receivedNotes: [String] { [lockNote, snoozeNote].compactMap { $0 } }
 
-    /// Tooltip text behind the halo badge: the received notes as paragraphs (lock note first when the same
-    /// coach locked and snoozed), or nil when there is no halo or no note to show.
+    /// Tooltip text behind the halo badge: only the snooze note, even when the same coach also locked me
+    /// (the lock note stays on their profile, where both stack). Nil only when there is no halo.
     func haloTooltip(coachFirstName: String) -> String? {
         guard halo else { return nil }
-        let notes = receivedNotes
-        // No notes: still say what the halo means, so the badge always opens something.
-        return notes.isEmpty ? "\(coachFirstName) snoozed your lock. Enjoy the break!" : notes.joined(separator: "\n\n")
+        // No note: still say what the halo means, so the badge always opens something.
+        return snoozeNote ?? "\(coachFirstName) snoozed your lock. Enjoy the break!"
     }
 
     /// Tooltip text behind the lock badge, or nil only when there is no badge. A note shows as the bare

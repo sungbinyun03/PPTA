@@ -513,14 +513,15 @@ struct CoachActionDisplayTests {
         #expect(r.count == 1)
         #expect(r["A"]?.halo == true)
         #expect(r["A"]?.lock == nil)
-        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "exam at 4\n\ngo")
+        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "go")
+        #expect(r["A"]?.receivedNotes == ["exam at 4", "go"])
     }
 
-    @Test func sameCoachHaloSkipsAMissingNote() {
+    @Test func sameCoachHaloWithoutASnoozeNoteFallsBack() {
         let r = derive(["traineeStatus": "snoozedLock",
                         "lockCommand": unlockCommand(["by": "A", "byName": "Alex Kim", "lockNote": note])])
         #expect(r["A"]?.lock == nil)
-        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "exam at 4")
+        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "Alex snoozed your lock. Enjoy the break!")
     }
 
     @Test func allClearAndNoStatusShowNothing() {
