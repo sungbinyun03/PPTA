@@ -28,6 +28,51 @@ def _bad_request(reason: str, code: int):
     return (reason, code, {"Content-Type": "text/plain"})
 
 
+def _lock_note_for(prev):
+    """The lock note to carry through a snooze: the previous lock's note, or one an earlier snooze
+    in the same lock episode already carried. None when there isn't one."""
+    if not isinstance(prev, dict):
+        return None
+    if prev.get("action") == "lock":
+        message = prev.get("message")
+        if isinstance(message, str) and message.strip():
+            return {
+                "message": message,
+                "by": prev.get("by"),
+                "byName": prev.get("byName"),
+                "lockId": prev.get("id"),
+            }
+        return None
+    if prev.get("action") == "unlock" and isinstance(prev.get("lockNote"), dict):
+        return prev["lockNote"]
+    return None
+
+
+def _record_unlock(transaction, ref, cmd_id, coach, coach_name):
+    """Writes the unlock command in one transaction so a lock landing mid-write can't be overwritten
+    by an unlock carrying an older note. `update` with a map value replaces the whole lockCommand
+    (set(merge=True) deep-merges maps, which would leave the lock's `message` behind)."""
+    snap = ref.get(transaction=transaction)
+    command = {
+        "id": cmd_id,
+        "action": "unlock",
+        "by": coach,
+        "byName": coach_name,
+        "at": firestore.SERVER_TIMESTAMP,
+    }
+    if not snap.exists:
+        transaction.set(ref, {"lockCommand": command})
+        return
+    lock_note = _lock_note_for((snap.to_dict() or {}).get("lockCommand"))
+    if lock_note:
+        command["lockNote"] = lock_note
+    transaction.update(ref, {
+        "lockedByUID": firestore.DELETE_FIELD,
+        "lockedByName": firestore.DELETE_FIELD,
+        "lockCommand": command,
+    })
+
+
 @https_fn.on_request()
 def unlockApp(req: https_fn.Request) -> https_fn.Response:
     uid = req.args.get("uid")
@@ -96,20 +141,8 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
     # the request (the coach sees the error) rather than push an unlock that nothing records.
     cmd_id = uuid.uuid4().hex
     try:
-        db.collection("userSettings").document(uid).set(
-            {
-                "lockedByUID": firestore.DELETE_FIELD,
-                "lockedByName": firestore.DELETE_FIELD,
-                "lockCommand": {
-                    "id": cmd_id,
-                    "action": "unlock",
-                    "by": coach,
-                    "byName": coach_name,
-                    "at": firestore.SERVER_TIMESTAMP,
-                },
-            },
-            merge=True,
-        )
+        ref = db.collection("userSettings").document(uid)
+        firestore.transactional(_record_unlock)(db.transaction(), ref, cmd_id, coach, coach_name)
         print(f"Recorded unlock command [{cmd_id}] for UID: [{uid}]")
     except Exception as e:
         print(f"Error writing lockCommand for UID [{uid}]: {e}")
