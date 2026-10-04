@@ -297,6 +297,15 @@ struct ActionMessageTransportTests {
         #expect(query.contains("msg=a%26b%3Dc%20d") || query.contains("msg=a%26b=c%20d"))
     }
 
+    @Test func unlockURLMessageMirrorsLock() {
+        let plain = items(UnlockService.makeUnlockURL(childUID: "kid", coachUID: "coach", now: now))
+        let noted = items(UnlockService.makeUnlockURL(childUID: "kid", coachUID: "coach", message: " a&b \n c ", now: now))
+        #expect(plain["msg"] == nil)
+        #expect(plain["sig"] == noted["sig"])
+        #expect(noted["msg"] == "a&b c")
+        #expect(items(UnlockService.makeUnlockURL(childUID: "kid", coachUID: "coach", message: " ", now: now))["msg"] == nil)
+    }
+
     @Test func lockURLBlankMessageIsOmitted() {
         let q = items(UnlockService.makeLockURL(childUID: "kid", coachUID: "coach", message: " \n ", now: now))
         #expect(q["msg"] == nil)
@@ -433,6 +442,31 @@ struct CoachActionDisplayTests {
     @Test func snoozeWithServerLockNoteBadgesLockerGreyAndHalosSnoozer() {
         let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand(["lockNote": note])])
         #expect(r["A"] == CoachActionDisplay(lock: .snoozed, halo: false, lockNote: "exam at 4", snoozedByName: "Bea Lee"))
+        #expect(r["B"] == CoachActionDisplay(lock: nil, halo: true))
+    }
+
+    @Test func snoozeMessageIsOnTheSnoozersHaloOnly() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand(["message": "10 min, go"])])
+        #expect(r["B"]?.snoozeNote == "10 min, go")
+        #expect(r["B"]?.snoozeId == "U1")
+        #expect(r["B"]?.lockNote == nil)
+    }
+
+    @Test func snoozeMessageDoesNotReplaceTheLockNote() {
+        let r = derive(["traineeStatus": "snoozedLock",
+                        "lockCommand": unlockCommand(["by": "A", "message": "go", "lockNote": note])])
+        #expect(r["A"]?.lockNote == "exam at 4")
+        #expect(r["A"]?.snoozeNote == "go")
+    }
+
+    @Test func endedSnoozeKeepsTheNoteButNotTheDefaultOpenKey() {
+        let r = derive(["traineeStatus": "cutOff", "lockCommand": unlockCommand(["message": "go"])])
+        #expect(r["B"]?.snoozeNote == "go")
+        #expect(r["B"]?.snoozeId == nil)
+    }
+
+    @Test func snoozeWithoutMessageHasNoNoteOrKey() {
+        let r = derive(["traineeStatus": "snoozedLock", "lockCommand": unlockCommand()])
         #expect(r["B"] == CoachActionDisplay(lock: nil, halo: true))
     }
 

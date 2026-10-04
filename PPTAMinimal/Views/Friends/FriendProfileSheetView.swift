@@ -17,6 +17,8 @@ struct FriendProfileSheetView: View {
     @State private var lockNote = ""
     @State private var showSnoozeNote = false
     @State private var snoozeNote = ""
+    @State private var showGrantNote = false
+    @State private var grantNote = ""
     @Environment(\.dismiss) private var dismiss
 
     init(otherUserId: String, snapshot: FriendProfileViewModel.Snapshot = .init()) {
@@ -109,14 +111,25 @@ struct FriendProfileSheetView: View {
                 if didUnfriend { dismiss() }
             }
             .sheet(isPresented: $showLockNote) {
-                LockNoteSheet(name: vm.name, note: $lockNote) { note in
+                ActionNoteSheet(title: "Lock \(vm.name.firstNameOnly)?", subtitle: "They'll see your note with the lock.",
+                                confirmTitle: "Lock", confirmColor: .orange, note: $lockNote) { note in
                     lock(message: note)
                 }
                 .presentationDetents([.height(280)])
             }
             .sheet(isPresented: $showSnoozeNote) {
-                SnoozeRequestNoteSheet(name: vm.name, note: $snoozeNote) { note in
+                ActionNoteSheet(title: "Ask \(vm.name.firstNameOnly) for more time?", subtitle: "They'll see your note with the request.",
+                                confirmTitle: "Send", confirmColor: TraineeStatus.snoozedLock.ringColor ?? .blue,
+                                note: $snoozeNote) { note in
                     vm.requestSnooze(message: note)
+                }
+                .presentationDetents([.height(280)])
+            }
+            .sheet(isPresented: $showGrantNote) {
+                ActionNoteSheet(title: "Snooze \(vm.name.firstNameOnly)'s lock?", subtitle: "They'll see your note with the snooze.",
+                                confirmTitle: "Snooze", confirmColor: TraineeStatus.snoozedLock.ringColor ?? .blue,
+                                note: $grantNote) { note in
+                    unlock(message: note)
                 }
                 .presentationDetents([.height(280)])
             }
@@ -166,29 +179,38 @@ struct FriendProfileSheetView: View {
         // A pending lock counts too, so a lock the phone hasn't acked can still be released.
         guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock || vm.hasPendingLock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
-        // Signed when tapped — see `makeLockActionIfNeeded`.
-        let childUID = otherUserId
+        // Signed when the sheet's Snooze is tapped — see `makeLockActionIfNeeded`.
         return {
-            guard let url = UnlockService.makeUnlockURL(childUID: childUID, coachUID: coachUID) else { return }
-            Task { await vm.performUnlock(url: url) }
+            grantNote = ""
+            showGrantNote = true
         }
+    }
+
+    private func unlock(message: String) {
+        guard let coachUID = Auth.auth().currentUser?.uid else { return }
+        guard let url = UnlockService.makeUnlockURL(childUID: otherUserId, coachUID: coachUID, message: message) else { return }
+        Task { await vm.performUnlock(url: url) }
     }
 }
 
-/// Optional note step before a coach lock. The URL is signed by the caller when Lock is tapped.
-private struct LockNoteSheet: View {
-    let name: String
+/// Optional note step before a coach lock, a snooze, or a snooze request. Sending with no note is the
+/// same as before. The caller signs the URL when the confirm button is tapped.
+private struct ActionNoteSheet: View {
+    let title: String
+    let subtitle: String
+    let confirmTitle: String
+    let confirmColor: Color
     @Binding var note: String
-    let onLock: (String) -> Void
+    let onConfirm: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 6) {
-                Text("Lock \(name.firstNameOnly)?")
+                Text(title)
                     .font(.custom("BambiBold", size: 22))
                     .foregroundColor(Color("primaryColor"))
-                Text("They'll see your note with the lock.")
+                Text(subtitle)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -206,63 +228,15 @@ private struct LockNoteSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 Button {
-                    onLock(note)
+                    onConfirm(note)
                     dismiss()
                 } label: {
-                    Text("Lock")
+                    Text(confirmTitle)
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-            }
-        }
-        .padding(24)
-    }
-}
-
-/// Optional note step before a snooze request to a coach. Sending with no note is the same as before.
-private struct SnoozeRequestNoteSheet: View {
-    let name: String
-    @Binding var note: String
-    let onSend: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 6) {
-                Text("Ask \(name.firstNameOnly) for more time?")
-                    .font(.custom("BambiBold", size: 22))
-                    .foregroundColor(Color("primaryColor"))
-                Text("They'll see your note with the request.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            ActionMessageField(text: $note)
-
-            HStack(spacing: 12) {
-                Button { dismiss() } label: {
-                    Text("Cancel")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(.systemGray5))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                Button {
-                    onSend(note)
-                    dismiss()
-                } label: {
-                    Text("Send")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(TraineeStatus.snoozedLock.ringColor ?? .blue)
+                        .background(confirmColor)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }

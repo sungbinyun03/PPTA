@@ -364,6 +364,8 @@ final class FriendProfileViewModel: ObservableObject {
         let result = await performLockUnlockAction(url: url)
         guard result.ok else { return }
         traineeStatus = .snoozedLock
+        // The server clears their pending requests with the grant; show it without waiting.
+        isRequestingSnoozeFromMe = false
         if let cmd = result.cmd {
             track(command: cmd, isLock: false)
         } else {

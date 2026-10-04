@@ -62,10 +62,23 @@ struct TraineeCoachView: View {
         return nil
     }
 
-    /// Trainee id and key of the latest snooze request to open. One popover at a time: my own lock note
-    /// (or the ask-a-coach popover) takes precedence.
-    private var requestTooltipKey: (traineeId: String, key: String)? {
+    /// Coach whose snooze note should be open: a running snooze with a note. Same tier as the lock note
+    /// (they are different states, so rarely both), after the ask-a-coach popover.
+    private var snoozeTooltipKey: (coachId: String, key: String)? {
         guard !askCoachWins, !showAskCoachInfo, lockTooltipKey == nil else { return nil }
+        for coach in viewModel.coaches {
+            if let a = viewModel.coachActions[coach.id], a.halo, a.snoozeNote != nil, let id = a.snoozeId,
+               !dismissedTooltipKeys.contains("snooze|\(id)") {
+                return (coach.id, "snooze|\(id)")
+            }
+        }
+        return nil
+    }
+
+    /// Trainee id and key of the latest snooze request to open. One popover at a time: my own lock note
+    /// or snooze note (or the ask-a-coach popover) takes precedence.
+    private var requestTooltipKey: (traineeId: String, key: String)? {
+        guard !askCoachWins, !showAskCoachInfo, lockTooltipKey == nil, snoozeTooltipKey == nil else { return nil }
         let keys = requestKeys
         guard let key = TooltipDefaultOpen.pick(candidates: Array(keys.values).sorted(), arrival: requestArrival,
                                                 dismissed: dismissedTooltipKeys),
@@ -84,7 +97,7 @@ struct TraineeCoachView: View {
         guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
         guard notifications.consumeCoachesPopoverRequest() else { return }
         // Wins over a default-open tooltip, which then stays closed for this lock/request.
-        if let key = lockTooltipKey?.key ?? requestTooltipKey?.key { dismissedTooltipKeys.insert(key) }
+        if let key = lockTooltipKey?.key ?? snoozeTooltipKey?.key ?? requestTooltipKey?.key { dismissedTooltipKeys.insert(key) }
         askCoachWins = true
         // The launch facade covers Home on a cold start; a popover presented under it is lost, so
         // wait for it to go. Consumed above, so the 15s window only has to cover reaching here.
@@ -225,7 +238,9 @@ struct TraineeCoachView: View {
                                 lockBadge: action?.lock,
                                 lockTooltip: action?.tooltip(coachFirstName: coach.name.firstNameOnly),
                                 halo: action?.halo ?? false,
-                                autoOpenKey: lockTooltipKey?.coachId == coach.id ? lockTooltipKey?.key : nil,
+                                haloTooltip: action?.snoozeNote,
+                                autoOpenKey: lockTooltipKey?.coachId == coach.id ? lockTooltipKey?.key
+                                    : snoozeTooltipKey?.coachId == coach.id ? snoozeTooltipKey?.key : nil,
                                 onAutoOpenDismiss: { dismissedTooltipKeys.insert($0) }
                             )
                         }

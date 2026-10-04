@@ -16,6 +16,7 @@ struct TraineeCircleView: View {
     private let lockBadge: CoachActionDisplay.Lock?
     private let lockTooltip: String?
     private let halo: Bool
+    private let haloTooltip: String?
     private let snoozeRequestNote: String?
     private let autoOpenKey: String?
     private let onAutoOpenDismiss: (String) -> Void
@@ -23,11 +24,12 @@ struct TraineeCircleView: View {
     @State private var showWarningPopover = false
     @State private var showSnoozePopover = false
     @State private var showLockPopover = false
+    @State private var showHaloPopover = false
     /// True while the open popover was opened by `autoOpenKey` rather than a tap.
     @State private var autoOpened = false
 
     init(status: TraineeStatus = .allClear, name: String, profilePicUrl: String? = nil, showSetupWarning: Bool = false, showSnoozeRequest: Bool = false,
-         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, snoozeRequestNote: String? = nil,
+         lockBadge: CoachActionDisplay.Lock? = nil, lockTooltip: String? = nil, halo: Bool = false, haloTooltip: String? = nil, snoozeRequestNote: String? = nil,
          autoOpenKey: String? = nil, onAutoOpenDismiss: @escaping (String) -> Void = { _ in }) {
         self.status = status
         self.name = name
@@ -37,6 +39,7 @@ struct TraineeCircleView: View {
         self.lockBadge = lockBadge
         self.lockTooltip = lockTooltip
         self.halo = halo
+        self.haloTooltip = haloTooltip
         self.snoozeRequestNote = snoozeRequestNote
         self.autoOpenKey = autoOpenKey
         self.onAutoOpenDismiss = onAutoOpenDismiss
@@ -56,7 +59,8 @@ struct TraineeCircleView: View {
                     Circle()
                         .stroke((status == .noStatus) ? .clear : Color(.systemBackground), lineWidth: 5)
                 }
-                // Soft blue ring + glow: this coach snoozed the user's lock. Decorative, not a tap target.
+                // Soft blue ring + glow: this coach snoozed the user's lock. A tap target only when they left
+                // a note, which the tooltip shows; the ring itself is the hit area, so the avatar still opens the profile.
                 .overlay {
                     if halo {
                         Circle()
@@ -64,6 +68,21 @@ struct TraineeCircleView: View {
                             .stroke(snoozeBlue.opacity(0.35), lineWidth: 6)
                             .shadow(color: snoozeBlue.opacity(0.6), radius: 8)
                             .allowsHitTesting(false)
+                        if let haloTooltip {
+                            HaloRing()
+                                .fill(Color.clear)
+                                .contentShape(HaloRing())
+                                .onTapGesture { showHaloPopover = true }
+                                .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
+                                    Text(haloTooltip)
+                                        .font(.subheadline)
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(16)
+                                        .frame(width: 260)
+                                        .presentationCompactAdaptation(.popover)
+                                }
+                        }
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -144,16 +163,15 @@ struct TraineeCircleView: View {
                 .font(.custom("SatoshiVariable-Bold_Light", size: 15))
         }
         // Default-open: the parent names the one tooltip that should be open (a coach's lock note, or
-        // the latest snooze request) and withdraws the key to close it. The badge shows either the
-        // lock or the hand, never both, so one key drives whichever exists.
+        // the snoozing coach's note, or the latest snooze request) and withdraws the key to close it.
+        // The key's prefix says which popover it is.
         .onChange(of: autoOpenKey, initial: true) { _, key in
             if key != nil { presentAutoOpen(key) } else if autoOpened { closeAutoOpen() }
         }
         .onChange(of: showLockPopover) { _, open in autoOpenClosed(open) }
         .onChange(of: showSnoozePopover) { _, open in autoOpenClosed(open) }
+        .onChange(of: showHaloPopover) { _, open in autoOpenClosed(open) }
     }
-
-    private var autoOpenIsLock: Bool { lockBadge != nil && lockTooltip != nil }
 
     private func presentAutoOpen(_ key: String?) {
         guard let key else { return }
@@ -162,9 +180,11 @@ struct TraineeCircleView: View {
         Task { @MainActor in
             await LaunchGate.shared.waitUntilDismissed()
             try? await Task.sleep(nanoseconds: 600_000_000)
-            guard autoOpenKey == key, !showLockPopover, !showSnoozePopover else { return }
+            guard autoOpenKey == key, !showLockPopover, !showSnoozePopover, !showHaloPopover else { return }
             autoOpened = true
-            if autoOpenIsLock { showLockPopover = true } else { showSnoozePopover = true }
+            if key.hasPrefix("lock|") { showLockPopover = true }
+            else if key.hasPrefix("snooze|") { showHaloPopover = true }
+            else { showSnoozePopover = true }
         }
     }
 
@@ -172,6 +192,7 @@ struct TraineeCircleView: View {
         autoOpened = false
         showLockPopover = false
         showSnoozePopover = false
+        showHaloPopover = false
     }
 
     /// The user closed the popover: report the key so it stays closed for this lock or request.
@@ -186,6 +207,13 @@ struct TraineeCircleView: View {
     }
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
+}
+
+/// Hit area of the snooze halo: a band over its ring, so a tap there doesn't hit the avatar's own button.
+private struct HaloRing: Shape {
+    func path(in rect: CGRect) -> Path {
+        Circle().inset(by: -5).path(in: rect).strokedPath(StrokeStyle(lineWidth: 14))
+    }
 }
 
 #Preview {

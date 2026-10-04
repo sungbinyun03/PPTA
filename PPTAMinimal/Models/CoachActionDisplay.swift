@@ -51,6 +51,11 @@ struct CoachActionDisplay: Equatable {
     var lockNote: String?
     /// Id of the lock command behind an active badge; keys the default-open tooltip so a new lock reopens it.
     var lockId: String?
+    /// A RECEIVED note only: what this coach said when they snoozed my lock (`lockCommand.message` of an
+    /// unlock). Shown on the halo; never the user's own snooze-request note.
+    var snoozeNote: String?
+    /// Id of the unlock command behind a RUNNING snooze that has a note; keys its default-open tooltip.
+    var snoozeId: String?
     /// Full name of the coach who snoozed, for the grey badge's tooltip.
     var snoozedByName: String?
 
@@ -91,6 +96,9 @@ struct CoachActionDisplay: Equatable {
         if let command, command.action == .unlock {
             if let snoozer = command.by, !snoozer.isEmpty {
                 result[snoozer, default: CoachActionDisplay()].halo = true
+                result[snoozer]?.snoozeNote = command.message
+                // Default-open only while the snooze runs, so an old one doesn't reopen each launch.
+                if status == .snoozedLock, command.message != nil { result[snoozer]?.snoozeId = command.id }
             }
             if let raw = (data["lockCommand"] as? [String: Any])?["lockNote"] as? [String: Any],
                let by = raw["by"] as? String, !by.isEmpty,

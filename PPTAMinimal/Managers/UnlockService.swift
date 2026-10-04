@@ -16,9 +16,13 @@ enum UnlockService {
     private static let secretData =
         Data("a282b15352ee133e244ee5be0a2e3b9fa11b5503b6f22b1a92b57806a412122e".utf8)
 
+    /// - Parameter message: optional note for the trainee; handled exactly like `makeLockURL`'s.
     static func makeUnlockURL(childUID: String,
-                              coachUID: String) -> URL? {
-        makeSignedURL(baseURL: unlockBaseURL, childUID: childUID, coachUID: coachUID)
+                              coachUID: String,
+                              message: String? = nil,
+                              now: Date = Date()) -> URL? {
+        makeSignedURL(baseURL: unlockBaseURL, childUID: childUID, coachUID: coachUID,
+                      message: message, now: now)
     }
 
     /// - Parameter message: optional note for the trainee. Cleaned here, and added as an unsigned `msg`
