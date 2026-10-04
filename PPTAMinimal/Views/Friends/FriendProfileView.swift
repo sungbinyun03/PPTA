@@ -229,24 +229,23 @@ struct FriendProfileView: View {
                                     statusPill
                                 }
 
-                                if let receivedNote {
-                                    MessageCard(message: receivedNote,
-                                                icon: receivedNoteIsLock ? "lock.fill" : "hand.raised.fill",
-                                                accent: receivedNoteIsLock ? .red : snoozeBlue)
-                                }
-
                                 // A bubble alongside the status pills rather than a big banner —
                                 // shows only while they're cut off and actually asking.
                                 if isAskingForMoreTime {
                                     moreTimePill
-
-                                    if let note = snoozeRequestMessage {
-                                        MessageCard(message: note, icon: "hand.raised.fill", accent: snoozeBlue)
-                                    }
                                 }
                             }
                         }
                         .padding(.top, 4)
+
+                        // MARK: Their note — its own block under the hero, same 20pt gutter as the CTAs
+                        if let receivedNote {
+                            MessageCard(message: receivedNote, sender: name.firstNameOnly)
+                        }
+
+                        if isAskingForMoreTime, let note = snoozeRequestMessage {
+                            MessageCard(message: note, sender: name.firstNameOnly)
+                        }
 
                         // MARK: Lock / Unlock CTAs (coach actions)
                         if let onLock {
@@ -657,37 +656,32 @@ struct FriendProfileView: View {
     )
 }
 
-/// A note someone attached to a lock, snooze or snooze request, shown in quotes on their profile.
+/// A note someone attached to a lock, snooze or snooze request, set as a centered pull quote:
+/// typography only, no card, so it reads as a person's voice rather than a UI element.
 private struct MessageCard: View {
     let message: String
-    let icon: String
-    let accent: Color
+    let sender: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: 21, height: 21)
-                .background(Circle().fill(accent))
-            VStack(alignment: .leading, spacing: 4) {
-                Text("THEIR MESSAGE")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color("primaryColor").opacity(0.6))
-                Text("\u{201C}\(message)\u{201D}")
-                    .font(.custom("Satoshi-Variable", size: 15))
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
+        VStack(spacing: 4) {
+            Text("\u{201C}")
+                .font(.system(size: 40, weight: .light, design: .serif))
+                .foregroundColor(Color("primaryColor").opacity(0.25))
+                .frame(height: 24)
+            Text(message)
+                .font(.system(size: 17, weight: .medium))
+                .italic()
+                .foregroundColor(Color("primaryColor"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\u{2014} \(sender)")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .padding(.top, 6)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color("primaryColor").opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(maxWidth: 280)
         .padding(.horizontal, 20)
-        .padding(.top, 4)
+        .padding(.vertical, 14)
     }
 }
