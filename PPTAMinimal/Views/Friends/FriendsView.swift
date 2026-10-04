@@ -20,6 +20,7 @@ private struct FriendProfileTarget: Identifiable {
 struct FriendsView: View {
     @StateObject private var vm = FriendsViewModel()
     @EnvironmentObject private var roleInbox: RoleRequestsInboxViewModel
+    @EnvironmentObject private var statusCenter: StatusCenterViewModel
     @State private var phoneToAdd: String = ""
     @State private var isContactsImportPresented = false
     @State private var showContactsPermissionAlert = false
@@ -259,7 +260,9 @@ struct FriendsView: View {
         .sheet(item: $profileTarget, onDismiss: { Task { await vm.refresh() } }) { target in
             FriendProfileSheetView(
                 otherUserId: target.id,
-                snapshot: .init(name: target.name, profilePicUrl: target.profilePicUrl?.absoluteString)
+                snapshot: .init(name: target.name, profilePicUrl: target.profilePicUrl?.absoluteString),
+                receivedNote: statusCenter.coachActions[target.id]?.receivedNote,
+                receivedNoteIsLock: statusCenter.coachActions[target.id]?.snoozeNote == nil
             )
         }
         .alert("Contacts Permission Required", isPresented: $showContactsPermissionAlert) {
@@ -514,5 +517,6 @@ struct FriendsView_Previews: PreviewProvider {
         return FriendsView()
             .environmentObject(auth)
             .environmentObject(RoleRequestsInboxViewModel())
+            .environmentObject(StatusCenterViewModel())
     }
 }
