@@ -18,8 +18,12 @@ struct TraineeCoachView: View {
     /// (a request has no timestamp). See `TooltipDefaultOpen`.
     @State private var dismissedTooltipKeys: Set<String> = []
     @State private var requestArrival: [String] = []
-    /// A shield-notification handoff is on its way or showing: it wins, so no default-open tooltip.
+    /// A shield-notification handoff to the hand-hint popover (limit lock) is on its way: it wins, so no
+    /// default-open tooltip.
     @State private var askCoachWins = false
+    /// A shield-notification handoff to the lock tooltip of the coach holding my lock: forces it open
+    /// (note or fallback sentence, dismissed before or not) until it is closed.
+    @State private var handoffLock: (coachId: String, key: String)?
     @ObservedObject private var notifications = NotificationManager.shared
 
     private var snoozeBlue: Color { TraineeStatus.snoozedLock.ringColor ?? .blue }
@@ -50,8 +54,20 @@ struct TraineeCoachView: View {
         return keys
     }
 
-    /// Key of the coach whose lock note should be open: the coach holding my lock, with a note.
+    /// The coach who locked me, while that lock is on.
+    private var lockHolderId: String? {
+        viewModel.coaches.first { viewModel.coachActions[$0.id]?.lock == .active }?.id
+    }
+
+    /// A coach lock is on (the hand hint is for a limit/Hardcore lock only, which has no coach badge).
+    private var coachLockActive: Bool {
+        viewModel.coachActions.values.contains { $0.lock == .active }
+    }
+
+    /// Key of the coach whose lock note should be open: the coach holding my lock, with a note; or the
+    /// shield handoff, which opens it regardless.
     private var lockTooltipKey: (coachId: String, key: String)? {
+        if let handoffLock, handoffLock.coachId == lockHolderId { return handoffLock }
         guard !askCoachWins, !showAskCoachInfo else { return nil }
         for coach in viewModel.coaches {
             if let a = viewModel.coachActions[coach.id], a.lock == .active, a.lockNote != nil, let id = a.lockId,
@@ -93,11 +109,25 @@ struct TraineeCoachView: View {
         dismissedTooltipKeys = dismissedTooltipKeys.filter { !$0.hasPrefix("request|") || ordered.contains($0) }
     }
 
+    private func tooltipDismissed(_ key: String) {
+        dismissedTooltipKeys.insert(key)
+        if handoffLock?.key == key { handoffLock = nil }
+    }
+
     private func presentAskCoachInfoIfRequested() {
         guard notifications.coachesPopoverRequestedAt != nil, viewModel.isCurrentUserCutOff else { return }
+        // A coach lock is on but that coach isn't loaded yet: wait (re-runs when the coaches arrive).
+        if coachLockActive && lockHolderId == nil { return }
         guard notifications.consumeCoachesPopoverRequest() else { return }
         // Wins over a default-open tooltip, which then stays closed for this lock/request.
         if let key = lockTooltipKey?.key ?? snoozeTooltipKey?.key ?? requestTooltipKey?.key { dismissedTooltipKeys.insert(key) }
+        // Coach lock: open that coach's lock tooltip (the circle waits for the launch gate and the
+        // transition itself, like any default-open one).
+        if let holder = lockHolderId {
+            handoffLock = (holder, "lock|handoff|\(UUID().uuidString)")
+            return
+        }
+        // Limit lock: the hand hint.
         askCoachWins = true
         // The launch facade covers Home on a cold start; a popover presented under it is lost, so
         // wait for it to go. Consumed above, so the 15s window only has to cover reaching here.
@@ -156,6 +186,7 @@ struct TraineeCoachView: View {
             .onAppear { presentAskCoachInfoIfRequested() }
             .onReceive(notifications.$coachesPopoverRequestedAt) { _ in presentAskCoachInfoIfRequested() }
             .onChange(of: viewModel.isCurrentUserCutOff) { _, _ in presentAskCoachInfoIfRequested() }
+            .onChange(of: viewModel.coaches.map(\.id)) { _, _ in presentAskCoachInfoIfRequested() }
             ScrollView(.horizontal) {
                 HStack(spacing: 40) {
                     ForEach(sortedTrainees) { trainee in
@@ -201,9 +232,10 @@ struct TraineeCoachView: View {
                             .presentationCompactAdaptation(.popover)
                     }
                 }
-                // While cut off, nudge the trainee to ask a coach for more time — shown even with no
-                // coaches (beside the "add a coach" warning above), where it points them to get one.
-                if viewModel.isCurrentUserCutOff {
+                // Cut off by the limit / Hardcore (no coach lock, so no lock badge to tap): nudge the trainee
+                // to ask a coach for more time — shown even with no coaches (beside the "add a coach"
+                // warning above), where it points them to get one. A coach lock explains itself via its badge.
+                if viewModel.isCurrentUserCutOff && !coachLockActive {
                     Button { showAskCoachInfo = true } label: {
                         Image(systemName: "hand.raised.fill")
                             .font(.system(size: 11, weight: .bold))
@@ -241,7 +273,7 @@ struct TraineeCoachView: View {
                                 haloTooltip: action?.snoozeNote,
                                 autoOpenKey: lockTooltipKey?.coachId == coach.id ? lockTooltipKey?.key
                                     : snoozeTooltipKey?.coachId == coach.id ? snoozeTooltipKey?.key : nil,
-                                onAutoOpenDismiss: { dismissedTooltipKeys.insert($0) }
+                                onAutoOpenDismiss: tooltipDismissed
                             )
                         }
                         .buttonStyle(.plain)
