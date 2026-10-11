@@ -32,6 +32,8 @@ struct AppLimitsView: View {
     @State private var showViableRequiredAlert = false
     /// Onboarding save aborted because this user's saved settings couldn't be loaded first.
     @State private var showLoadFailedAlert = false
+    /// Shown when the picker came back with whole categories, which we drop (see `dropCategories`).
+    @State private var showCategoriesRemovedAlert = false
 
     /// A Hardcore trainee who is cut off can't edit limits (that would be an escape hatch). The
     /// explanatory banner was removed per design, but the guard stays — controls are disabled.
@@ -97,6 +99,9 @@ struct AppLimitsView: View {
         }
         .padding()
         .familyActivityPicker(isPresented: $isPickerPresented, selection: $selection)
+        .onChange(of: isPickerPresented) { _, presented in
+            if !presented { dropCategories() }
+        }
         .sheet(isPresented: $showTimeLimitSheet) {
             TimeLimitSheetView(draftHours: $draftThresholdHour, draftMinutes: $draftThresholdMinutes)
         }
@@ -125,6 +130,11 @@ struct AppLimitsView: View {
             isPresented: $showViableRequiredAlert,
             title: "Set up App Limits first",
             message: "Set a daily time limit and pick at least one app before choosing Standard or Hardcore."
+        )
+        .appAlert(
+            isPresented: $showCategoriesRemovedAlert,
+            title: "Pick individual apps",
+            message: "Selecting whole categories aren't supported as your coaches can't see which exact apps you're limiting."
         )
         .appAlert(
             isPresented: $showLoadFailedAlert,
@@ -217,6 +227,16 @@ struct AppLimitsView: View {
             }
             .modifier(SettingsBox())
         }
+    }
+
+    /// Only individual apps can be monitored: a category shows up to coaches as just "Social" or
+    /// "Games", with no way to tell what's in it. Apple's picker can't hide categories, so any
+    /// that come back are stripped when it closes and the user is told to pick apps instead.
+    /// (Selections saved before this rule keep their categories until the picker is next used.)
+    private func dropCategories() {
+        guard !selection.categoryTokens.isEmpty else { return }
+        selection.categoryTokens = []
+        showCategoriesRemovedAlert = true
     }
 
     /// Presents the FamilyActivityPicker. In onboarding (a reinstall or new phone drops the Screen
