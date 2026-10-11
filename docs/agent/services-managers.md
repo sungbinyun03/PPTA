@@ -7,21 +7,17 @@ Covers §8 Services & Managers API from PPTAMinimal's agent guide. Back to [`../
 `updateUserField(uid:field:value:)`, `normalizePhoneNumber(_:)` (static).
 
 ### FriendshipRepository
-`sendFriendRequest(from:to:)`, `acceptRequest(_:)`, `declineOrCancelRequest(_:)`,
-`fetchIncomingRequests(for:)`, `fetchOutgoingRequests(for:)`, `fetchAcceptedFriendships(for:)`,
-`areFriends(_:_:)`.
+Reads hit Firestore; **writes go through the `role-requests` Cloud Run service** (which pushes
+the other person and dedupes): `sendFriendRequest(to:)` (accepts a pending request from them
+instead of creating a duplicate), `acceptRequest(_:)`, `declineRequest(_:)`, `cancelRequest(_:)`,
+`unfriend(otherId:)`. Reads: `fetchIncomingRequests(for:)`, `fetchOutgoingRequests(for:)`,
+`fetchAcceptedFriendships(for:)`, `areFriends(_:_:)`.
 
 ### RoleRequestRepository
 Reads hit Firestore; **writes go through Cloud Functions**:
 `fetchIncomingPending(for:)`, `fetchOutgoingPending(for:)`, `deleteAllInvolving(uid:)`,
 `createRoleRequest(targetId:role:)`, `accept(id:)`, `decline(id:)`, `cancel(id:)`,
 `removeRelationship(otherId:role:)`.
-
-### PendingCoachRequestStore
-Role requests can't be sent to strangers — the client and server both require an accepted
-friendship. Onboarding asks anyway, so the coach request is **parked** here and fires when the
-friendship lands. `queue(_:)`, `pending()`, `remove(_:)`, `clear()`, `drain(acceptedFriendIds:)`,
-`drainUsingCurrentFriendships()`. Drained by `FriendsViewModel.refresh()` and on foreground.
 
 ### ReinstallDetector
 `handleAuthenticated(uid:)`, once per launch. Keychain marker survives uninstall; the UserDefaults

@@ -125,7 +125,7 @@ struct FriendsView: View {
                                         subtitle: nil,
                                         onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
                                         onAccept: { Task { await vm.accept(pair.friendship.id) } },
-                                        onDecline: { Task { await vm.declineOrCancel(pair.friendship.id) } }
+                                        onDecline: { Task { await vm.decline(pair.friendship.id) } }
                                     )
                                 }
                             }
@@ -139,7 +139,7 @@ struct FriendsView: View {
                                         name: pair.user.name,
                                         subtitle: "Friend request",
                                         onTap: { profileTarget = FriendProfileTarget(id: pair.user.id, name: pair.user.name, profilePicUrl: nil) },
-                                        onCancel: { Task { await vm.declineOrCancel(pair.friendship.id) } }
+                                        onCancel: { Task { await vm.cancel(pair.friendship.id) } }
                                     )
                                 }
                                 ForEach(roleInbox.outgoing) { pair in

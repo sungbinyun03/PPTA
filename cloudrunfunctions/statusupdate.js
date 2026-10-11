@@ -20,7 +20,7 @@ const VALID_CAUSES = Object.values(LOCK_CAUSE);
 // the old silent background push (the app composes the banner locally), safe with any app build.
 // Flip to true only once the build that skips its local banner when `aps.alert` is present is on
 // every tester's phone; older builds would show two banners.
-const ALERT_PUSH = false;
+const ALERT_PUSH = true;
 
 function bad(res, code, reason) {
   res.status(code).set('Content-Type', 'text/plain').send(reason);

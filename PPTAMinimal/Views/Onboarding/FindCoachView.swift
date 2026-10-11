@@ -10,9 +10,7 @@
 //  one thing that makes the app work was buried two navigations deep and never mentioned.
 //
 //  The button now sends a *friend request only*. Pairing up as coach/trainee is a separate step
-//  done later from the friend's profile, matching steps 2 and 3 on `HowItWorksView`. (It used to
-//  send a coach request too — immediately for existing friends, or parked in
-//  `PendingCoachRequestStore` until acceptance — which the label couldn't honestly describe.)
+//  done later from the friend's profile, matching steps 2 and 3 on `HowItWorksView`.
 //
 //  Contacts access is requested from an explicit button, not from `.onAppear` — the old flow threw
 //  the system dialog up the instant the screen loaded, with no explanation of why PPTA wanted an
@@ -317,13 +315,9 @@ struct FindCoachView: View {
 
             if friendsVM.friends.contains(where: { $0.id == targetId }) { return }
 
-            // They already asked us: accepting is the friend request. Otherwise send one, skipping
-            // it if ours is already out — `sendFriendRequest` has no duplicate guard.
-            if let incoming = friendsVM.incomingRequests.first(where: { $0.user.id == targetId }) {
-                await friendsVM.accept(incoming.friendship.id)
-            } else if !friendsVM.outgoingRequests.contains(where: { $0.user.id == targetId }) {
-                await friendsVM.addFriend(userId: targetId)
-            }
+            // The server handles the rest: if they already asked us it accepts theirs, and if ours
+            // is already out it's a no-op.
+            await friendsVM.addFriend(userId: targetId)
         }
     }
 

@@ -35,7 +35,7 @@ else lives in `docs/agent/`.
 - **Explain before changing**: Before making any code changes, explain the plan and what specifically will change. Get implicit or explicit buy-in.
 - **Understand before changing**: Read and fully understand existing code — including *why* it exists — before modifying or deleting it.
 - **Use SwiftUI MCPs extensively**: Prefer `mcp__swiftlens__*` tools (swift_get_symbols_overview, swift_get_symbol_definition, swift_find_symbol_references_files, swift_validate_file, etc.) for semantic Swift analysis over raw file reads. Use `mcp__apple-docs__*` for API/framework documentation lookups before implementing anything with Apple frameworks.
-- **Comments here carry design rationale.** Many files (`ShieldSharedStore`, `ReinstallDetector`, `PendingCoachRequestStore`, `OnboardingCoordinator`, `DeviceActivityManager`) have long header comments explaining *why* a thing is shaped the way it is, usually because the obvious alternative was a bug. Read them before rewriting.
+- **Comments here carry design rationale.** Many files (`ShieldSharedStore`, `ReinstallDetector`, `OnboardingCoordinator`, `DeviceActivityManager`) have long header comments explaining *why* a thing is shaped the way it is, usually because the obvious alternative was a bug. Read them before rewriting.
 
 ---
 

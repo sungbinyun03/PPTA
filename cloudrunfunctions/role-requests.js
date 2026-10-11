@@ -13,7 +13,7 @@ const db = admin.firestore();
 // composes the banner locally), safe with any app build. Flip to true only once the build that
 // skips its local banner when `aps.alert` is present is on every tester's phone; older builds
 // would show two banners.
-const ALERT_PUSH = false;
+const ALERT_PUSH = true;
 
 function json(res, status, obj) {
   res.status(status).set("Content-Type", "application/json").send(JSON.stringify(obj));
@@ -211,6 +211,33 @@ function acceptedRelationshipHolds(mySettingsSnap, targetId, role) {
     : coachIds.includes(targetId);
 }
 
+/// Every friendship doc between the pair, split by direction (any status). Reads through `tx`
+/// when given, so sendFriendRequest can decide and write atomically.
+async function friendshipDocsBetween(a, b, tx) {
+  const fromA = db.collection("friendships")
+    .where("requesterId", "==", a)
+    .where("requesteeId", "==", b);
+  const fromB = db.collection("friendships")
+    .where("requesterId", "==", b)
+    .where("requesteeId", "==", a);
+  const [snapA, snapB] = await Promise.all(
+    tx ? [tx.get(fromA), tx.get(fromB)] : [fromA.get(), fromB.get()]
+  );
+  return { outgoing: snapA.docs, incoming: snapB.docs };
+}
+
+/// Tells `requesterId` that `acceptorId` accepted their friend request.
+async function sendFriendAcceptedPush(requesterId, acceptorId, acceptorName, friendshipId) {
+  await sendAlertPush(await getFcmToken(requesterId), {
+    type: "friendRequestAccepted",
+    acceptorId,
+    acceptorName: acceptorName || "Your friend",
+    friendshipId,
+  }, "Friend request accepted! 🎉",
+  `${firstName(acceptorName, "Your friend")} accepted your friend request.`,
+  `friendAcc-${friendshipId}`);
+}
+
 functions.http("roleRequests", async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
@@ -396,6 +423,130 @@ functions.http("roleRequests", async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    // ---- Friend requests ------------------------------------------------------------------
+    // Moved server-side from direct client writes so the other person gets a push even when
+    // their app is closed, and so requests are deduped (the old client write had no guard).
+
+    if (action === "sendFriendRequest") {
+      const targetId = String(req.body.targetId || "");
+      if (!targetId) return json(res, 400, { error: "targetId is required" });
+      if (targetId === uid) return json(res, 400, { error: "You cannot add yourself." });
+
+      const targetUser = await db.collection("users").doc(targetId).get();
+      if (!targetUser.exists) throw new Error("USER_NOT_FOUND");
+
+      // { id, status: "pending" | "accepted", isNew }. Reassigned on every transaction attempt.
+      let result = null;
+
+      await db.runTransaction(async (tx) => {
+        const { outgoing, incoming } = await friendshipDocsBetween(uid, targetId, tx);
+
+        if ([...outgoing, ...incoming].some((d) => d.get("status") === "accepted")) {
+          throw new Error("ALREADY_FRIENDS");
+        }
+
+        // They already asked us: sending one back is an accept, not a second pending doc.
+        const theirs = incoming.find((d) => d.get("status") === "pending");
+        if (theirs) {
+          tx.update(theirs.ref, {
+            status: "accepted",
+            acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          result = { id: theirs.id, status: "accepted", isNew: true };
+          return;
+        }
+
+        // Ours is already out: idempotent, no new doc and no second push.
+        const mine = outgoing.find((d) => d.get("status") === "pending");
+        if (mine) {
+          result = { id: mine.id, status: "pending", isNew: false };
+          return;
+        }
+
+        const ref = db.collection("friendships").doc();
+        tx.set(ref, {
+          id: ref.id, // the app's Friendship model decodes `id` from the document body
+          requesterId: uid,
+          requesteeId: targetId,
+          status: "pending",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        result = { id: ref.id, status: "pending", isNew: true };
+      });
+
+      if (result.isNew) {
+        const myName = await getUserName(uid);
+        if (result.status === "pending") {
+          await sendAlertPush(await getFcmToken(targetId), {
+            type: "friendRequestReceived",
+            requesterId: uid,
+            requesterName: myName || "Someone",
+            friendshipId: result.id,
+          }, "New friend request! 👋",
+          `${firstName(myName, "Someone")} sent you a friend request.`,
+          `friendReq-${result.id}`);
+        } else {
+          await sendFriendAcceptedPush(targetId, uid, myName, result.id);
+        }
+      }
+
+      return json(res, 200, { id: result.id, status: result.status });
+    }
+
+    if (action === "acceptFriendRequest") {
+      const id = String(req.body.id || "");
+      if (!id) return json(res, 400, { error: "id is required" });
+
+      const ref = db.collection("friendships").doc(id);
+      let requesterId = null;
+      let justAccepted = false;
+
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error("NOT_FOUND");
+        if (snap.get("requesteeId") !== uid) throw new Error("FORBIDDEN");
+
+        requesterId = snap.get("requesterId");
+        const status = snap.get("status");
+        justAccepted = false;
+        if (status === "accepted") return; // double tap: already done, no second push
+        if (status !== "pending") throw new Error("NOT_PENDING");
+
+        tx.update(ref, {
+          status: "accepted",
+          acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        justAccepted = true;
+      });
+
+      if (justAccepted) {
+        await sendFriendAcceptedPush(requesterId, uid, await getUserName(uid), id);
+      }
+
+      return json(res, 200, { ok: true });
+    }
+
+    // Decline (the person asked) and cancel (the person asking) both delete the pending doc,
+    // as the client did before. A doc that's already gone counts as done, so a double tap
+    // never shows an error.
+    if (action === "declineFriendRequest" || action === "cancelFriendRequest") {
+      const id = String(req.body.id || "");
+      if (!id) return json(res, 400, { error: "id is required" });
+
+      const partyField = action === "declineFriendRequest" ? "requesteeId" : "requesterId";
+      const ref = db.collection("friendships").doc(id);
+
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        if (snap.get(partyField) !== uid) throw new Error("FORBIDDEN");
+        if (snap.get("status") !== "pending") throw new Error("NOT_PENDING");
+        tx.delete(ref);
+      });
+
+      return json(res, 200, { ok: true });
+    }
+
     if (action === "removeRoleRelationship") {
       const otherId = String(req.body.otherId || "");
       const role = requireRole(req.body.role, res);
@@ -515,6 +666,8 @@ functions.http("roleRequests", async (req, res) => {
     if (msg === "FORBIDDEN") return json(res, 403, { error: "Forbidden" });
     if (msg === "NOT_PENDING") return json(res, 412, { error: "Not pending" });
     if (msg === "NOT_FRIENDS") return json(res, 412, { error: "Not friends" });
+    if (msg === "ALREADY_FRIENDS") return json(res, 409, { error: "You're already friends." });
+    if (msg === "USER_NOT_FOUND") return json(res, 404, { error: "No user found." });
     if (msg === "LOCKED_BY_COACH") {
       return json(res, 412, { error: "You can't remove a coach while your apps are locked." });
     }

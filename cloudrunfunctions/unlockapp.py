@@ -12,7 +12,7 @@ import uuid
 # Step 4 switch. False = the old silent background push (safe with any app build). Flip to True
 # only once the build that skips its local banner when `aps.alert` is present (f6af45d) is on
 # every tester's phone; older builds would show two banners.
-ALERT_PUSH = False
+ALERT_PUSH = True
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app()

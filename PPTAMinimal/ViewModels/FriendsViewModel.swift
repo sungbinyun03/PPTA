@@ -89,13 +89,6 @@ final class FriendsViewModel: ObservableObject {
             self.friendProfileImageURLs = imageURLs
             self.incomingRequests = incomingPairs
             self.outgoingRequests = outgoingPairs
-
-            // Onboarding lets a user ask a not-yet-friend to coach them. The role request can't be
-            // sent until the friendship is accepted, so it waits in `PendingCoachRequestStore` —
-            // and this is the first place that knows the friendship landed. `acceptedListener`
-            // calls `refresh()` on exactly that transition, so the ask fires within a second or
-            // two of the other person tapping Accept.
-            await PendingCoachRequestStore.drain(acceptedFriendIds: Set(acceptedUserIds))
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -137,26 +130,9 @@ final class FriendsViewModel: ObservableObject {
                     return
                 }
 
-                let newIds = currentIds.subtracting(self.seenIncomingFriendshipIds)
+                // No local banner: the server's `friendRequestReceived` push shows it, including
+                // when the app is closed. This listener only keeps the list live.
                 self.seenIncomingFriendshipIds = currentIds
-
-                if !newIds.isEmpty {
-                    // Fire and forget: show a banner per new request (cap to a few).
-                    let newFriendships = friendships.filter { fr in
-                        newIds.contains(fr.id)
-                    }
-                    for fr in newFriendships.prefix(3) {
-                        Task {
-                            let user = try? await self.users.fetchUser(by: fr.requesterId)
-                            let name = user?.name.firstNameOnly ?? "Someone"
-                            NotificationManager.shared.sendNotification(
-                                title: "New friend request! 👋",
-                                body: "\(name) sent you a friend request."
-                            )
-                        }
-                    }
-                }
-
                 Task { @MainActor in await self.refresh() }
             }
 
@@ -184,24 +160,9 @@ final class FriendsViewModel: ObservableObject {
                     return
                 }
 
-                let newIds = currentIds.subtracting(self.seenAcceptedFriendshipIds)
+                // No local banner: the server's `friendRequestAccepted` push shows it. This
+                // listener only keeps the friends list live.
                 self.seenAcceptedFriendshipIds = currentIds
-
-                if !newIds.isEmpty {
-                    // The acceptor is the requestee (the person this user had requested).
-                    let newlyAccepted = friendships.filter { newIds.contains($0.id) }
-                    for fr in newlyAccepted.prefix(3) {
-                        Task {
-                            let user = try? await self.users.fetchUser(by: fr.requesteeId)
-                            let name = user?.name.firstNameOnly ?? "Your friend"
-                            NotificationManager.shared.sendNotification(
-                                title: "Friend request accepted! 🎉",
-                                body: "\(name) accepted your friend request."
-                            )
-                        }
-                    }
-                }
-
                 Task { @MainActor in await self.refresh() }
             }
     }
@@ -232,7 +193,7 @@ final class FriendsViewModel: ObservableObject {
                 errorMessage = "You cannot add yourself."
                 return
             }
-            try await friendships.sendFriendRequest(from: uid, to: other.id)
+            try await friendships.sendFriendRequest(to: other.id)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
@@ -249,7 +210,7 @@ final class FriendsViewModel: ObservableObject {
             return
         }
         do {
-            try await friendships.sendFriendRequest(from: uid, to: otherUserId)
+            try await friendships.sendFriendRequest(to: otherUserId)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
@@ -311,10 +272,22 @@ final class FriendsViewModel: ObservableObject {
         }
     }
     
+    /// Declines a request sent to this user.
     @MainActor
-    func declineOrCancel(_ friendshipId: String) async {
+    func decline(_ friendshipId: String) async {
         do {
-            try await friendships.declineOrCancelRequest(friendshipId)
+            try await friendships.declineRequest(friendshipId)
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Withdraws a request this user sent.
+    @MainActor
+    func cancel(_ friendshipId: String) async {
+        do {
+            try await friendships.cancelRequest(friendshipId)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription

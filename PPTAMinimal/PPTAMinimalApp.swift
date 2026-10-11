@@ -220,6 +220,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
 
+        if let type = notification["type"] as? String, type == "friendRequestReceived" {
+            // Server alert push (role-requests `sendFriendRequest`). The local copy is only the
+            // fallback while that service's ALERT_PUSH is off.
+            if !Self.carriesAlert(notification) {
+                let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
+                NotificationManager.shared.sendNotification(
+                    title: "New friend request! 👋",
+                    body: "\(name) sent you a friend request."
+                )
+            }
+            completionHandler(.newData)
+            return
+        }
+
+        if let type = notification["type"] as? String, type == "friendRequestAccepted" {
+            if !Self.carriesAlert(notification) {
+                let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
+                NotificationManager.shared.sendNotification(
+                    title: "Friend request accepted! 🎉",
+                    body: "\(name) accepted your friend request."
+                )
+            }
+            completionHandler(.newData)
+            return
+        }
+
         if let type = notification["type"] as? String, type == "roleRequestAccepted" {
             if !Self.carriesAlert(notification) {
                 let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
@@ -328,11 +354,6 @@ struct PPTAMinimalApp: App {
                 // Names accrue in the App Group whenever a shield is drawn, which can be
                 // long after the user's last save.
                 UserSettingsManager.shared.refreshSharedAppStatsIfNeeded()
-                // Backstop for coach requests parked during onboarding. `FriendsViewModel` drains
-                // these too, but only while a view holding it is alive — a friendship accepted
-                // while the app was closed would otherwise sit unqueued until the user happened
-                // to open Friends.
-                await PendingCoachRequestStore.drainUsingCurrentFriendships()
             }
         }
     }

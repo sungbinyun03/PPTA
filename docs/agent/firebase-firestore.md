@@ -33,6 +33,8 @@ Email/password, Google OAuth, Apple OAuth. (Phone is verification-only, not a si
 | `traineeReinstalled` | Local notification: trainee deleted + reinstalled the app |
 | `roleRequestReceived` | Local notification: someone wants to be your coach/trainee |
 | `roleRequestAccepted` | Local notification: your request was accepted |
+| `friendRequestReceived` | Someone sent you a friend request (server alert from `role-requests` `sendFriendRequest`; local banner only as fallback) |
+| `friendRequestAccepted` | Your friend request was accepted (server alert from `role-requests`; local banner only as fallback) |
 | `relationshipsChanged` | **Silent** — just reloads settings so stale coaches/trainees disappear |
 
 Notification copy lives **app-side**, not on the server, so it can be reworded without a redeploy.

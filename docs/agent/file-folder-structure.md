@@ -23,7 +23,6 @@ PPTAMinimal/
 │   ├── UserSettingsRepository.swift  # UserSettings Firestore fetch
 │   ├── FriendshipRepository.swift    # Friendship request CRUD
 │   ├── RoleRequestRepository.swift   # Role request CRUD (reads Firestore, writes via Cloud Functions)
-│   ├── PendingCoachRequestStore.swift# Parks coach requests until a friendship is accepted
 │   ├── ReinstallDetector.swift       # Keychain-vs-UserDefaults reinstall detection
 │   ├── MercyRequestService.swift     # VESTIGIAL — old broadcast mercy flow, no-ops
 │   ├── CloudRunConfig.swift          # Cloud Run URL config

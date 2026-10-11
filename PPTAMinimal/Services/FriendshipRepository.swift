@@ -13,33 +13,37 @@ final class FriendshipRepository {
     private let collection = "friendships"
     private let usersCollection = "users"
 
-    /// Unfriending has to write the *other* user's `userSettings` (to strip this user from
-    /// their `coachIds`/`traineeIds`), which no client can do — so it goes through the same
-    /// Cloud Run relationships service that owns `removeRoleRelationship`.
+    /// All friendship writes go through the Cloud Run relationships service (`role-requests`),
+    /// which also owns unfriending and coach/trainee requests. Server-side means the other person
+    /// gets a push even when their app is closed, and requests are validated and deduped. Reads
+    /// stay direct Firestore queries/listeners.
     private let http = CloudRunHTTPClient(baseURL: CloudRunConfig.roleRequestsBaseURL)
 
+    // MARK: - Writes (Cloud Run)
 
-    func sendFriendRequest(from requesterId: String, to requesteeId: String) async throws {
-        let doc = db.collection(collection).document()
-        let friendship = Friendship(
-            id: doc.documentID,
-            requesterId: requesterId,
-            requesteeId: requesteeId,
-            status: .pending,
-            createdAt: Date()
-        )
-        try doc.setData(from: friendship)
+    /// Sends a friend request. If they already sent one to this user, the server accepts theirs
+    /// instead; if ours is already pending, it's a no-op. Throws "You're already friends." /
+    /// "No user found." as user-facing messages.
+    func sendFriendRequest(to requesteeId: String) async throws {
+        try await http.postJSON("", body: ["action": "sendFriendRequest", "targetId": requesteeId])
     }
-    
+
+    /// Accepts a request sent to this user. Safe to repeat.
     func acceptRequest(_ friendshipId: String) async throws {
-        try await db.collection(collection).document(friendshipId).updateData([
-            "status": FriendshipStatus.accepted.rawValue
-        ])
+        try await http.postJSON("", body: ["action": "acceptFriendRequest", "id": friendshipId])
     }
-    
-    func declineOrCancelRequest(_ friendshipId: String) async throws {
-        try await db.collection(collection).document(friendshipId).delete()
+
+    /// Declines a request sent to this user. Safe to repeat.
+    func declineRequest(_ friendshipId: String) async throws {
+        try await http.postJSON("", body: ["action": "declineFriendRequest", "id": friendshipId])
     }
+
+    /// Withdraws a request this user sent. Safe to repeat.
+    func cancelRequest(_ friendshipId: String) async throws {
+        try await http.postJSON("", body: ["action": "cancelFriendRequest", "id": friendshipId])
+    }
+
+    // MARK: - Reads (Firestore)
     
     func fetchIncomingRequests(for userId: String) async throws -> [Friendship] {
         let snap = try await db.collection(collection)

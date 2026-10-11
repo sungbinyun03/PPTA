@@ -26,6 +26,5 @@ migration folds the old device-wide `"onboardingComplete"` key into it).
 **On every `scenePhase == .active`:**
 1. `UserSettingsManager.applyPendingStatusIfNeeded()` — consume extension status writes
 2. `UserSettingsManager.refreshSharedAppStatsIfNeeded()` — pull app names/block counts the shield harvested
-3. `PendingCoachRequestStore.drainUsingCurrentFriendships()` — fire parked coach requests
 
 ---
