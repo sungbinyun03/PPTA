@@ -22,6 +22,29 @@ enum UnlockGrace {
     /// Minutes of *monitored-app usage* — not wall clock — a trainee gets after a coach
     /// releases them. The clock only runs while they're actually in the shielded apps.
     static let durationMinutes = 10
+
+    // MARK: Day scoping
+    //
+    // A snooze belongs to the day it was granted. The grace activity's window is ~24h (see
+    // `startUnlockGracePeriod`), so on its own it would outlive midnight and re-lock the trainee on
+    // the new day after their first 10 minutes — over the all-clear midnight already sent. The day
+    // it was armed is stamped in the App Group; the extension treats a grace from an earlier day as
+    // void: `intervalDidStart` stops it at the new day, and an expiry that fires anyway is ignored.
+
+    private static let armedDayKey = "unlockGraceArmedDay"
+    private static var suite: UserDefaults? { UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev") }
+
+    /// Called right after the grace activity is (re)armed.
+    static func recordArmed(now: Date = Date()) {
+        suite?.set(Calendar.current.startOfDay(for: now), forKey: armedDayKey)
+    }
+
+    /// True when the current grace was armed on a calendar day before `now`'s. False when it was
+    /// armed today or no stamp exists (a grace armed before this build — treated as today's).
+    static func isFromEarlierDay(now: Date = Date()) -> Bool {
+        guard let armed = suite?.object(forKey: armedDayKey) as? Date else { return false }
+        return armed < Calendar.current.startOfDay(for: now)
+    }
 }
 
 /// Names for the daily-limit threshold events, plus the tiered-warning logic.
@@ -587,6 +610,7 @@ class DeviceActivityManager {
                 during: schedule,
                 events: [UnlockGrace.eventName: event]
             )
+            UnlockGrace.recordArmed()
             print("Unlock grace period armed: \(UnlockGrace.durationMinutes) min of app usage.")
         } catch {
             // Failing to arm the grace period leaves the trainee unlocked for the rest of the

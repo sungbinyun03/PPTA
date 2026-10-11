@@ -28,6 +28,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // The grace window is a separate activity riding alongside the daily one; its
         // interval boundaries carry no meaning for daily status or streaks.
         guard activity != UnlockGrace.activityName else { return }
+
+        // A new day ends yesterday's snooze. Gated on the armed-day stamp, not done unconditionally:
+        // this callback also fires on mid-day monitoring restarts, and stopping today's grace then
+        // would cancel a snooze the trainee is still using. Ahead of the tracking guard so a snooze
+        // can't outlive the day even if pressure was switched Off overnight.
+        if UnlockGrace.isFromEarlierDay() {
+            DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
+        }
+
         let settings = LocalSettingsStore.load()
         guard settings.isTracking else { return }
 
@@ -72,6 +81,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // them again. The streak was already reset at the original cutoff, so pass
             // `resetStartDate: nil` — expiring grace shouldn't punish it a second time.
             if activity == UnlockGrace.activityName {
+                // Yesterday's snooze running out after midnight: void, not a re-lock. The new day has
+                // already reset the trainee to all clear; just retire the leftover activity.
+                if UnlockGrace.isFromEarlierDay() {
+                    DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
+                    return
+                }
                 ShieldPolicy.apply(settings.applications, to: store)  // refuses an empty selection; keeps the shield
                 DeviceActivityCenter().stopMonitoring([UnlockGrace.activityName])
                 LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
