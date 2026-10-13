@@ -144,7 +144,7 @@ class Req:
         self.args = args
 
 
-def call(settings, mod=unlockapp, msg=None, **dbkw):
+def call(settings, mod=unlockapp, msg=None, alert_push=False, **dbkw):
     db = FakeDB(settings, **dbkw)
     fm = FakeMessaging()
     args = {"uid": UID, "coach": COACH, "ts": str(NOW), "sig": sign()}
@@ -152,7 +152,7 @@ def call(settings, mod=unlockapp, msg=None, **dbkw):
         args["msg"] = msg
     with mock.patch.object(mod, "firestore", FakeFirestoreMod(db)), \
             mock.patch.object(mod, "messaging", fm), \
-            mock.patch.object(mod, "ALERT_PUSH", False), \
+            mock.patch.object(mod, "ALERT_PUSH", alert_push), \
             mock.patch.object(mod.time, "time", lambda: NOW), \
             mock.patch.object(mod.uuid, "uuid4", lambda: types.SimpleNamespace(hex=CMD)), \
             mock.patch.dict(os.environ, {"UNLOCK_SECRET": SECRET}):
@@ -288,6 +288,13 @@ class Push(unittest.TestCase):
         self.assertEqual(
             set(fm_new.sent[0][1]["data"]), {"type", "by", "byName", "cmd", "uid"}
         )
+
+    def test_alert_push_runs_the_extension_and_carries_send_time(self):
+        _, _, fm = call({}, alert_push=True)
+        (_, kw), = fm.sent
+        aps = kw["apns"][1]["payload"][1]["aps"][1]
+        self.assertIs(aps["mutable_content"], True)
+        self.assertTrue(kw["data"]["at"].isdigit())
 
 
 if __name__ == "__main__":

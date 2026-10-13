@@ -173,7 +173,10 @@ functions.http('statusUpdate', async (req, res) => {
     //   Sent in the body but NOT signed; kept for the data payload only (copy is centralized).
     // ▲ NEW: message — optional note on a mercyRequest. Sent in the body but NOT signed; sanitized
     //   below and omitted when empty, so a request without one behaves exactly as before.
-    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message } = data;
+    // ▲ NEW: cmd — the coach command (`lockCommand.id`) this status reports applying. Sent only by
+    //   the app's notification service extension, which applies a lock/snooze while PPTA is closed
+    //   and can't write Firestore itself; the server acks the command for it (see below). Signed.
+    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message, cmd } = data;
 
     if (!uid || !status || ts === undefined || ts === null || !sig) {
       return bad(res, 400, 'missing params');
@@ -211,6 +214,10 @@ functions.http('statusUpdate', async (req, res) => {
       return bad(res, 400, 'invalid cause');
     }
     const hasBy = typeof by === 'string' && by.length > 0;
+    const hasCmd = cmd !== undefined && cmd !== null && cmd !== '';
+    if (hasCmd && !(typeof cmd === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(cmd))) {
+      return bad(res, 400, 'invalid cmd');
+    }
 
     const secret = process.env.UNLOCK_SECRET;
     if (!secret) return bad(res, 500, 'server misconfiguration');
@@ -248,6 +255,7 @@ functions.http('statusUpdate', async (req, res) => {
     } else {
       if (hasCause) msg += `|${cause}`;
       if (hasBy) msg += `|${by}`;
+      if (hasCmd) msg += `|${cmd}`;
     }
 
     const expected = crypto
@@ -304,6 +312,30 @@ functions.http('statusUpdate', async (req, res) => {
       };
 
       await settingsRef.set(settingsUpdate, { merge: true });
+
+      // ▲ NEW: ack the coach command the extension applied, for the coach's sheet (which waits on
+      //   `lockAck`). Same rules as the app's own ack: only when it is still the current command,
+      //   so a late report can't overwrite the ack of a newer one. Best-effort.
+      const ackAction = status === 'cutOff' ? 'lock' : status === 'snoozedLock' ? 'unlock' : null;
+      if (hasCmd && ackAction && cause === LOCK_CAUSE.COACH) {
+        try {
+          await db.runTransaction(async (tx) => {
+            const snap = await tx.get(settingsRef);
+            const current = snap.exists ? snap.get('lockCommand') : null;
+            if (!current || current.id !== cmd || current.action !== ackAction) return;
+            tx.update(settingsRef, {
+              lockAck: {
+                id: cmd,
+                action: ackAction,
+                result: 'applied',
+                at: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            });
+          });
+        } catch (e) {
+          console.error('statusUpdate: lockAck write failed', e);
+        }
+      }
     } else if (isMercyRequest) {
       // ▲ NEW (per-coach): a mercy request never changes enforcement state (asking ≠ deciding),
       //   it just adds the chosen coach to the trainee's outstanding-request list. arrayUnion is

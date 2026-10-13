@@ -35,6 +35,9 @@ struct FriendProfileView: View {
     /// Where the coach's last Lock / Release has got to, from the trainee's ack. Defaulted so
     /// existing construction sites keep compiling.
     var lockDelivery: FriendProfileViewModel.LockDelivery? = nil
+    /// A lock or snooze this coach (or another) sent hasn't been applied on the trainee's phone yet.
+    /// Snooze is greyed out until it has, so a second command can't race the first.
+    var isAwaitingTrainee: Bool = false
     /// Defaulted so existing construction sites keep compiling; the sheet passes the real list.
     var monitoredAppNames: [String] = []
     var monitoredAppStats: [MonitoredAppStat] = []
@@ -264,7 +267,7 @@ struct FriendProfileView: View {
                         }
 
                         if let onUnlock {
-                            let isSnoozed = traineeStatus == .snoozedLock
+                            let isSnoozed = traineeStatus == .snoozedLock || isAwaitingTrainee
                             Button { onUnlock() } label: {
                                 HStack {
                                     Text("Snooze Lock for 10 Min")

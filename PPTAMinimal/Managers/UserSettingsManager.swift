@@ -235,6 +235,8 @@ final class UserSettingsManager : ObservableObject{
         update { settings in
             if let status = pending.status {
                 settings.traineeStatus = status
+                // The status replaces whatever lock was standing, so its coach (or none) goes with it.
+                settings.lockedByName = pending.lockedByName
             }
             if let reset = pending.resetStartDate {
                 settings.startDailyStreakDate = reset

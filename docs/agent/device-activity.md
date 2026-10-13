@@ -87,10 +87,23 @@ recording the baseline was unreliable and produced "0m of 3m" after a limit was 
 `hashValue`** — Swift seeds hashing randomly per process, so an extension-written key would never
 match one computed in the app.
 
+### Coach lock/snooze while PPTA is closed (`PPTANotificationService`)
+iOS never runs a force-quit app for a push, so a lock/snooze used to wait for the next app open.
+`lockApp`/`unlockApp` alert pushes carry `mutable-content` and a send time (`at`, ms), which makes iOS
+run this extension for them in any app state. It:
+- drops a push for another account, already applied, or older than `lastAppliedLockCommandAt`;
+- takes `LockCommandClaim` (an `O_EXCL` file in the App Group) so the app's push handler /
+  `LockReconciler` don't apply the same command; they claim too;
+- runs `DeviceActivityManager.applyLockLocally` / `applyUnlockLocally` (shield, shield copy, grace);
+- saves the status to the App Group blob + pending status, and POSTs `statusUpdate` with a signed
+  `cmd`, which updates Firestore, fans out to coaches and writes `lockAck`.
+Not run when the trainee has notifications off for PPTA; the app then applies on next open as before.
+Links Firebase only because the shared model files import it; it must never call Firebase.
+
 ### App group bridge (LocalSettingsStore)
 - App group ID: `group.com.sungbinyun.com.PPTADev`
 - `save(_:)` / `load()`, `saveCurrentUserId(_:)` / `loadCurrentUserId()`
-- `savePendingStatus(_:resetStartDate:)` / `consumePendingStatus()`
+- `savePendingStatus(_:resetStartDate:lockedByName:)` / `consumePendingStatus()` (a pending status also sets `lockedByName`: the coach for an extension-applied lock, nil otherwise)
 - Main app calls `applyPendingStatusIfNeeded()` on app launch (HomeView.onAppear), on every foreground (scenePhase), and when a local notification presents in foreground
 
 ### ScreenTime report (PPTAReport extension)

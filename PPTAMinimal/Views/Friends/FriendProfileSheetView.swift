@@ -69,6 +69,7 @@ struct FriendProfileSheetView: View {
                     onUnlock: makeUnlockActionIfNeeded(),
                     lockedByName: vm.lockedByName,
                     lockDelivery: vm.lockDelivery,
+                    isAwaitingTrainee: vm.isAwaitingTrainee,
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
                     isRequestingSnoozeFromMe: vm.isRequestingSnoozeFromMe,
@@ -146,9 +147,9 @@ struct FriendProfileSheetView: View {
     private func makeLockActionIfNeeded() -> (() -> Void)? {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isTrainee else { return nil }
-        // A lock still waiting on the trainee's phone isn't offered again; a release still waiting
-        // can be taken back by locking.
-        guard (vm.traineeStatus == .attentionNeeded && !vm.hasPendingLock) || vm.hasPendingUnlock else { return nil }
+        // Nothing is offered while a lock or snooze is still waiting on the trainee's phone: a second
+        // command sent then (e.g. a Lock tapped while a snooze is in flight) would undo the first.
+        guard vm.traineeStatus == .attentionNeeded, !vm.isAwaitingTrainee else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         // Signed when the sheet's Lock is tapped, not here: the signature carries a timestamp the
         // server rejects after 5 minutes, and this runs on every body evaluation, so a sheet left
@@ -180,8 +181,8 @@ struct FriendProfileSheetView: View {
         guard vm.friendshipStatus == .isFriend else { return nil }
         guard vm.isTrainee else { return nil }
         // Show the button for both cutOff (active) and snoozedLock (greyed-out/disabled in FriendProfileView).
-        // A pending lock counts too, so a lock the phone hasn't acked can still be released.
-        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock || vm.hasPendingLock else { return nil }
+        // It is also greyed out while a command is waiting on the trainee's phone (`isAwaitingTrainee`).
+        guard vm.traineeStatus == .cutOff || vm.traineeStatus == .snoozedLock else { return nil }
         guard let coachUID = Auth.auth().currentUser?.uid else { return nil }
         // Signed when the sheet's Snooze is tapped — see `makeLockActionIfNeeded`.
         return {

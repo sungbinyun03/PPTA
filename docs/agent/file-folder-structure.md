@@ -71,6 +71,9 @@ PPTAShieldConfiguration/              # Shield UI extension target (the lock scr
 PPTAShieldAction/                     # Shield button-tap extension target
 └── ShieldActionExtension.swift
 
+PPTANotificationService/              # Notification service extension: applies coach lock/snooze pushes while PPTA is closed
+└── NotificationService.swift
+
 PPTAReport/                           # ScreenTime report extension target
 ├── PPTAReport.swift                  # Registers the three scenes
 ├── ScreenTimeActivityReport.swift    # ActivityReport / AppDeviceActivity / WeeklyReport
@@ -83,6 +86,6 @@ docs/                                 # onboarding-redesign.md, onboarding-asset
 scripts/                              # check-onboarding-assets.py, import-onboarding-assets.py
 ```
 
-**Xcode targets (7):** `PPTAMinimal`, `AppMonitor`, `PPTAReport`, `PPTAShieldConfiguration`, `PPTAShieldAction`, `PPTAMinimalTests`, `PPTAMinimalUITests`.
+**Xcode targets (8):** `PPTAMinimal`, `AppMonitor`, `PPTAReport`, `PPTAShieldConfiguration`, `PPTAShieldAction`, `PPTANotificationService` (bundle ID `…PPTAMinimal.NotificationService`), `PPTAMinimalTests`, `PPTAMinimalUITests`.
 
 ---

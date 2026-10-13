@@ -143,6 +143,14 @@ enum LimitFireGate {
         return raised > released
     }
 
+    /// Forgets that the limit fired today. For a save that resets the status to `.allClear`: the
+    /// restart re-fires the limit at once if today's usage is already over, and without this the
+    /// marker would swallow that fire and leave the trainee green while over their limit. The repeat
+    /// does re-notify the coaches, which is right: the status they last saw was just wiped.
+    static func resetReached() {
+        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.removeObject(forKey: reachedKey)
+    }
+
     /// The marker to store if a warning at `minutes` should be delivered now; nil to drop it.
     static func nextWarningMarker(stored: String?, day: String, limitMinutes: Int, minutes: Int) -> String? {
         let parts = stored?.split(separator: "|").map(String.init) ?? []
@@ -467,31 +475,8 @@ class DeviceActivityManager {
     @MainActor
     @discardableResult
     func handleRemoteLock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false, message: String? = nil) async -> LockOutcome {
-        let settings = LocalSettingsStore.load()
-        guard settings.isTracking else {
-            print("handleRemoteLock: pressure is Off; not locking.")
-            return .notTracking
-        }
-        // An empty selection would make `ShieldPolicy.apply` write nil/nil, i.e. clear the shield.
-        guard !settings.applications.applicationTokens.isEmpty || !settings.applications.categoryTokens.isEmpty else {
-            print("handleRemoteLock: no apps selected; not locking.")
-            return .emptySelection
-        }
-
-        // A coach re-locking mid-grace ends the grace period outright.
-        cancelUnlockGracePeriod()
-
-        // The shield extension reads the App Group context when iOS (re)draws the shield, which can
-        // be the instant the shield below is applied. The status write further down is too late for
-        // that draw, so the coach's name and note go in first.
-        var lockedView = settings
-        lockedView.traineeStatus = .cutOff
-        lockedView.lockedByName = coach
-        UserSettingsManager.syncShieldContext(from: lockedView)
-
-        if ShieldPolicy.apply(settings.applications, to: store) {
-            ShieldPolicy.recordCoachLock(by: coach)
-        }
+        let outcome = applyLockLocally(LocalSettingsStore.load(), coach: coach)
+        guard outcome == .applied else { return outcome }
 
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
@@ -526,8 +511,71 @@ class DeviceActivityManager {
     @MainActor
     @discardableResult
     func handleRemoteUnlock(from coach: String, coachUID: String?, pushShowsBanner: Bool = false, message: String? = nil) async -> LockOutcome {
-        let settings = LocalSettingsStore.load()
+        let outcome = applyUnlockLocally(LocalSettingsStore.load())
+        guard outcome == .applied else { return outcome }
 
+        if !pushShowsBanner {
+            NotificationManager.shared.sendNotification(
+                title: "Lock snoozed by \(coach)! ⏳",
+                body: ActionMessage.snoozeNotificationBody(message: message, minutes: UnlockGrace.durationMinutes)
+            )
+        }
+
+        // Sync in-memory state so the main app reflects the snooze immediately, and notify all
+        // coaches (including the snoozer) that this coach snoozed the lock.
+        // Clear the locking coach: the shield's next appearance is a grace expiry, not this
+        // coach's lock, and a stale name would misattribute it.
+        async let saved: Void = UserSettingsManager.shared.updateAndWait {
+            $0.traineeStatus = .snoozedLock
+            $0.lockedByName = nil
+        }
+        async let posted: Void = postToStatusUpdateAndWait(
+            uid: LocalSettingsStore.loadCurrentUserId(),
+            status: .snoozedLock,
+            type: nil,
+            cause: .coach,
+            by: coachUID
+        )
+        _ = await (saved, posted)
+        return .applied
+    }
+
+    // MARK: - On-device half of a coach lock / unlock
+
+    /// Everything a coach lock does on this device that needs neither the network nor the app: the
+    /// shield, the shield's copy, ending any grace. Shared by `handleRemoteLock` and the
+    /// notification service extension, which applies the lock while PPTA isn't running.
+    func applyLockLocally(_ settings: UserSettings, coach: String) -> LockOutcome {
+        guard settings.isTracking else {
+            print("applyLockLocally: pressure is Off; not locking.")
+            return .notTracking
+        }
+        // An empty selection would make `ShieldPolicy.apply` write nil/nil, i.e. clear the shield.
+        guard !settings.applications.applicationTokens.isEmpty || !settings.applications.categoryTokens.isEmpty else {
+            print("applyLockLocally: no apps selected; not locking.")
+            return .emptySelection
+        }
+
+        // A coach re-locking mid-grace ends the grace period outright.
+        cancelUnlockGracePeriod()
+
+        // The shield extension reads the App Group context when iOS (re)draws the shield, which can
+        // be the instant the shield below is applied. The status write is too late for that draw,
+        // so the coach's name and note go in first.
+        var lockedView = settings
+        lockedView.traineeStatus = .cutOff
+        lockedView.lockedByName = coach
+        UserSettingsManager.syncShieldContext(from: lockedView)
+
+        if ShieldPolicy.apply(settings.applications, to: store) {
+            ShieldPolicy.recordCoachLock(by: coach)
+        }
+        return .applied
+    }
+
+    /// The on-device half of a coach snooze (see `applyLockLocally`): lifts the shield and arms the
+    /// grace window that re-locks after `UnlockGrace.durationMinutes` of use.
+    func applyUnlockLocally(_ settings: UserSettings) -> LockOutcome {
         // Clearing the shield when not tracking is a harmless no-op (nothing was armed). We simply
         // don't notify or arm grace in that case: you can only be unlocked if you were locked, and
         // you can only be locked while tracking — so the not-tracking branch shouldn't really occur.
@@ -543,32 +591,9 @@ class DeviceActivityManager {
 
         guard settings.isTracking else { return .notTracking }
 
-        if !pushShowsBanner {
-            NotificationManager.shared.sendNotification(
-                title: "Lock snoozed by \(coach)! ⏳",
-                body: ActionMessage.snoozeNotificationBody(message: message, minutes: UnlockGrace.durationMinutes)
-            )
-        }
-
-        // Sync in-memory state so the main app reflects the snooze immediately, and notify all
-        // coaches (including the snoozer) that this coach snoozed the lock.
-        // Clear the locking coach: the shield's next appearance is a grace expiry, not this
-        // coach's lock, and a stale name would misattribute it.
-        // Grace is armed first, before any network wait: it is what enforces the re-lock, and
-        // the write below can take seconds.
+        // Armed before any network wait: it is what enforces the re-lock, and the status write
+        // after it can take seconds.
         startUnlockGracePeriod(settings: settings)
-        async let saved: Void = UserSettingsManager.shared.updateAndWait {
-            $0.traineeStatus = .snoozedLock
-            $0.lockedByName = nil
-        }
-        async let posted: Void = postToStatusUpdateAndWait(
-            uid: LocalSettingsStore.loadCurrentUserId(),
-            status: .snoozedLock,
-            type: nil,
-            cause: .coach,
-            by: coachUID
-        )
-        _ = await (saved, posted)
         return .applied
     }
 
@@ -707,7 +732,7 @@ class DeviceActivityManager {
         targetCoach: String? = nil,
         extra: [String: String] = [:]
     ) {
-        guard let req = makeStatusUpdateRequest(
+        guard let req = Self.makeStatusUpdateRequest(
             uid: uid, status: status, type: type, cause: cause, by: by,
             targetCoach: targetCoach, extra: extra
         ) else { return }
@@ -724,32 +749,37 @@ class DeviceActivityManager {
         cause: LockCause? = nil,
         by: String? = nil
     ) async {
-        guard let req = makeStatusUpdateRequest(
+        guard let req = Self.makeStatusUpdateRequest(
             uid: uid, status: status, type: type, cause: cause, by: by,
             targetCoach: nil, extra: [:]
         ) else { return }
         _ = try? await URLSession.shared.data(for: req)
     }
 
-    private func makeStatusUpdateRequest(
+    /// - Parameter cmd: the coach command (`lockCommand.id`) this status reports applying. The
+    ///   server then acks it (`lockAck`) for the coach's sheet. Only the notification service
+    ///   extension sends it: it can't reach Firestore itself, while the app acks on its own.
+    static func makeStatusUpdateRequest(
         uid: String?,
         status: TraineeStatus,
         type: String?,
         cause: LockCause?,
         by: String?,
         targetCoach: String?,
-        extra: [String: String]
+        extra: [String: String],
+        cmd: String? = nil
     ) -> URLRequest? {
         guard let uid, !uid.isEmpty else { return nil }
 
         let ts = Int(Date().timeIntervalSince1970)
         var msg = "\(uid)|\(status.rawValue)|\(ts)"
         // Order must match the server's reconstruction: type, then targetCoach (mercy only), then
-        // cause/by (status only). Absent fields are omitted on both sides.
+        // cause/by/cmd (status only). Absent fields are omitted on both sides.
         if let type { msg += "|\(type)" }
         if let targetCoach, !targetCoach.isEmpty { msg += "|\(targetCoach)" }
         if let cause { msg += "|\(cause.rawValue)" }
         if let by, !by.isEmpty { msg += "|\(by)" }
+        if let cmd, !cmd.isEmpty { msg += "|\(cmd)" }
 
         let key = SymmetricKey(data: Data(Self.sharedSecret.utf8))
         let sig = HMAC<SHA256>
@@ -770,6 +800,7 @@ class DeviceActivityManager {
         if let targetCoach, !targetCoach.isEmpty { body["targetCoach"] = targetCoach }
         if let cause { body["cause"] = cause.rawValue }
         if let by, !by.isEmpty { body["by"] = by }
+        if let cmd, !cmd.isEmpty { body["cmd"] = cmd }
         for (key, value) in extra { body[key] = value }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return req

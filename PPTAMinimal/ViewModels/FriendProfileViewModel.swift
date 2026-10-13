@@ -237,10 +237,21 @@ final class FriendProfileViewModel: ObservableObject {
 
     @Published private(set) var lockDelivery: LockDelivery?
 
-    /// Today's latest command is a lock / a release the trainee's phone hasn't acked. Lets the
-    /// sheet offer Release for a lock still in flight, and Lock to take back a release still in flight.
+    /// Today's latest command is a lock / a release the trainee's phone hasn't acked. Feeds
+    /// `isAwaitingTrainee`, which holds back the sheet's other lock action until it is applied.
     @Published private(set) var hasPendingLock = false
     @Published private(set) var hasPendingUnlock = false
+
+    /// A lock or snooze is on its way to the trainee's phone and not yet applied: today's latest
+    /// command is unacked, or this coach just sent one and the listener hasn't seen it yet. The sheet
+    /// offers no other lock action meanwhile, so a second command can't undo the first.
+    var isAwaitingTrainee: Bool {
+        if hasPendingLock || hasPendingUnlock { return true }
+        switch lockDelivery {
+        case .waiting, .stalled: return true
+        default: return false
+        }
+    }
 
     private var lockWatcher: ListenerRegistration?
     private var trackedCommand: (id: String, isLock: Bool, issuedAt: Date)?

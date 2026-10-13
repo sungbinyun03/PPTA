@@ -19,7 +19,11 @@
 		8AE0926C2D3EE8DB00F1EA5A /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE0926B2D3EE8DB00F1EA5A /* FirebaseStorage */; };
 		8AE092762D3EFAAB00F1EA5A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE092752D3EFAAB00F1EA5A /* GoogleSignIn */; };
 		8AE092782D3EFAAB00F1EA5A /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 8AE092772D3EFAAB00F1EA5A /* GoogleSignInSwift */; };
+		980A7560307DD1D400AC866C /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 980A7563307DD1D400AC866C /* FirebaseCore */; };
+		980A7561307DD1D400AC866C /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 980A7564307DD1D400AC866C /* FirebaseFirestore */; };
+		980A7562307DD1D400AC866C /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 980A7565307DD1D400AC866C /* FirebaseAuth */; };
 		8AE0927C2D3EFD1F00F1EA5A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 8AE0927B2D3EFD1F00F1EA5A /* .gitignore */; };
+		980A754E307DD1D400AC866C /* PPTANotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 980A7547307DD1D400AC866C /* PPTANotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE0B2EBB3029533100EDE8A3 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AEC0502E2DDEC26F0016A0CC /* ManagedSettings.framework */; };
 		AE0B2EBC3029533100EDE8A3 /* ManagedSettingsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AEC050302DDEC26F0016A0CC /* ManagedSettingsUI.framework */; };
 		AE0B2EC43029533100EDE8A3 /* PPTAShieldConfiguration.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE0B2EBA3029533100EDE8A3 /* PPTAShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -34,6 +38,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		980A754C307DD1D400AC866C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AE4B17642D347EA300B8DB25 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 980A7546307DD1D400AC866C;
+			remoteInfo = PPTANotificationService;
+		};
 		AE0B2EC23029533100EDE8A3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = AE4B17642D347EA300B8DB25 /* Project object */;
@@ -87,6 +98,7 @@
 			files = (
 				AE4B17A82D347EF100B8DB25 /* AppMonitor.appex in Embed Foundation Extensions */,
 				AE0B31AA302C0B1800EDE8A3 /* PPTAShieldAction.appex in Embed Foundation Extensions */,
+				980A754E307DD1D400AC866C /* PPTANotificationService.appex in Embed Foundation Extensions */,
 				AE0B2EC43029533100EDE8A3 /* PPTAShieldConfiguration.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -107,6 +119,7 @@
 
 /* Begin PBXFileReference section */
 		8AE0927B2D3EFD1F00F1EA5A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		980A7547307DD1D400AC866C /* PPTANotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PPTANotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE0B2EBA3029533100EDE8A3 /* PPTAShieldConfiguration.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PPTAShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE0B31A1302C0B1800EDE8A3 /* PPTAShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PPTAShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE20EB572D481E3400D27B4D /* PPTAReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = PPTAReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -127,6 +140,31 @@
 				Info.plist,
 			);
 			target = AE4B176B2D347EA300B8DB25 /* PPTAMinimal */;
+		};
+		980A7566307DD1D400AC866C /* Exceptions for "PPTAMinimal" folder in "PPTANotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Extensions/String+FirstName.swift",
+				Managers/DeviceActivityManager.swift,
+				Managers/NotificationManager.swift,
+				Managers/UnlockService.swift,
+				Managers/UserSettingsManager.swift,
+				Models/ActionMessage.swift,
+				Models/LocalSettingsStore.swift,
+				Models/ShieldSharedStore.swift,
+				Models/TraineeStatus.swift,
+				Models/User.swift,
+				Models/UserSettings.swift,
+				Services/FirestoreService.swift,
+			);
+			target = 980A7546307DD1D400AC866C /* PPTANotificationService */;
+		};
+		980A7552307DD1D400AC866C /* Exceptions for "PPTANotificationService" folder in "PPTANotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 980A7546307DD1D400AC866C /* PPTANotificationService */;
 		};
 		98C22FCA2E6D040D0099A1CE /* Exceptions for "PPTAMinimal" folder in "PPTAMinimalTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -214,6 +252,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		980A7548307DD1D400AC866C /* PPTANotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				980A7552307DD1D400AC866C /* Exceptions for "PPTANotificationService" folder in "PPTANotificationService" target */,
+			);
+			path = PPTANotificationService;
+			sourceTree = "<group>";
+		};
 		AE0B2EBD3029533100EDE8A3 /* PPTAShieldConfiguration */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -248,6 +294,7 @@
 				AE3655622D78044600B876EC /* Exceptions for "PPTAMinimal" folder in "PPTAReport" target */,
 				AE0B2FBB302955A500EDE8A3 /* Exceptions for "PPTAMinimal" folder in "PPTAShieldConfiguration" target */,
 				AE0B31B0302C0BEC00EDE8A3 /* Exceptions for "PPTAMinimal" folder in "PPTAShieldAction" target */,
+				980A7566307DD1D400AC866C /* Exceptions for "PPTAMinimal" folder in "PPTANotificationService" target */,
 			);
 			path = PPTAMinimal;
 			sourceTree = "<group>";
@@ -273,6 +320,16 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		980A7544307DD1D400AC866C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				980A7560307DD1D400AC866C /* FirebaseCore in Frameworks */,
+				980A7561307DD1D400AC866C /* FirebaseFirestore in Frameworks */,
+				980A7562307DD1D400AC866C /* FirebaseAuth in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE0B2EB73029533100EDE8A3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -355,6 +412,7 @@
 				AE20EB582D481E3400D27B4D /* PPTAReport */,
 				AE0B2EBD3029533100EDE8A3 /* PPTAShieldConfiguration */,
 				AE0B31A3302C0B1800EDE8A3 /* PPTAShieldAction */,
+				980A7548307DD1D400AC866C /* PPTANotificationService */,
 				AE4B179E2D347EF100B8DB25 /* Frameworks */,
 				AE4B176D2D347EA300B8DB25 /* Products */,
 			);
@@ -370,6 +428,7 @@
 				AE20EB572D481E3400D27B4D /* PPTAReport.appex */,
 				AE0B2EBA3029533100EDE8A3 /* PPTAShieldConfiguration.appex */,
 				AE0B31A1302C0B1800EDE8A3 /* PPTAShieldAction.appex */,
+				980A7547307DD1D400AC866C /* PPTANotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -387,6 +446,31 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		980A7546307DD1D400AC866C /* PPTANotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 980A754F307DD1D400AC866C /* Build configuration list for PBXNativeTarget "PPTANotificationService" */;
+			buildPhases = (
+				980A7543307DD1D400AC866C /* Sources */,
+				980A7544307DD1D400AC866C /* Frameworks */,
+				980A7545307DD1D400AC866C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				980A7548307DD1D400AC866C /* PPTANotificationService */,
+			);
+			name = PPTANotificationService;
+			packageProductDependencies = (
+				980A7563307DD1D400AC866C /* FirebaseCore */,
+				980A7564307DD1D400AC866C /* FirebaseFirestore */,
+				980A7565307DD1D400AC866C /* FirebaseAuth */,
+			);
+			productName = PPTANotificationService;
+			productReference = 980A7547307DD1D400AC866C /* PPTANotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		AE0B2EB93029533100EDE8A3 /* PPTAShieldConfiguration */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AE0B2EC53029533100EDE8A3 /* Build configuration list for PBXNativeTarget "PPTAShieldConfiguration" */;
@@ -470,6 +554,7 @@
 				AE20EB622D481E3400D27B4D /* PBXTargetDependency */,
 				AE0B2EC33029533100EDE8A3 /* PBXTargetDependency */,
 				AE0B31A9302C0B1800EDE8A3 /* PBXTargetDependency */,
+				980A754D307DD1D400AC866C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AE4B176E2D347EA300B8DB25 /* PPTAMinimal */,
@@ -570,9 +655,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2660;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					980A7546307DD1D400AC866C = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					AE0B2EB93029533100EDE8A3 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -623,11 +711,19 @@
 				AE20EB562D481E3400D27B4D /* PPTAReport */,
 				AE0B2EB93029533100EDE8A3 /* PPTAShieldConfiguration */,
 				AE0B31A0302C0B1800EDE8A3 /* PPTAShieldAction */,
+				980A7546307DD1D400AC866C /* PPTANotificationService */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		980A7545307DD1D400AC866C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE0B2EB83029533100EDE8A3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -682,6 +778,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		980A7543307DD1D400AC866C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AE0B2EB63029533100EDE8A3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -734,6 +837,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		980A754D307DD1D400AC866C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 980A7546307DD1D400AC866C /* PPTANotificationService */;
+			targetProxy = 980A754C307DD1D400AC866C /* PBXContainerItemProxy */;
+		};
 		AE0B2EC33029533100EDE8A3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = AE0B2EB93029533100EDE8A3 /* PPTAShieldConfiguration */;
@@ -767,6 +875,64 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		980A7550307DD1D400AC866C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PPTANotificationService/PPTANotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PPTANotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PPTANotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		980A7551307DD1D400AC866C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PPTANotificationService/PPTANotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = FTF69APMQ4;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PPTANotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PPTANotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungbinyun.com.PPTAMinimal.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		AE0B2EC63029533100EDE8A3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1315,6 +1481,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		980A754F307DD1D400AC866C /* Build configuration list for PBXNativeTarget "PPTANotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				980A7550307DD1D400AC866C /* Debug */,
+				980A7551307DD1D400AC866C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AE0B2EC53029533100EDE8A3 /* Build configuration list for PBXNativeTarget "PPTAShieldConfiguration" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1477,6 +1652,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8AE092662D3EE8DB00F1EA5A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFunctions;
+		};
+		980A7563307DD1D400AC866C /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AE092662D3EE8DB00F1EA5A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		980A7564307DD1D400AC866C /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AE092662D3EE8DB00F1EA5A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		980A7565307DD1D400AC866C /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AE092662D3EE8DB00F1EA5A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

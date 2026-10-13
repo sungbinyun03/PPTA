@@ -520,6 +520,8 @@ struct AppLimitsView: View {
         // user can't reach here (isLocked guard), so this never clears a coach lock.
         if settings.pressureLevel != PressureLevel.off {
             settings.traineeStatus = .allClear
+            // ...and let the restart re-apply the limit if today's usage is already over it.
+            LimitFireGate.resetReached()
         }
 
         // Onboarding save doubles as the durable "onboarding done" flag (previously set by the

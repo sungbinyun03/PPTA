@@ -12,12 +12,19 @@ const DELETE = Symbol('FieldValue.delete');
 let handler;
 let sets;
 let sent;
+let lockCommand; // the trainee's userSettings.lockCommand, as the ack transaction reads it
+let acks;
 
 const fakeAdmin = {
   apps: [1],
   initializeApp() {},
   firestore: Object.assign(
     () => ({
+      runTransaction: async (fn) =>
+        fn({
+          get: async () => ({ exists: true, get: (f) => (f === 'lockCommand' ? lockCommand : undefined) }),
+          update: (_ref, data) => acks.push(data),
+        }),
       collection: (name) => ({
         doc: (id) => ({
           get: async () => ({
@@ -80,7 +87,7 @@ function statusBody(status) {
   return { uid: 'u1', status, ts, sig: sign(`u1|${status}|${ts}`) };
 }
 
-test.beforeEach(() => { sets = []; sent = []; });
+test.beforeEach(() => { sets = []; sent = []; acks = []; lockCommand = undefined; });
 
 test('mercy request without a message is unchanged', async () => {
   assert.strictEqual(await call(mercy()), 200);
@@ -140,4 +147,45 @@ test('non-cutOff status deletes the messages with the request list; cutOff leave
 test('message on a non-mercy type is ignored', async () => {
   assert.strictEqual(await call({ ...statusBody('allClear'), message: 'hi' }), 200);
   assert.ok(!JSON.stringify(sets).includes('hi'));
+});
+
+function coachStatus(status, cmd, { signCmd = true } = {}) {
+  const ts = Math.floor(Date.now() / 1000);
+  const signed = `u1|${status}|${ts}|coach|c1${signCmd ? `|${cmd}` : ''}`;
+  return { uid: 'u1', status, ts, cause: 'coach', by: 'c1', cmd, sig: sign(signed) };
+}
+
+test('extension report acks the current command', async () => {
+  lockCommand = { id: 'abc123', action: 'lock' };
+  assert.strictEqual(await call(coachStatus('cutOff', 'abc123')), 200);
+  assert.deepStrictEqual(acks, [{ lockAck: { id: 'abc123', action: 'lock', result: 'applied', at: 'ts' } }]);
+
+  acks = [];
+  lockCommand = { id: 'def456', action: 'unlock' };
+  assert.strictEqual(await call(coachStatus('snoozedLock', 'def456')), 200);
+  assert.strictEqual(acks[0].lockAck.action, 'unlock');
+});
+
+test('no ack for a superseded command or a mismatched action', async () => {
+  lockCommand = { id: 'newer', action: 'unlock' };
+  assert.strictEqual(await call(coachStatus('cutOff', 'older')), 200);
+  lockCommand = { id: 'same', action: 'unlock' };
+  assert.strictEqual(await call(coachStatus('cutOff', 'same')), 200);
+  assert.deepStrictEqual(acks, []);
+});
+
+test('cmd is signed and validated', async () => {
+  lockCommand = { id: 'abc123', action: 'lock' };
+  assert.strictEqual(await call(coachStatus('cutOff', 'abc123', { signCmd: false })), 403);
+  assert.strictEqual(await call(coachStatus('cutOff', 'bad cmd!')), 400);
+  assert.deepStrictEqual(acks, []);
+});
+
+test('no cmd: no ack, status update unchanged', async () => {
+  lockCommand = { id: 'abc123', action: 'lock' };
+  const ts = Math.floor(Date.now() / 1000);
+  const body = { uid: 'u1', status: 'cutOff', ts, cause: 'coach', by: 'c1', sig: sign(`u1|cutOff|${ts}|coach|c1`) };
+  assert.strictEqual(await call(body), 200);
+  assert.deepStrictEqual(acks, []);
+  assert.strictEqual(sets[0].data.traineeStatus, 'cutOff');
 });

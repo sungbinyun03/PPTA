@@ -153,6 +153,15 @@ def lock_command_write(db):
     return w[0][2]["lockCommand"]
 
 
+class NotificationServiceFields(unittest.TestCase):
+    def test_alert_push_runs_the_extension_and_carries_send_time(self):
+        _, _, fm = call(lockapp, good_args(), alert_push=True)
+        (_, kw), = fm.sent
+        aps = kw["apns"][1]["payload"][1]["aps"][1]
+        self.assertIs(aps["mutable_content"], True)
+        self.assertEqual(kw["data"]["at"], str(NOW * 1000))
+
+
 class WithMessage(unittest.TestCase):
     def test_message_written_and_pushed(self):
         resp, db, fm = call(lockapp, good_args(msg="  stay   focused\n"))
@@ -180,6 +189,19 @@ class WithMessage(unittest.TestCase):
         self.assertNotIn("message", fm.sent[0][1]["data"])
 
 
+# Fields added for the notification service extension (`at` in the data, `mutable_content` on the
+# alert). The HEAD comparisons below ignore them so they keep guarding everything else.
+NSE_FIELDS = {"at", "mutable_content"}
+
+
+def without_nse_fields(o):
+    if isinstance(o, dict):
+        return {k: without_nse_fields(v) for k, v in o.items() if k not in NSE_FIELDS}
+    if isinstance(o, (list, tuple)):
+        return [without_nse_fields(v) for v in o]
+    return o
+
+
 class WithoutMessageUnchanged(unittest.TestCase):
     def _compare(self, alert_push):
         head = load_head()
@@ -187,7 +209,7 @@ class WithoutMessageUnchanged(unittest.TestCase):
         r_new, db_new, fm_new = call(lockapp, good_args(), alert_push)
         self.assertEqual(r_new, r_old)
         # byte-for-byte: serialise with sorted keys and compare the strings
-        dump = lambda o: json.dumps(o, sort_keys=True, default=repr)
+        dump = lambda o: json.dumps(without_nse_fields(json.loads(json.dumps(o, default=repr))), sort_keys=True)
         self.assertEqual(dump(data_only(db_new.sets)), dump(data_only(db_old.sets)))
         self.assertEqual(dump(fm_new.sent), dump(fm_old.sent))
         return db_new, fm_new
@@ -196,7 +218,7 @@ class WithoutMessageUnchanged(unittest.TestCase):
         db, fm = self._compare(False)
         self.assertNotIn("message", lock_command_write(db))
         self.assertEqual(
-            set(fm.sent[0][1]["data"]), {"type", "by", "byName", "cmd", "uid"}
+            set(fm.sent[0][1]["data"]), {"type", "by", "byName", "cmd", "uid", "at"}
         )
 
     def test_alert_push_identical_to_head(self):
@@ -206,7 +228,7 @@ class WithoutMessageUnchanged(unittest.TestCase):
         head = load_head()
         _, db_old, fm_old = call(head, good_args())
         _, db_new, fm_new = call(lockapp, good_args(msg=""))
-        dump = lambda o: json.dumps(o, sort_keys=True, default=repr)
+        dump = lambda o: json.dumps(without_nse_fields(json.loads(json.dumps(o, default=repr))), sort_keys=True)
         self.assertEqual(dump(data_only(db_new.sets)), dump(data_only(db_old.sets)))
         self.assertEqual(dump(fm_new.sent), dump(fm_old.sent))
 

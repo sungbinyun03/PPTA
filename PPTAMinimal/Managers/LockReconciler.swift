@@ -61,6 +61,12 @@ import FirebaseFirestore
 ///   transaction that skips when a newer command exists, and superseded pushes write none.
 /// - Hardcore and snooze-ended shields are never cleared or re-attributed by anything here: the only
 ///   clear is `handleRemoteUnlock` for an unlock command that passed the checks above.
+///
+/// ### The notification service extension applies commands too
+/// `PPTANotificationService` runs for every lock/unlock alert push, even when PPTA is force-quit, and
+/// applies the command on its own (shield, grace, status POST; the server acks it). Whichever process
+/// first takes `LockCommandClaim` for a command applies it; the others skip it. A command the
+/// extension applied looks like any other applied one here (`lastAppliedLockCommandId`).
 @MainActor
 final class LockReconciler {
     static let shared = LockReconciler()
@@ -235,6 +241,11 @@ final class LockReconciler {
                     }
                     return
                 }
+                // The notification service extension may be applying this same push right now.
+                guard LockCommandClaim.tryClaim(id) else {
+                    print("LockReconciler: push \(id) is being applied by another process.")
+                    return
+                }
                 // The durable copy wins when it is this command; the push payload is the fallback.
                 let message = latest?.id == id ? latest?.message : pushMessage
                 let command = Command(id: id, action: isLock ? .lock : .unlock, by: by, byName: byName, at: latest?.at, message: message)
@@ -295,6 +306,9 @@ final class LockReconciler {
             // the command is retried now that settings may have changed.
             let applied = appliedLocally || (ackedForThis && ack?.result == LockOutcome.applied.rawValue)
             guard applied else {
+                // The extension may be mid-apply; its finish writes `lastAppliedLockCommandId`, and
+                // the server's ack brings a fresh snapshot that lands in the branch below.
+                guard LockCommandClaim.tryClaim(command.id) else { return }
                 inFlight.insert(command.id)
                 defer { inFlight.remove(command.id) }
                 await perform(command, existingAck: ack, pushShowsBanner: false)
@@ -326,10 +340,15 @@ final class LockReconciler {
                 await perform(command, existingAck: ack, pushShowsBanner: false)
             } else {
                 DeviceActivityManager.shared.reapplyShield(matching: selection)
+                // Applied by the extension, whose server ack didn't land (its status POST failed).
+                if appliedLocally && !ackedForThis {
+                    await writeAck(command, result: LockOutcome.applied.rawValue)
+                }
             }
 
         case .unlock:
             guard !appliedLocally, !ackedForThis else { return }
+            guard LockCommandClaim.tryClaim(command.id) else { return }
 
             inFlight.insert(command.id)
             defer { inFlight.remove(command.id) }
@@ -372,6 +391,9 @@ final class LockReconciler {
         // wasn't enforced stays open, so a later reconcile can retry it.
         if outcome == .applied || command.action == .unlock {
             LocalSettingsStore.lastAppliedLockCommandId = command.id
+            LocalSettingsStore.lastAppliedLockCommandAt = command.at ?? Date()
+        } else {
+            LockCommandClaim.release(command.id)
         }
 
         // Never downgrade an "applied" ack, and don't rewrite an identical one.

@@ -222,6 +222,9 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
                     ),
                     sound="default",
                     content_available=True,
+                    # Runs the app's notification service extension, which applies the command
+                    # even when PPTA is force-quit (iOS never wakes a force-quit app for a push).
+                    mutable_content=True,
                 )
             ),
         )
@@ -242,6 +245,9 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
         "byName": coach_name,
         "cmd": cmd_id,
         "uid": uid,
+        # Send time (ms). The extension can't read Firestore, so this is how it drops a push that
+        # arrives after a newer command was already applied.
+        "at": str(int(time.time() * 1000)),
     }
     if note:
         push_data["message"] = note
