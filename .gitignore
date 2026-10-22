@@ -26,3 +26,6 @@ temp*
 .cursor/
 
 **/*.xcuserstate
+
+# Firestore rules test deps
+firebase/node_modules/

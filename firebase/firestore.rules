@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// PPTA Firestore rules. This file is the source of truth; deploy by pasting it into
+// Firebase console > Firestore > Rules > Publish. Test first: cd firebase && npm test.
+// Cloud Run functions use the Admin SDK and are not subject to these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // users/{uid}: name, email, phoneNumber, fcmToken.
+    match /users/{uid} {
+      // Friends, coaches, trainees, request senders. No `resource` here: a new user
+      // checks their own doc before it exists.
+      allow get: if signedIn();
+      // Phone lookups only: the query must name the numbers (== or `in` on phoneNumber).
+      // Allowed signed out, because phone sign-in and the sign-up "number taken" check run
+      // before auth. Unfiltered and range queries can't prove this, so nobody can list everyone.
+      allow list: if resource.data.phoneNumber is string && resource.data.phoneNumber.size() >= 0;
+      allow create, update, delete: if isSelf(uid);
+    }
+
+    // userSettings/{uid}. lockCommand is written only by lockapp/unlockapp (Admin SDK);
+    // the device writes lockAck. A client may never set or change lockCommand, even its own.
+    match /userSettings/{uid} {
+      // Coaches watch trainees; the profile sheet reads whoever it opens. No `resource` (new users).
+      allow get: if signedIn();
+      allow create: if isSelf(uid) && !('lockCommand' in request.resource.data);
+      allow update: if isSelf(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lockCommand']);
+      allow delete: if isSelf(uid);   // builds before Oct 4 delete their own doc on cancel sign-up
+    }
+
+    match /friendships/{id} {
+      function isParty() {
+        return signedIn() && (resource.data.requesterId == request.auth.uid
+                           || resource.data.requesteeId == request.auth.uid);
+      }
+      allow read: if isParty();
+      allow delete: if isParty();
+      // Builds up to v1.0-beta.3 write friend requests directly; newer builds go through the
+      // role-requests service. Remove these two once no such build is in use.
+      allow create: if signedIn()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.requesteeId != request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn()
+        && resource.data.requesteeId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'accepted';
+    }
+
+    // Written only by the role-requests service.
+    match /roleRequests/{id} {
+      allow read: if signedIn() && (resource.data.requesterId == request.auth.uid
+                                 || resource.data.targetId == request.auth.uid);
+    }
+
+    // Everything else (lockRequests, unlockRequests, mercyRequests, anything new) is
+    // server-only and denied by default.
+  }
+}

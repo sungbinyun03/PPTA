@@ -19,6 +19,12 @@ Covers §9 Firebase/Firestore from PPTAMinimal's agent guide. Back to [`../../CL
 - **Merge gotcha:** `set(..., merge=True)` deep-merges maps key by key, so it never removes an old `lockCommand.message`. `unlockapp.py` therefore replaces `lockCommand` inside a transaction (`update` with the whole map), and `lockapp.py` uses a field-path merge (`merge=["lockedByUID", "lockedByName", "lockCommand"]`), which also replaces the map. A new command always overwrites the old one; `message` is not "cleared by unlock" except by that replacement.
 - `snoozeRequestMessages` = `{coachUid: text, ...}` — trainee's snooze request message to each coach (max 100 code points each), written with `{merge:true}`, cleared alongside `snoozeRequestedCoachIds` on any non-cutOff status. **Read from raw dict only; never add to `UserSettings` Codable.**
 
+### Security rules
+- Rules live in `firebase/firestore.rules` (source of truth); test with `cd firebase && npm test` (local emulator, needs `openjdk@21`).
+- Deploy = paste the file into Firebase console > Firestore > Rules > Publish.
+- `userSettings.lockCommand` is server-only (Admin SDK); clients may write `lockAck` but never `lockCommand`.
+- A new collection needs a rule and a test row, or clients are denied (default deny; most client reads swallow the error).
+
 ### Auth providers
 Email/password, Google OAuth, Apple OAuth. (Phone is verification-only, not a sign-in provider.)
 
