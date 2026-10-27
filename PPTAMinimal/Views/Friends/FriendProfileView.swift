@@ -35,6 +35,8 @@ struct FriendProfileView: View {
     /// Where the coach's last Lock / Release has got to, from the trainee's ack. Defaulted so
     /// existing construction sites keep compiling.
     var lockDelivery: FriendProfileViewModel.LockDelivery? = nil
+    /// Non-nil on a stalled lock this coach sent: shows Resend on the delivery row.
+    var onResendLock: (() -> Void)? = nil
     /// A lock or snooze this coach (or another) sent hasn't been applied on the trainee's phone yet.
     /// Snooze is greyed out until it has, so a second command can't race the first.
     var isAwaitingTrainee: Bool = false
@@ -105,6 +107,17 @@ struct FriendProfileView: View {
                 .fontWeight(.medium)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
+            if case .stalled(isLock: true) = delivery, let onResendLock {
+                Button { onResendLock() } label: {
+                    Text("Resend")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(primaryColor)
+                        .clipShape(Capsule())
+                }
+            }
         }
         .foregroundColor(primaryColor)
         .padding(.horizontal, 14)

@@ -253,14 +253,34 @@ final class FriendProfileViewModel: ObservableObject {
         }
     }
 
+    /// A stalled lock this coach sent can be sent again. Locks only: a resend is a *new* command, and
+    /// a lock applied twice is still one lock, but a snooze whose ack was lost would grant a second
+    /// window. Snoozes keep the stalled row and apply when the trainee's phone next runs PPTA.
+    var canResendLock: Bool {
+        guard case .stalled(isLock: true) = lockDelivery, !isResendCoolingDown,
+              let tracked = trackedCommand, let myUid else { return false }
+        // Another coach's lock isn't mine to resend: the new command would name me as the locker.
+        return tracked.by == myUid
+    }
+
+    /// The note the tracked lock carried, so a resend shows the trainee the same one.
+    var resendLockMessage: String? { trackedCommand?.message }
+
+    @Published private(set) var isResendCoolingDown = false
+
     private var lockWatcher: ListenerRegistration?
-    private var trackedCommand: (id: String, isLock: Bool, issuedAt: Date)?
+    /// `by` and `message` come from the sending coach: this device when it sent the command, else the
+    /// trainee's `lockCommand` (a command picked up after the sheet was reopened).
+    private var trackedCommand: (id: String, isLock: Bool, issuedAt: Date, by: String?, message: String?)?
     private var latestAck: (id: String, result: String)?
     private var latestCommand: (id: String, at: Date?)?
     private var stallTask: Task<Void, Never>?
+    private var resendCooldownTask: Task<Void, Never>?
 
     /// How long to wait for an ack before saying so. Not a failure threshold.
     private static let ackStallSeconds: UInt64 = 60
+    /// Minimum gap between resends, so a coach tapping repeatedly doesn't stack pushes.
+    private static let resendCooldownSeconds: UInt64 = 60
 
     /// Listens to the trainee's `userSettings` for `lockCommand` / `lockAck` while the sheet is open.
     func startWatchingLockState() {
@@ -276,6 +296,7 @@ final class FriendProfileViewModel: ObservableObject {
         lockWatcher?.remove()
         lockWatcher = nil
         stallTask?.cancel()
+        resendCooldownTask?.cancel()
     }
 
     private func applyLockState(_ data: [String: Any]) {
@@ -303,6 +324,13 @@ final class FriendProfileViewModel: ObservableObject {
            latestAck?.id != id {
             pendingLock = action == "lock"
             pendingUnlock = action == "unlock"
+            // A command still unacked when the sheet opens (sent before it was closed, or by another
+            // coach) gets the same delivery row as one sent from here, instead of the sheet just
+            // holding back its lock actions with nothing on screen saying why.
+            if trackedCommand == nil, pendingLock || pendingUnlock {
+                track(command: id, isLock: pendingLock, issuedAt: at,
+                      by: cmd["by"] as? String, message: cmd["message"] as? String)
+            }
         }
         hasPendingLock = pendingLock
         hasPendingUnlock = pendingUnlock
@@ -343,25 +371,33 @@ final class FriendProfileViewModel: ObservableObject {
         }
     }
 
-    private func track(command id: String, isLock: Bool) {
-        trackedCommand = (id, isLock, Date())
-        lockDelivery = .waiting(isLock: isLock)
+    /// `issuedAt` is when the command was sent: now for one sent from here, the server's `at` for one
+    /// picked up on open, so a command already older than the stall threshold starts out stalled.
+    private func track(command id: String, isLock: Bool, issuedAt: Date = Date(),
+                       by: String?, message: String?) {
+        trackedCommand = (id, isLock, issuedAt, by, message)
         stallTask?.cancel()
-        stallTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: Self.ackStallSeconds * 1_000_000_000)
-            guard !Task.isCancelled, let self, self.trackedCommand?.id == id else { return }
-            self.lockDelivery = .stalled(isLock: isLock)
+        let remaining = Double(Self.ackStallSeconds) - Date().timeIntervalSince(issuedAt)
+        if remaining <= 0 {
+            lockDelivery = .stalled(isLock: isLock)
+        } else {
+            lockDelivery = .waiting(isLock: isLock)
+            stallTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                guard !Task.isCancelled, let self, self.trackedCommand?.id == id else { return }
+                self.lockDelivery = .stalled(isLock: isLock)
+            }
         }
         resolveTrackedCommand()
     }
 
-    func performLock(url: URL) async {
+    func performLock(url: URL, message: String? = nil) async {
         let result = await performLockUnlockAction(url: url)
         guard result.ok else { return }
         // Optimistic: the coach sees the expected state straight away, and the Release button.
         traineeStatus = .cutOff
         if let cmd = result.cmd {
-            track(command: cmd, isLock: true)
+            track(command: cmd, isLock: true, by: myUid, message: message)
         } else {
             scheduleVerification(
                 expected: .cutOff,
@@ -371,6 +407,22 @@ final class FriendProfileViewModel: ObservableObject {
         }
     }
 
+    /// Sends the stalled lock again as a new command. The trainee's phone applies only the newest
+    /// command, so the one this replaces never applies later, and one that already applied but
+    /// whose ack was lost is just re-asserted.
+    func resendLock(url: URL) async {
+        guard canResendLock else { return }
+        let message = resendLockMessage
+        isResendCoolingDown = true
+        resendCooldownTask?.cancel()
+        resendCooldownTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.resendCooldownSeconds * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.isResendCoolingDown = false
+        }
+        await performLock(url: url, message: message)
+    }
+
     func performUnlock(url: URL) async {
         let result = await performLockUnlockAction(url: url)
         guard result.ok else { return }
@@ -378,7 +430,7 @@ final class FriendProfileViewModel: ObservableObject {
         // The server clears their pending requests with the grant; show it without waiting.
         isRequestingSnoozeFromMe = false
         if let cmd = result.cmd {
-            track(command: cmd, isLock: false)
+            track(command: cmd, isLock: false, by: myUid, message: nil)
         } else {
             scheduleVerification(
                 expected: .snoozedLock,

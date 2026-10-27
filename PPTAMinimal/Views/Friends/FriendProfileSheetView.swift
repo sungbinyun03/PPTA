@@ -69,6 +69,7 @@ struct FriendProfileSheetView: View {
                     onUnlock: makeUnlockActionIfNeeded(),
                     lockedByName: vm.lockedByName,
                     lockDelivery: vm.lockDelivery,
+                    onResendLock: makeResendLockActionIfNeeded(),
                     isAwaitingTrainee: vm.isAwaitingTrainee,
                     monitoredAppNames: vm.monitoredAppNames,
                     monitoredAppStats: vm.monitoredAppStats,
@@ -163,7 +164,19 @@ struct FriendProfileSheetView: View {
     private func lock(message: String) {
         guard let coachUID = Auth.auth().currentUser?.uid else { return }
         guard let url = UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID, message: message) else { return }
-        Task { await vm.performLock(url: url) }
+        Task { await vm.performLock(url: url, message: message.isEmpty ? nil : message) }
+    }
+
+    /// Resend on a stalled lock this coach sent. Signed on tap, like `lock(message:)`, with the
+    /// original note so the trainee sees the same lock.
+    private func makeResendLockActionIfNeeded() -> (() -> Void)? {
+        guard vm.canResendLock else { return nil }
+        return {
+            guard let coachUID = Auth.auth().currentUser?.uid,
+                  let url = UnlockService.makeLockURL(childUID: otherUserId, coachUID: coachUID,
+                                                      message: vm.resendLockMessage) else { return }
+            Task { await vm.resendLock(url: url) }
+        }
     }
 
     /// Trainee side: offer "Request to snooze" only when *I* am cut off and this person is my coach.
