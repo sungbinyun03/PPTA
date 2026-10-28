@@ -41,7 +41,7 @@ date and commit the result.
   (keep the ranges in `package.json`; the lockfile pins).
 
 ## Where config lives
-See "Secrets and config" in the plan (`2026-10-27-ppta-cloudrun/plan.md`). In short, names only:
+Names only:
 - `UNLOCK_SECRET`: env var on lockapp, unlockapp and statusupdate; deploys never touch it.
 - `ALERT_PUSH`: a constant in the function files, so changing it is a commit.
 - Runtime identity: the service's own config, unchanged. Trigger identity: `ppta-deployer`, no keys.

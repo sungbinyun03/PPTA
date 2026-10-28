@@ -74,14 +74,19 @@ if [ "${DRY_RUN:-}" = 1 ]; then
   exit 0
 fi
 
-check_key() {  # $1 = functions|run, then the describe command; output is the name check only
-  local shape=$1; shift
-  "$@" | python3 -c "$KEYCHECK_PY" "$shape" || echo "UNLOCK_SECRET MISSING"
+check_key() {  # $1 = functions|run, then the describe command; prints present, MISSING or CHECK FAILED
+  local shape=$1 out; shift
+  # gcloud's stderr reaches the build log; its stdout (the JSON, which holds the value) goes only into python
+  if out=$("$@" | python3 -c "$KEYCHECK_PY" "$shape"); then echo "$out"; else echo "UNLOCK_SECRET CHECK FAILED"; fi
 }
 
 if [ "$NEED_KEY" = 1 ]; then
-  RESULT=$(check_key "$MODE" "${PRE[@]}" 2>/dev/null | tail -n 1)
+  RESULT=$(check_key "$MODE" "${PRE[@]}")
   echo "pre-check $SERVICE: $RESULT"
+  if [ "$RESULT" = "UNLOCK_SECRET CHECK FAILED" ]; then
+    echo "refusing to deploy $SERVICE: could not read its config (gcloud error above; usually a missing role on ppta-deployer)" >&2
+    exit 1
+  fi
   if [ "$RESULT" != "UNLOCK_SECRET present" ]; then
     echo "refusing to deploy $SERVICE: UNLOCK_SECRET is not in the config this deploy would rebuild from" >&2
     exit 1
@@ -92,8 +97,12 @@ fi
 if [ "$MODE" = run ]; then "${TRAFFIC[@]}"; fi
 
 if [ "$NEED_KEY" = 1 ]; then
-  RESULT=$(check_key run "${DESCRIBE_RUN[@]}" 2>/dev/null | tail -n 1)
+  RESULT=$(check_key run "${DESCRIBE_RUN[@]}")
   echo "post-check $SERVICE: $RESULT"
+  if [ "$RESULT" = "UNLOCK_SECRET CHECK FAILED" ]; then
+    echo "could not verify UNLOCK_SECRET on $SERVICE after deploy (gcloud error above): run the smoke checks" >&2
+    exit 1
+  fi
   if [ "$RESULT" != "UNLOCK_SECRET present" ]; then
     echo "UNLOCK_SECRET missing on $SERVICE after deploy: Cloud Run > $SERVICE > Revisions > Manage traffic > previous revision" >&2
     exit 1
