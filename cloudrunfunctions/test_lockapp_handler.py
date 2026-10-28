@@ -31,9 +31,12 @@ CMD = "c" * 32
 
 
 def load_head():
-    src = subprocess.check_output(
-        ["git", "show", "HEAD:cloudrunfunctions/lockapp.py"], cwd=REPO
-    ).decode()
+    try:
+        src = subprocess.check_output(
+            ["git", "show", "HEAD:cloudrunfunctions/lockapp.py"], cwd=REPO
+        ).decode()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise unittest.SkipTest("no git history in this checkout (Cloud Build)")
     mod = types.ModuleType("lockapp_head")
     exec(compile(src, "lockapp_head.py", "exec"), mod.__dict__)
     return mod

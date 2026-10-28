@@ -1,0 +1,40 @@
+# Runs on push to main touching cloudrunfunctions/ (trigger ppta-functions): tests, then all five deploys in parallel.
+# Shell logic lives in deploy.sh; the only substitution used here is SHORT_SHA.
+steps:
+  - id: test-python
+    name: python:3.11-slim
+    dir: cloudrunfunctions
+    args: [python, -m, unittest, discover, -p, 'test_*.py']
+  - id: test-node
+    name: node:22-slim
+    dir: cloudrunfunctions
+    waitFor: ['-']
+    args: [node, --test, test_statusupdate_message.js, test_role_requests_friends.js]
+  - id: lockapp
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [test-python, test-node]
+    args: [cloudrunfunctions/deploy/deploy.sh, lockapp, lockapp.py, lockApp, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/python311, $SHORT_SHA]
+  - id: unlockapp
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [test-python, test-node]
+    args: [cloudrunfunctions/deploy/deploy.sh, unlockapp, unlockapp.py, unlockApp, python311, $SHORT_SHA]
+  - id: statusupdate
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [test-python, test-node]
+    args: [cloudrunfunctions/deploy/deploy.sh, statusupdate, statusupdate.js, statusUpdate, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/nodejs22, $SHORT_SHA]
+  - id: role-requests
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [test-python, test-node]
+    args: [cloudrunfunctions/deploy/deploy.sh, role-requests, role-requests.js, roleRequests, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/nodejs22, $SHORT_SHA]
+  - id: deleteaccount
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [test-python, test-node]
+    args: [cloudrunfunctions/deploy/deploy.sh, deleteaccount, deleteaccount.py, deleteAccount, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/python311, $SHORT_SHA]
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s

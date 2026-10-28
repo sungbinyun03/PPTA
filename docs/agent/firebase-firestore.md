@@ -50,6 +50,7 @@ All names run through `String.firstNameOnly`.
 - **Unlock:** `https://unlockapp-iy4j75c7pq-uc.a.run.app`
 - **Lock:** `https://lockapp-iy4j75c7pq-uc.a.run.app`
 - **Status update:** `https://statusupdate-538124351649.us-central1.run.app`
+- Deployed by Cloud Build from `main` on every push touching `cloudrunfunctions/`; see `cloudrunfunctions/README.md`.
 - **Shared HMAC secret:** `"a282b15352ee133e244ee5be0a2e3b9fa11b5503b6f22b1a92b57806a412122e"` (raw string bytes, not hex-decoded)
 
 `statusUpdate` signs `"<uid>|<status>|<ts>"`, or `"<uid>|<status>|<ts>|<cause>"` when a `LockCause`

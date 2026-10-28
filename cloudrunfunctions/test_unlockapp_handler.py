@@ -272,9 +272,12 @@ class Failure(unittest.TestCase):
 
 class Push(unittest.TestCase):
     def test_push_payload_identical_to_head(self):
-        src = subprocess.check_output(
-            ["git", "show", "HEAD:cloudrunfunctions/unlockapp.py"], cwd=REPO
-        ).decode()
+        try:
+            src = subprocess.check_output(
+                ["git", "show", "HEAD:cloudrunfunctions/unlockapp.py"], cwd=REPO
+            ).decode()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            raise unittest.SkipTest("no git history in this checkout (Cloud Build)")
         head = types.ModuleType("unlockapp_head")
         exec(compile(src, "unlockapp_head.py", "exec"), head.__dict__)
         if "_record_unlock" in head.__dict__:
