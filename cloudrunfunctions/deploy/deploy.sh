@@ -28,19 +28,11 @@ case "$SERVICE" in
   *) echo "unknown service: $SERVICE" >&2; exit 2 ;;
 esac
 
-# Reads describe JSON on stdin and prints only whether the env var NAME exists; the JSON holds the value.
-KEYCHECK_PY='
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    if sys.argv[1] == "functions":
-        names = list(d["serviceConfig"]["environmentVariables"])
-    else:
-        names = [e["name"] for e in d["spec"]["template"]["spec"]["containers"][0]["env"]]
-except Exception:
-    names = []
-print("UNLOCK_SECRET present" if "UNLOCK_SECRET" in names else "UNLOCK_SECRET MISSING")
-'
+# How the env var NAME appears in each describe JSON (one line of gcloud's pretty-printed output). Matched
+# with grep, not parsed: the cloud-sdk:slim image no longer ships python3, and grep is in every image.
+# Functions API: a key of serviceConfig.environmentVariables. Cloud Run: an env entry's "name".
+KEY_PATTERN_FUNCTIONS='"UNLOCK_SECRET"[[:space:]]*:'
+KEY_PATTERN_RUN='"name"[[:space:]]*:[[:space:]]*"UNLOCK_SECRET"'
 
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -67,17 +59,20 @@ fi
 
 if [ "${DRY_RUN:-}" = 1 ]; then
   echo "staged files in <tmp>:"; (cd "$STAGE" && ls -1 | sed 's/^/  /')
-  if [ "$NEED_KEY" = 1 ]; then echo "pre-check:  ${PRE[*]} | python3 -c <keycheck $MODE>"; fi
+  if [ "$NEED_KEY" = 1 ]; then echo "pre-check:  ${PRE[*]} | grep <keycheck $MODE>"; fi
   echo "deploy:     ${DEPLOY[*]}"
   if [ "$MODE" = run ]; then echo "traffic:    ${TRAFFIC[*]}"; fi
-  if [ "$NEED_KEY" = 1 ]; then echo "post-check: ${DESCRIBE_RUN[*]} | python3 -c <keycheck run>"; fi
+  if [ "$NEED_KEY" = 1 ]; then echo "post-check: ${DESCRIBE_RUN[*]} | grep <keycheck run>"; fi
   exit 0
 fi
 
 check_key() {  # $1 = functions|run, then the describe command; prints present, MISSING or CHECK FAILED
-  local shape=$1 out; shift
-  # gcloud's stderr reaches the build log; its stdout (the JSON, which holds the value) goes only into python
-  if out=$("$@" | python3 -c "$KEYCHECK_PY" "$shape"); then echo "$out"; else echo "UNLOCK_SECRET CHECK FAILED"; fi
+  local shape=$1 json pattern; shift
+  pattern=$KEY_PATTERN_RUN
+  if [ "$shape" = functions ]; then pattern=$KEY_PATTERN_FUNCTIONS; fi
+  # gcloud's stderr reaches the build log; its stdout (the JSON, which holds the value) goes only into grep -q
+  if ! json=$("$@"); then echo "UNLOCK_SECRET CHECK FAILED"; return; fi
+  if grep -Eq "$pattern" <<<"$json"; then echo "UNLOCK_SECRET present"; else echo "UNLOCK_SECRET MISSING"; fi
 }
 
 if [ "$NEED_KEY" = 1 ]; then
