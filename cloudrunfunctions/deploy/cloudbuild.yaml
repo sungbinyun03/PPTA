@@ -18,16 +18,16 @@ steps:
     entrypoint: bash
     waitFor: [test-python, test-node]
     args: [cloudrunfunctions/deploy/deploy.sh, lockapp, lockapp.py, lockApp, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/python311, $SHORT_SHA]
-  - id: unlockapp
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: bash
-    waitFor: [lockapp, statusupdate]
-    args: [cloudrunfunctions/deploy/deploy.sh, unlockapp, unlockapp.py, unlockApp, python311, $SHORT_SHA]
   - id: statusupdate
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
     waitFor: [test-python, test-node]
     args: [cloudrunfunctions/deploy/deploy.sh, statusupdate, statusupdate.js, statusUpdate, us-central1-docker.pkg.dev/serverless-runtimes/google-22/runtimes/nodejs22, $SHORT_SHA]
+  - id: unlockapp
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    waitFor: [lockapp, statusupdate]
+    args: [cloudrunfunctions/deploy/deploy.sh, unlockapp, unlockapp.py, unlockApp, python311, $SHORT_SHA]
   - id: role-requests
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
