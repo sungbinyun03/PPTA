@@ -14,6 +14,7 @@ let sets;
 let sent;
 let lockCommand; // the trainee's userSettings.lockCommand, as the ack transaction reads it
 let acks;
+let settingsFields; // the trainee's userSettings fields, as the status fan-out reads them
 
 const fakeAdmin = {
   apps: [1],
@@ -29,7 +30,7 @@ const fakeAdmin = {
         doc: (id) => ({
           get: async () => ({
             exists: true,
-            get: (f) => (name === 'users' ? { name: 'Sam Trainee', fcmToken: `tok-${id}` }[f] : []),
+            get: (f) => (name === 'users' ? { name: 'Sam Trainee', fcmToken: `tok-${id}` }[f] : settingsFields[f] ?? []),
           }),
           set: async (data, opts) => sets.push({ name, id, data, opts }),
         }),
@@ -87,7 +88,7 @@ function statusBody(status) {
   return { uid: 'u1', status, ts, sig: sign(`u1|${status}|${ts}`) };
 }
 
-test.beforeEach(() => { sets = []; sent = []; acks = []; lockCommand = undefined; });
+test.beforeEach(() => { sets = []; sent = []; acks = []; lockCommand = undefined; settingsFields = {}; });
 
 test('mercy request without a message is unchanged', async () => {
   assert.strictEqual(await call(mercy()), 200);
@@ -188,4 +189,45 @@ test('no cmd: no ack, status update unchanged', async () => {
   assert.strictEqual(await call(body), 200);
   assert.deepStrictEqual(acks, []);
   assert.strictEqual(sets[0].data.traineeStatus, 'cutOff');
+});
+
+function hardcoreLimit() {
+  const ts = Math.floor(Date.now() / 1000);
+  return { uid: 'u1', status: 'cutOff', ts, cause: 'hardcoreLimit', sig: sign(`u1|cutOff|${ts}|hardcoreLimit`) };
+}
+
+function limitAlert(hours, minutes) {
+  settingsFields = { coachIds: ['c1'], thresholdHour: hours, thresholdMinutes: minutes };
+}
+
+test('limit alert names the limit in the title', async () => {
+  for (const [h, m, shown] of [[1, 15, '1h 15m'], [0, 45, '45m'], [2, 0, '2h']]) {
+    sent = [];
+    limitAlert(h, m);
+    assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
+    assert.strictEqual(sent[0].apns.payload.aps.alert.title, `Sam hit their ${shown} limit! 👀`);
+    assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'Go ahead and cut them off!');
+    assert.strictEqual(sent[0].data.limitMinutes, String(h * 60 + m));
+  }
+});
+
+test('hardcore limit lock: same title as Standard, Hardcore body', async () => {
+  limitAlert(1, 15);
+  assert.strictEqual(await call(hardcoreLimit()), 200);
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their 1h 15m limit! 👀');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, "They're on Hardcore, so their apps locked themselves. 🔒");
+});
+
+test('no limit stored: previous wording, no limitMinutes', async () => {
+  settingsFields = { coachIds: ['c1'] };
+  assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
+  assert.ok(!('limitMinutes' in sent[0].data));
+});
+
+test('coach lock copy is unchanged by a stored limit', async () => {
+  limitAlert(1, 15);
+  lockCommand = { id: 'abc123', action: 'lock' };
+  assert.strictEqual(await call(coachStatus('cutOff', 'abc123')), 200);
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam has been locked! 🔒');
 });

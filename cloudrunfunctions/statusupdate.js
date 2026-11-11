@@ -91,17 +91,37 @@ function firstName(name, fallback) {
   return first || fallback;
 }
 
+// The trainee's daily limit in whole minutes, from userSettings' thresholdHour + thresholdMinutes.
+// 0 when unset or unreadable.
+function limitMinutes(hours, minutes) {
+  return (Number.isFinite(hours) ? Math.floor(hours) : 0) * 60 +
+    (Number.isFinite(minutes) ? Math.floor(minutes) : 0);
+}
+
+// As the app's Daily Limit tile shows it: "1h 15m", "45m", "2h". The limit is stored in whole
+// minutes, so there are no seconds to round. null for no limit.
+function formatLimit(total) {
+  if (!(total > 0)) return null;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 // Banner copy for a traineeStatus push, rendered per recipient: the coach who acted sees "You…".
 // `null` = no banner (allClear is the silent daily reset). Mirrors the app's fallback copy.
-function traineeStatusCopy({ status, cause, traineeFirst, byFirst, actedBySelf }) {
+// `limit` (formatLimit) names the limit hit; without it the copy says "time limit" as before.
+function traineeStatusCopy({ status, cause, traineeFirst, byFirst, actedBySelf, limit }) {
+  const limitTitle = `${traineeFirst} hit their ${limit || 'time'} limit! 👀`;
   switch (status) {
     case 'attentionNeeded':
-      return { title: `${traineeFirst} hit their time limit! 👀`, body: 'Go ahead and cut them off!' };
+      return { title: limitTitle, body: 'Go ahead and cut them off!' };
     case 'cutOff': {
       const title = `${traineeFirst} has been locked! 🔒`;
       switch (cause) {
         case LOCK_CAUSE.HARDCORE_LIMIT:
-          return { title, body: 'They hit their limit — their apps locked automatically.' };
+          // Same title as Standard's: the event is the limit; Hardcore is why there's nothing to do.
+          return { title: limitTitle, body: "They're on Hardcore, so their apps locked themselves. 🔒" };
         case LOCK_CAUSE.COACH:
           return { title, body: actedBySelf ? 'You cut off their apps.' : `${byFirst} cut off their apps.` };
         case LOCK_CAUSE.SNOOZE_ENDED:
@@ -495,6 +515,13 @@ functions.http('statusUpdate', async (req, res) => {
         attribution.by = String(by);
         if (byName) attribution.byName = byName;
       }
+      // Read from the same snapshot as coachIds, so naming the limit costs no extra read. In the data
+      // too (total minutes), for the app's fallback copy.
+      const totalLimit = settingsSnap.exists
+        ? limitMinutes(settingsSnap.get('thresholdHour'), settingsSnap.get('thresholdMinutes'))
+        : 0;
+      const limit = formatLimit(totalLimit);
+      if (limit) attribution.limitMinutes = String(totalLimit);
 
       for (const coachId of coachIds) {
         try {
@@ -517,6 +544,7 @@ functions.http('statusUpdate', async (req, res) => {
               traineeFirst: firstName(traineeName, 'Your trainee'),
               byFirst: firstName(byName, 'A coach'),
               actedBySelf: hasBy && String(by) === coachId,
+              limit,
             }),
             `status-${uid}`
           );
