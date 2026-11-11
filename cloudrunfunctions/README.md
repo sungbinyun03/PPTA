@@ -4,7 +4,7 @@ Cloud Build deploys these functions from `main`. Nobody pastes into the console.
 
 ## What deploys and when
 - Trigger `ppta-functions` fires on every push to `main` that touches `cloudrunfunctions/` (docs-only pushes are ignored).
-  It runs the Python and Node tests, and only if both are green deploys **all five** functions in parallel.
+  It runs the Python and Node tests, and only if both are green deploys **all five** functions in three batches (statusupdate + lockapp, then unlockapp + role-requests, then deleteaccount), because five at once exceed Cloud Build's 60-per-minute status-read quota.
 - All five deploy every time so that main equals live by construction; a push can never leave a function on old code.
 - `deploy/deploy.sh` stages `deploy/<service>/` (the pinned manifest) plus the function file and passes only the
   source. Env vars, secrets, identity, access and scaling stay as they are on the live service. Never add a flag for them.
