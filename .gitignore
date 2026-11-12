@@ -32,3 +32,6 @@ firebase/node_modules/
 
 # oh-my-claudecode local state (any depth; one under cloudrunfunctions/ would trigger a deploy)
 .omc/
+
+# Claude Code project folder (settings, skills): personal to each developer
+.claude/

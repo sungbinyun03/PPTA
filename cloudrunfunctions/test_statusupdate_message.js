@@ -232,3 +232,44 @@ test('coach lock copy is unchanged by a stored limit', async () => {
   assert.strictEqual(await call(coachStatus('cutOff', 'abc123')), 200);
   assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam has been locked! 🔒');
 });
+
+function settingsChanged(extra = {}) {
+  const ts = Math.floor(Date.now() / 1000);
+  return { uid: 'u1', status: 'allClear', ts, type: 'settingsChanged', change: 'appLimits',
+    sig: sign(`u1|allClear|${ts}|settingsChanged`), ...extra };
+}
+
+async function settingsAlert(extra) {
+  sent = [];
+  settingsFields = { coachIds: ['c1'] };
+  assert.strictEqual(await call(settingsChanged(extra)), 200);
+  return sent[0].notification;
+}
+
+const ASK = "Ask for a screenshot of their App Limits to know what they're tracking!";
+
+test('settings change names what changed', async () => {
+  assert.deepStrictEqual(await settingsAlert({ event: 'pressureOff' }),
+    { title: 'Sam stopped tracking their apps! 🥀', body: "Their apps aren't being tracked anymore. Why did they stop locking in?" });
+  assert.deepStrictEqual(await settingsAlert({ event: 'pressureOn' }),
+    { title: 'Sam started tracking their apps! 💪', body: ASK });
+  assert.deepStrictEqual(await settingsAlert({ event: 'levelChanged', level: 'Hardcore' }),
+    { title: 'Sam switched to Hardcore 🔥', body: ASK });
+  assert.deepStrictEqual(await settingsAlert({ event: 'levelChanged', level: 'Standard' }),
+    { title: 'Sam switched to Standard', body: ASK });
+  assert.deepStrictEqual(await settingsAlert({ event: 'appsChanged' }),
+    { title: 'Sam changed their monitored apps', body: ASK });
+  assert.deepStrictEqual(await settingsAlert({ event: 'limitChanged', fromMinutes: '90', toMinutes: '64' }),
+    { title: 'Sam changed their time limit', body: 'From 1 hr 30 min to 1 hr 4 min. Monitored apps stayed the same.' });
+  assert.deepStrictEqual(await settingsAlert({ event: 'appsAndLimitChanged', fromMinutes: '45', toMinutes: '120' }),
+    { title: 'Sam changed all their App Limits', body: ASK });
+});
+
+test('settings change from an older app, or with bad details, gets the generic copy', async () => {
+  const generic = { title: 'Sam changed their App Limits',
+    body: 'They updated their App Limits, reach out to them for a screenshot so you know their goals!' };
+  assert.deepStrictEqual(await settingsAlert({}), generic);
+  assert.deepStrictEqual(await settingsAlert({ event: 'somethingNew' }), generic);
+  assert.deepStrictEqual(await settingsAlert({ event: 'limitChanged', fromMinutes: 'x' }), generic);
+  assert.deepStrictEqual(await settingsAlert({ event: 'levelChanged', level: 'Off' }), generic);
+});

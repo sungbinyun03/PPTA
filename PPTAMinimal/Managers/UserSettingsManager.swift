@@ -85,7 +85,7 @@ final class UserSettingsManager : ObservableObject{
       
     }
     
-    /// Notifies coaches when a trainee changes what they're being held to.
+    /// Notifies coaches when a trainee changes what they're being held to, naming what changed.
     ///
     /// Skipped on first-time setup — `previous` having no viable limits means there was
     /// nothing to change yet, and "changed their app limits" would be wrong for a trainee who
@@ -97,18 +97,50 @@ final class UserSettingsManager : ObservableObject{
     ) {
         guard !settings.coachIds.isEmpty, previous.hasViableAppLimits else { return }
 
-        let limitsChanged =
-            previous.thresholdHour != settings.thresholdHour ||
-            previous.thresholdMinutes != settings.thresholdMinutes ||
+        let appsChanged =
             previous.applications.applicationTokens != settings.applications.applicationTokens ||
             previous.applications.categoryTokens != settings.applications.categoryTokens
+        let fromMinutes = previous.thresholdHour * 60 + previous.thresholdMinutes
+        let toMinutes = settings.thresholdHour * 60 + settings.thresholdMinutes
+        let limitChanged = fromMinutes != toMinutes
         let pressureChanged = previous.pressureLevel != settings.pressureLevel
+        let limitsChanged = appsChanged || limitChanged
 
-        guard limitsChanged || pressureChanged else { return }
+        guard let event = settingsEvent(
+            from: previous.pressureLevel, to: settings.pressureLevel,
+            appsChanged: appsChanged, fromMinutes: fromMinutes, toMinutes: toMinutes
+        ) else { return }
 
         let change: DeviceActivityManager.SettingsChange =
             limitsChanged && pressureChanged ? .both : (limitsChanged ? .appLimits : .pressureLevel)
-        DeviceActivityManager.shared.sendSettingsChanged(uid: uid, change: change)
+        DeviceActivityManager.shared.sendSettingsChanged(uid: uid, change: change, event: event)
+    }
+
+    /// Which change the coach hears about. Turning Pressure off is reported alone, whatever else
+    /// changed: nothing is tracked, and turning it back on asks the coach for a screenshot. Any
+    /// change of level is assumed to come with app/limit changes, so it asks for one too. Edits
+    /// made while Pressure stays off aren't reported (nil): nothing they set is being enforced.
+    static func settingsEvent(
+        from oldLevel: PressureLevel,
+        to newLevel: PressureLevel,
+        appsChanged: Bool,
+        fromMinutes: Int,
+        toMinutes: Int
+    ) -> DeviceActivityManager.SettingsEvent? {
+        switch (oldLevel.isTracking, newLevel.isTracking) {
+        case (true, false): return .pressureOff
+        case (false, true): return .pressureOn
+        case (false, false): return nil
+        case (true, true):
+            if oldLevel != newLevel { return .levelChanged(to: newLevel) }
+            let limitChanged = fromMinutes != toMinutes
+            switch (appsChanged, limitChanged) {
+            case (true, true): return .appsAndLimitChanged(fromMinutes: fromMinutes, toMinutes: toMinutes)
+            case (true, false): return .appsChanged
+            case (false, true): return .limitChanged(fromMinutes: fromMinutes, toMinutes: toMinutes)
+            case (false, false): return nil
+            }
+        }
     }
 
     /// Names + 30-day block counts for the user's current selection, from what the shield

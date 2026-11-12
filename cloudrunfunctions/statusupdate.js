@@ -108,6 +108,40 @@ function formatLimit(total) {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
+// What a settingsChanged event changed, as the trainee's app reports it (unsigned; copy only).
+const SETTINGS_EVENTS = ['pressureOff', 'pressureOn', 'levelChanged', 'appsChanged', 'limitChanged', 'appsAndLimitChanged'];
+const SCREENSHOT_ASK = "Ask for a screenshot of their App Limits to know what they're tracking!";
+
+// Banner copy for a settingsChanged push. Anything that may have touched the app selection asks the
+// coach to get a screenshot, since coaches can't see a trainee's apps. Turning Pressure off is reported
+// alone: nothing is tracked, and turning it back on asks for the screenshot. `null` for an event this
+// server doesn't know (an older app build sends none), and the caller falls back to the generic copy.
+function settingsChangedCopy({ event, traineeFirst, level, fromMinutes, toMinutes }) {
+  const from = formatLimit(fromMinutes);
+  const to = formatLimit(toMinutes);
+  switch (event) {
+    case 'pressureOff':
+      return { title: `${traineeFirst} stopped tracking their apps! 🥀`, body: "Their apps aren't being tracked anymore. Why did they stop locking in?" };
+    case 'pressureOn':
+      return { title: `${traineeFirst} started tracking their apps! 💪`, body: SCREENSHOT_ASK };
+    case 'levelChanged':
+      if (level !== 'Hardcore' && level !== 'Standard') return null;
+      return {
+        title: level === 'Hardcore' ? `${traineeFirst} switched to Hardcore 🔥` : `${traineeFirst} switched to Standard`,
+        body: SCREENSHOT_ASK,
+      };
+    case 'appsChanged':
+      return { title: `${traineeFirst} changed their monitored apps`, body: SCREENSHOT_ASK };
+    case 'limitChanged':
+      if (!from || !to) return null;
+      return { title: `${traineeFirst} changed their time limit`, body: `From ${from} to ${to}. Monitored apps stayed the same.` };
+    case 'appsAndLimitChanged':
+      return { title: `${traineeFirst} changed all their App Limits`, body: SCREENSHOT_ASK };
+    default:
+      return null;
+  }
+}
+
 // Banner copy for a traineeStatus push, rendered per recipient: the coach who acted sees "You…".
 // `null` = no banner (allClear is the silent daily reset). Mirrors the app's fallback copy.
 // `limit` (formatLimit) names the limit hit, in the body so the title stays short; without it the
@@ -192,13 +226,15 @@ functions.http('statusUpdate', async (req, res) => {
     const data = readBodyAsObject(req);
     // ▲ NEW (per-coach): targetCoach — the single coach a mercy request is addressed to.
     // ▲ NEW: change — what a settingsChanged event altered (appLimits | pressureLevel | both).
-    //   Sent in the body but NOT signed; kept for the data payload only (copy is centralized).
+    //   Sent in the body but NOT signed; kept for the data payload only.
+    // ▲ NEW: event / level / fromMinutes / toMinutes — the specific settingsChanged case and its
+    //   details (see settingsChangedCopy). NOT signed: they only pick the coach's banner copy.
     // ▲ NEW: message — optional note on a mercyRequest. Sent in the body but NOT signed; sanitized
     //   below and omitted when empty, so a request without one behaves exactly as before.
     // ▲ NEW: cmd — the coach command (`lockCommand.id`) this status reports applying. Sent only by
     //   the app's notification service extension, which applies a lock/snooze while PPTA is closed
     //   and can't write Firestore itself; the server acks the command for it (see below). Signed.
-    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message, cmd } = data;
+    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message, cmd, event, level, fromMinutes, toMinutes } = data;
 
     if (!uid || !status || ts === undefined || ts === null || !sig) {
       return bad(res, 400, 'missing params');
@@ -455,12 +491,23 @@ functions.http('statusUpdate', async (req, res) => {
         }
       }
     } else if (isSettingsChanged) {
-      // ▲ NEW: a trainee changed their App Limits — alert ALL their coaches. Messaging is
-      //   centralized on "App Limits" regardless of what actually changed, and nudges the coach to
-      //   ask for a screenshot. First name only in the title. Alert push (like mercyRequest) so it
-      //   shows even if the coach's app is closed; the server composes the copy since there's no
-      //   client handler. No status/state is written.
+      // ▲ NEW: a trainee changed their App Limits — alert ALL their coaches with what changed
+      //   (settingsChangedCopy), or the generic "App Limits" copy when the app didn't say (older
+      //   builds). First name only in the title. Alert push (like mercyRequest) so it shows even if
+      //   the coach's app is closed; the server composes the copy since there's no client handler.
+      //   No status/state is written.
       const traineeFirstName = String(traineeName).trim().split(/\s+/)[0] || traineeName;
+      const copy = (SETTINGS_EVENTS.includes(event) &&
+        settingsChangedCopy({
+          event,
+          traineeFirst: traineeFirstName,
+          level: typeof level === 'string' ? level : undefined,
+          fromMinutes: Number(fromMinutes),
+          toMinutes: Number(toMinutes),
+        })) || {
+        title: `${traineeFirstName} changed their App Limits`,
+        body: 'They updated their App Limits, reach out to them for a screenshot so you know their goals!',
+      };
 
       const settingsSnap = await settingsRef.get();
       const rawCoachIds = settingsSnap.exists ? settingsSnap.get('coachIds') : [];
@@ -482,10 +529,7 @@ functions.http('statusUpdate', async (req, res) => {
               traineeName,
               change: String(change ?? ''),
             },
-            notification: {
-              title: `${traineeFirstName} changed their App Limits`,
-              body: 'They updated their App Limits, reach out to them for a screenshot so you know their goals!',
-            },
+            notification: copy,
             apns: {
               headers: {
                 'apns-priority': '10',

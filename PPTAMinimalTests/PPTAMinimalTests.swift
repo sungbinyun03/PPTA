@@ -194,6 +194,37 @@ struct ShieldLiftTests {
     }
 }
 
+struct SettingsEventTests {
+    private func event(_ from: PressureLevel, _ to: PressureLevel, apps: Bool = false,
+                       _ fromMinutes: Int = 60, _ toMinutes: Int = 60) -> DeviceActivityManager.SettingsEvent? {
+        UserSettingsManager.settingsEvent(from: from, to: to, appsChanged: apps,
+                                          fromMinutes: fromMinutes, toMinutes: toMinutes)
+    }
+
+    @Test func turningOffIsReportedAloneWhateverElseChanged() {
+        #expect(event(.standard, .off, apps: true, 60, 30) == .pressureOff)
+    }
+
+    @Test func turningOnIsReportedAsStartedTracking() {
+        #expect(event(.off, .hardcore, apps: true, 60, 30) == .pressureOn)
+    }
+
+    @Test func changesWhileOffAreNotReported() {
+        #expect(event(.off, .off, apps: true, 60, 30) == nil)
+    }
+
+    @Test func aLevelSwitchWinsOverAppAndLimitChanges() {
+        #expect(event(.standard, .hardcore, apps: true, 60, 30) == .levelChanged(to: .hardcore))
+    }
+
+    @Test func appsLimitAndBoth() {
+        #expect(event(.standard, .standard, apps: true) == .appsChanged)
+        #expect(event(.standard, .standard, 90, 64) == .limitChanged(fromMinutes: 90, toMinutes: 64))
+        #expect(event(.hardcore, .hardcore, apps: true, 45, 120) == .appsAndLimitChanged(fromMinutes: 45, toMinutes: 120))
+        #expect(event(.standard, .standard) == nil)
+    }
+}
+
 struct LaunchGateTests {
 
     @Test func holdsForMinimumDisplayEvenWhenReady() {

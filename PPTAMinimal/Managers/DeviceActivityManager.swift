@@ -692,14 +692,39 @@ class DeviceActivityManager {
         case both
     }
 
-    /// Tells this user's coaches that they changed their app limits or pressure level.
-    /// Notification only — the client has already persisted the change itself.
-    func sendSettingsChanged(uid: String?, change: SettingsChange) {
+    /// The specific case the coach's banner names (`settingsChangedCopy` in statusupdate.js).
+    /// Limits are whole minutes.
+    enum SettingsEvent: Equatable {
+        case pressureOff
+        case pressureOn
+        case levelChanged(to: PressureLevel)
+        case appsChanged
+        case limitChanged(fromMinutes: Int, toMinutes: Int)
+        case appsAndLimitChanged(fromMinutes: Int, toMinutes: Int)
+
+        /// Unsigned body fields for statusUpdate; they only pick the copy.
+        var fields: [String: String] {
+            switch self {
+            case .pressureOff: return ["event": "pressureOff"]
+            case .pressureOn: return ["event": "pressureOn"]
+            case .levelChanged(let level): return ["event": "levelChanged", "level": level.rawValue]
+            case .appsChanged: return ["event": "appsChanged"]
+            case .limitChanged(let from, let to):
+                return ["event": "limitChanged", "fromMinutes": String(from), "toMinutes": String(to)]
+            case .appsAndLimitChanged(let from, let to):
+                return ["event": "appsAndLimitChanged", "fromMinutes": String(from), "toMinutes": String(to)]
+            }
+        }
+    }
+
+    /// Tells this user's coaches that they changed their app limits or pressure level, and what
+    /// changed. Notification only — the client has already persisted the change itself.
+    func sendSettingsChanged(uid: String?, change: SettingsChange, event: SettingsEvent) {
         postToStatusUpdate(
             uid: uid,
             status: .allClear,
             type: "settingsChanged",
-            extra: ["change": change.rawValue]
+            extra: event.fields.merging(["change": change.rawValue]) { current, _ in current }
         )
     }
 

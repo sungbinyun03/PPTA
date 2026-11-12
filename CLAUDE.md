@@ -27,6 +27,7 @@ else lives in `docs/agent/`.
 | Navigation | `docs/agent/navigation.md` |
 | Key enums & constants | `docs/agent/key-enums-constants.md` |
 | Pre-launch status | `docs/agent/pre-launch-status.md` |
+| Product design: feature behaviour, exact user-facing copy, decisions, changelog | `docs/design/` |
 
 ---
 
