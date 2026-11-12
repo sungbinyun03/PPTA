@@ -2,6 +2,18 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-11: Pressure Off is an emergency exit; coaches hear about it
+
+- **Changed**: turning Pressure Off lifts a coach lock too (it used to stay, with an in-app `Coach
+  lock stays on`). The ended lock doesn't come back if Pressure goes back on the same day. Cut-off
+  Hardcore trainees can now switch to Off (only to Off). The coach sheet says
+  `Sam turned Pressure off, so their lock ended.`
+- **Added**: any App Limits save after going over the limit (attentionNeeded, cutOff, snoozed) tells
+  coaches `Changed their App Limits after going over their limit! They're cheating 👹`.
+- **Removed**: the `Coach lock stays on` message.
+- **Why**: let people reach their apps in an emergency; coaches are told instead.
+- **Rollout**: server copy on deploy; the app behaviour with the next TestFlight build.
+
 ## 2026-11-11: Notifications titled with the person's name
 
 - **Changed**: coach notifications about a trainee (limit, locks, snoozes, more-time asks, reinstall,

@@ -270,8 +270,8 @@ enum ShieldPolicy {
 
     /// The coach whose lock is standing on this device (first name; "" if unnamed), else nil. A
     /// durable marker of its own because `traineeStatus` / `ShieldContext.lockedByName` are wiped when
-    /// pressure goes Off, which is exactly when `ShieldLift` has to tell a coach lock from a limit
-    /// shield. Set by `handleRemoteLock`; dropped by `clear`, so any lift (Release, day boundary,
+    /// pressure goes Off, which is exactly when `liftUserClearableShield` has to tell a coach lock
+    /// (which it marks ended) from a limit shield. Set by `handleRemoteLock`; dropped by `clear`, so any lift (Release, day boundary,
     /// user-initiated) ends it.
     static var coachLockedBy: String? {
         UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.string(forKey: coachLockedByKey)
@@ -287,21 +287,6 @@ enum ShieldPolicy {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?.removeObject(forKey: coachLockedByKey)
-    }
-}
-
-/// What a user-initiated Off or empty-selection save may lift. A limit-caused shield (Standard/Hardcore
-/// limit, snooze-ended re-raise) goes; a standing coach lock never does, only the coach's Release ends it.
-enum ShieldLift {
-    enum Decision: Equatable {
-        case lift
-        case keepCoachLock(by: String?)  // first name, nil when unknown
-    }
-
-    /// - Parameter coachLockedBy: `ShieldPolicy.coachLockedBy`.
-    static func decide(coachLockedBy: String?) -> Decision {
-        guard let coachLockedBy else { return .lift }
-        return .keepCoachLock(by: coachLockedBy.isEmpty ? nil : coachLockedBy)
     }
 }
 
@@ -439,23 +424,26 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
 
-    /// What the user turning pressure Off, or saving an empty selection, does to a standing shield:
-    /// lifts a limit-caused one (stamping the release so the Hardcore re-assert gate doesn't raise it
-    /// again) but never a coach lock, which stays until the coach Releases. Stopping monitoring does
-    /// neither, and nothing is armed afterwards to lower the shield.
+    /// What the user turning Pressure Off (or saving an empty selection, only possible with Off) does
+    /// to a standing shield: lifts it, whatever raised it, stamping the release so the Hardcore
+    /// re-assert gate doesn't raise it again. A coach lock is lifted too: Off is the trainee's
+    /// emergency exit, and their coaches are told (the App Limits notification). That lock is marked
+    /// ended so `LockReconciler` doesn't put it back if Pressure goes back on the same day; a new
+    /// lock from a coach works as usual. Stopping monitoring does none of this, and nothing is armed
+    /// afterwards to lower the shield.
+    /// - Returns: the coach lock's command id when one was ended, for the caller to ack
+    ///   (`LockReconciler.ackEndedByPressureOff`; this file also builds into extensions without it).
     @discardableResult
-    func liftUserClearableShield() -> ShieldLift.Decision {
-        let decision = ShieldLift.decide(coachLockedBy: ShieldPolicy.coachLockedBy)
-        switch decision {
-        case .lift:
-            ShieldPolicy.recordRelease()
-            ShieldPolicy.clear(store)
-        case .keepCoachLock(let coach):
-            NotificationManager.shared.showInAppMessage(
-                title: "Coach lock stays on",
-                body: "\(coach ?? "Your coach")'s lock stays on until they release it.")
+    func liftUserClearableShield() -> String? {
+        var ended: String?
+        if ShieldPolicy.coachLockedBy != nil, let commandId = LocalSettingsStore.lastAppliedLockCommandId {
+            LocalSettingsStore.endedLockCommandId = commandId
+            LocalSettingsStore.lockMessage = nil
+            ended = commandId
         }
-        return decision
+        ShieldPolicy.recordRelease()
+        ShieldPolicy.clear(store)
+        return ended
     }
 
     /// Lifts whatever shield is up, through `ShieldPolicy` like every other clear. Stopping
@@ -719,13 +707,12 @@ class DeviceActivityManager {
 
     /// Tells this user's coaches that they changed their app limits or pressure level, and what
     /// changed. Notification only — the client has already persisted the change itself.
-    func sendSettingsChanged(uid: String?, change: SettingsChange, event: SettingsEvent) {
-        postToStatusUpdate(
-            uid: uid,
-            status: .allClear,
-            type: "settingsChanged",
-            extra: event.fields.merging(["change": change.rawValue]) { current, _ in current }
-        )
+    /// - Parameter overLimit: the save came after they'd already gone over their limit today
+    ///   (attentionNeeded, cutOff or snoozed); the coaches get the "cheating" copy instead.
+    func sendSettingsChanged(uid: String?, change: SettingsChange, event: SettingsEvent, overLimit: Bool = false) {
+        var extra = event.fields.merging(["change": change.rawValue]) { current, _ in current }
+        if overLimit { extra["overLimit"] = "1" }
+        postToStatusUpdate(uid: uid, status: .allClear, type: "settingsChanged", extra: extra)
     }
 
     /// Reports that this user just **reinstalled** the app (their sandbox was wiped but the Keychain

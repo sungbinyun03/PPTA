@@ -29,9 +29,9 @@ import FirebaseFirestore
 ///
 /// ### Lock is level-triggered, unlock is edge-triggered
 /// - A **lock** that is already applied is silently re-asserted on every reconcile for the rest of
-///   that day (`reapplyShield`: no banner, no status POST, no change to the shield context). That is
-///   what makes Pressure Off then back on the same day re-lock, and what survives anything else that
-///   knocked the shield down.
+///   that day (`reapplyShield`: no banner, no status POST, no change to the shield context). That
+///   survives anything that knocked the shield down, except the trainee turning Pressure Off, which
+///   ends the lock (`LocalSettingsStore.endedLockCommandId`, acked `pressureOff`).
 /// - An **unlock** is acted on once. Re-running one would re-arm the grace window and re-announce the
 ///   snooze, so an acked or locally-applied unlock is never touched again. There is no "is a grace
 ///   period running" veto: it isn't needed (a snooze is the *latest* command, so no lock re-asserts
@@ -302,6 +302,8 @@ final class LockReconciler {
 
         switch command.action {
         case .lock:
+            // Ended by the trainee turning Pressure Off (`liftUserClearableShield`): never re-applied.
+            guard LocalSettingsStore.endedLockCommandId != command.id else { return }
             // An ack that isn't "applied" (pressure was Off, no apps) is not an enforced lock, so
             // the command is retried now that settings may have changed.
             let applied = appliedLocally || (ackedForThis && ack?.result == LockOutcome.applied.rawValue)
@@ -410,12 +412,21 @@ final class LockReconciler {
     /// `lockAck` is a single field, so a late ack for an older command would erase the real ack for
     /// the newest one and leave the coach waiting. The write is a transaction that re-reads the
     /// document and skips if its `lockCommand` is no longer this command.
+    /// Tells the coach's sheet that the trainee ended this lock by turning Pressure Off.
+    func ackEndedByPressureOff(_ commandId: String) async {
+        await writeAck(id: commandId, action: "lock", result: "pressureOff")
+    }
+
     private func writeAck(_ command: Command, result: String) async {
+        await writeAck(id: command.id, action: command.action.rawValue, result: result)
+    }
+
+    private func writeAck(id commandId: String, action: String, result: String) async {
         guard let uid = Auth.auth().currentUser?.uid else { return }
         let ref = db.collection("userSettings").document(uid)
         let ackFields: [String: Any] = [
-            "id": command.id,
-            "action": command.action.rawValue,
+            "id": commandId,
+            "action": action,
             "result": result,
             "at": FieldValue.serverTimestamp(),
         ]
@@ -428,16 +439,16 @@ final class LockReconciler {
                     errorPointer?.pointee = error as NSError
                     return nil
                 }
-                if let current = Command(snapshot.data()?["lockCommand"]), current.id != command.id {
+                if let current = Command(snapshot.data()?["lockCommand"]), current.id != commandId {
                     return false
                 }
                 transaction.updateData(["lockAck": ackFields], forDocument: ref)
                 return true
             }
             if (wrote as? Bool) == true {
-                print("LockReconciler: acked \(command.action.rawValue) \(command.id): \(result).")
+                print("LockReconciler: acked \(action) \(commandId): \(result).")
             } else {
-                print("LockReconciler: ack for \(command.id) skipped; a newer command exists.")
+                print("LockReconciler: ack for \(commandId) skipped; a newer command exists.")
             }
         } catch {
             print("LockReconciler: failed to write lockAck:", error)

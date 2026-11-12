@@ -20,7 +20,6 @@ notifications from the monitoring extension; coach lock/snooze ones come from th
 | Snooze ran out | `Snoozed Lock Ended! 🔒` | `Your 10 minutes are up — your apps are locked again.` |
 | A coach locked them | `Alex Coach` (coach's full name) | `Locked your apps 🔒 "note"` or `Locked your apps 🔒 Head to a coach's profile to ask for a snooze.` |
 | A coach snoozed the lock | `Alex Coach` (coach's full name) | `Snoozed your lock ⏳ "note"` or `Snoozed your lock ⏳ You've got 10 minutes, make them count!` |
-| Turned Pressure off during a coach lock | `Coach lock stays on` | `Alex's lock stays on until they release it.` |
 
 ## Decisions
 
@@ -30,7 +29,7 @@ notifications from the monitoring extension; coach lock/snooze ones come from th
 
 - `AppMonitor/DeviceActivityMonitorExtension.swift` (limit warnings, limit hit, snooze ended).
 - `cloudrunfunctions/lockapp.py`, `unlockapp.py` (lock/snooze pushes); `PPTAMinimal/Models/ActionMessage.swift`
-  (local fallback bodies); `PPTAMinimal/Managers/DeviceActivityManager.swift` (coach lock stays on).
+  (local fallback bodies).
 
 ## Open questions
 

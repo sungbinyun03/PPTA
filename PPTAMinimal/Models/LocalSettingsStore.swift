@@ -22,6 +22,7 @@ struct LocalSettingsStore {
     private static let pendingLockedByKey = "PendingLockedByName"
     private static let lastLockCommandKey = "LastAppliedLockCommandId"
     private static let lastLockCommandAtKey = "LastAppliedLockCommandAt"
+    private static let endedLockCommandKey = "EndedLockCommandId"
     private static let lockMessageKey = "LockMessage"
 
     static func save(_ settings: UserSettings) {
@@ -47,6 +48,13 @@ struct LocalSettingsStore {
     static var lastAppliedLockCommandId: String? {
         get { suite?.string(forKey: lastLockCommandKey) }
         set { suite?.set(newValue, forKey: lastLockCommandKey) }
+    }
+
+    /// A coach lock the trainee ended by turning Pressure Off (`lockCommand.id`). `LockReconciler`
+    /// never re-applies it, so turning Pressure back on the same day doesn't bring it back.
+    static var endedLockCommandId: String? {
+        get { suite?.string(forKey: endedLockCommandKey) }
+        set { suite?.set(newValue, forKey: endedLockCommandKey) }
     }
 
     /// Server time of that command (`lockCommand.at`, or the push's `at`), so the notification

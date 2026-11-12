@@ -179,18 +179,16 @@ struct LimitFireGateTests {
     }
 }
 
-struct ShieldLiftTests {
-
-    @Test func noCoachLockMeansALimitShieldIsLifted() {
-        #expect(ShieldLift.decide(coachLockedBy: nil) == .lift)
+struct OverLimitTests {
+    @Test func savesAfterGoingOverTheLimitAreFlagged() {
+        #expect(UserSettingsManager.wasOverLimit(.attentionNeeded))
+        #expect(UserSettingsManager.wasOverLimit(.cutOff))
+        #expect(UserSettingsManager.wasOverLimit(.snoozedLock))
     }
 
-    @Test func aCoachLockIsKeptAndNamed() {
-        #expect(ShieldLift.decide(coachLockedBy: "Alex") == .keepCoachLock(by: "Alex"))
-    }
-
-    @Test func anUnnamedCoachLockIsStillKept() {
-        #expect(ShieldLift.decide(coachLockedBy: "") == .keepCoachLock(by: nil))
+    @Test func otherSavesAreNot() {
+        #expect(!UserSettingsManager.wasOverLimit(.allClear))
+        #expect(!UserSettingsManager.wasOverLimit(.noStatus))
     }
 }
 

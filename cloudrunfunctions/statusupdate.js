@@ -142,6 +142,10 @@ function settingsChangedCopy({ event, traineeName, level, fromMinutes, toMinutes
   }
 }
 
+// Any App Limits save made after the trainee already went over their limit today (the app sends
+// overLimit), whatever changed.
+const OVER_LIMIT_BODY = "Changed their App Limits after going over their limit! They're cheating 👹";
+
 // The generic App Limits copy, for an older app build that doesn't say what changed.
 function settingsChangedGenericCopy(traineeName) {
   return { title: traineeName, body: `Changed their App Limits. ${SCREENSHOT_ASK}` };
@@ -233,7 +237,9 @@ functions.http('statusUpdate', async (req, res) => {
     // ▲ NEW: cmd — the coach command (`lockCommand.id`) this status reports applying. Sent only by
     //   the app's notification service extension, which applies a lock/snooze while PPTA is closed
     //   and can't write Firestore itself; the server acks the command for it (see below). Signed.
-    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message, cmd, event, level, fromMinutes, toMinutes } = data;
+    // ▲ NEW: overLimit — '1' when the trainee saved after already going over their limit today.
+    //   NOT signed: it only picks the coach's banner copy.
+    const { uid, status, ts, sig, type, cause, by, targetCoach, change, message, cmd, event, level, fromMinutes, toMinutes, overLimit } = data;
 
     if (!uid || !status || ts === undefined || ts === null || !sig) {
       return bad(res, 400, 'missing params');
@@ -497,7 +503,8 @@ functions.http('statusUpdate', async (req, res) => {
       //   builds). Full name in the title. Alert push (like mercyRequest) so it shows even if
       //   the coach's app is closed; the server composes the copy since there's no client handler.
       //   No status/state is written.
-      const copy = (SETTINGS_EVENTS.includes(event) &&
+      const copy = (overLimit === '1' && { title: traineeName, body: OVER_LIMIT_BODY }) ||
+        (SETTINGS_EVENTS.includes(event) &&
         settingsChangedCopy({
           event,
           traineeName,

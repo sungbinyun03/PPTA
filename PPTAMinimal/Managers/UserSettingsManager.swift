@@ -113,7 +113,15 @@ final class UserSettingsManager : ObservableObject{
 
         let change: DeviceActivityManager.SettingsChange =
             limitsChanged && pressureChanged ? .both : (limitsChanged ? .appLimits : .pressureLevel)
-        DeviceActivityManager.shared.sendSettingsChanged(uid: uid, change: change, event: event)
+        DeviceActivityManager.shared.sendSettingsChanged(
+            uid: uid, change: change, event: event,
+            overLimit: wasOverLimit(previous.traineeStatus))
+    }
+
+    /// Whether a save comes after the trainee already went over their limit today, so their coaches
+    /// hear it as cheating rather than a plain App Limits change.
+    static func wasOverLimit(_ status: TraineeStatus) -> Bool {
+        status == .attentionNeeded || status == .cutOff || status == .snoozedLock
     }
 
     /// Which change the coach hears about. Turning Pressure off is reported alone, whatever else

@@ -91,6 +91,7 @@ struct FriendProfileView: View {
             switch result {
             case "notTracking": text = "\(first) has pressure turned off, so nothing changed."
             case "emptySelection": text = "\(first) has no apps selected, so nothing changed."
+            case "pressureOff": text = "\(first) turned Pressure off, so their lock ended."
             case "superseded": text = "A newer lock or snooze replaced this one."
             default: text = "\(first)'s phone received this but didn't apply it."
             }

@@ -268,6 +268,15 @@ test('settings change names what changed', async () => {
     { title: N, body: `Changed all their App Limits. ${ASK}` });
 });
 
+test('a save after going over the limit gets the cheating copy, whatever changed', async () => {
+  const cheating = { title: N, body: "Changed their App Limits after going over their limit! They're cheating 👹" };
+  assert.deepStrictEqual(await settingsAlert({ event: 'pressureOff', overLimit: '1' }), cheating);
+  assert.deepStrictEqual(await settingsAlert({ event: 'appsChanged', overLimit: '1' }), cheating);
+  assert.deepStrictEqual(await settingsAlert({ overLimit: '1' }), cheating);
+  assert.strictEqual((await settingsAlert({ event: 'pressureOff', overLimit: '0' })).body,
+    'Stopped tracking their apps 🥀 Why did they stop locking in?');
+});
+
 test('settings change from an older app, or with bad details, gets the generic copy', async () => {
   const generic = { title: N, body: `Changed their App Limits. ${ASK}` };
   assert.deepStrictEqual(await settingsAlert({}), generic);

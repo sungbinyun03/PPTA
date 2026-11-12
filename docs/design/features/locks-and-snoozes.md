@@ -21,8 +21,10 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
   with PPTA closed, needs notification permission), or when PPTA opens.
 - A snooze belongs to the day it was granted. A snooze still running at midnight is cancelled by the
   new day, not turned into a lock.
-- Turning Pressure **Off** lifts a limit lock but **never a coach lock**; the trainee sees
-  `Coach lock stays on` / `Alex's lock stays on until they release it.`
+- Turning Pressure **Off** lifts any lock, a coach lock included: it's the trainee's emergency exit,
+  and their coaches are told (see coach-notifications.md, "after going over their limit"). A coach
+  lock ended this way stays ended if Pressure goes back on the same day; a new lock works as usual.
+  Hardcore trainees who are cut off can switch to Off too (only to Off).
 
 ## Copy (coach sheet)
 
@@ -32,13 +34,16 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
 | Stalled | `Sam's phone hasn't confirmed yet. The lock applies as soon as it's online or PPTA opens.` |
 | Confirmed | `Sam's apps are locked` / `Sam's lock is snoozed` |
 | Not applied | `Sam has pressure turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or snooze replaced this one.` |
+| Trainee turned Pressure off | `Sam turned Pressure off, so their lock ended.` |
 | Resend button | `Resend` |
 
 Notification copy for locks and snoozes: see [coach-notifications.md](coach-notifications.md).
 
 ## Decisions
 
-- 2026-10-01: Off never lifts a coach lock (otherwise two taps escape any lock).
+- 2026-10-01: Off never lifts a coach lock (otherwise two taps escape any lock). Reversed 2026-11-11.
+- 2026-11-11: Off lifts every lock, coach locks included, for emergencies. Coaches are told it's
+  cheating instead of the trainee being kept locked.
 - 2026-10-11: Snoozes are scoped to the day they were granted.
 - 2026-10-27: Coach resend for stalled locks only, client-side (no server change).
 
@@ -48,7 +53,8 @@ Notification copy for locks and snoozes: see [coach-notifications.md](coach-noti
   `canResendLock`, `resendLock`), `PPTAMinimal/Views/Friends/FriendProfileView.swift`,
   `FriendProfileSheetView.swift`.
 - Trainee device: `PPTAMinimal/Managers/LockReconciler.swift`, `PPTANotificationService/`,
-  `DeviceActivityManager.swift` (`UnlockGrace`, `ShieldLift`), `AppMonitor/`.
+  `DeviceActivityManager.swift` (`UnlockGrace`, `liftUserClearableShield`); `LockReconciler.swift` (ended locks,
+  `LocalSettingsStore.endedLockCommandId`), `AppMonitor/`.
 - Server: `cloudrunfunctions/lockapp.py`, `unlockapp.py`, `statusupdate.js` (acks for the extension).
 
 ## Open questions
