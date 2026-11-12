@@ -139,15 +139,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let byName = (notification["byName"] as? String)?.firstNameOnly ?? "A coach"
             // The fan-out reaches every coach, including the one who acted. Show them "You…".
             let actedBySelf = byUID != nil && byUID == Auth.auth().currentUser?.uid
-            // The limit hit, as the Daily Limit tile shows it ("1h 15m", "45m", "2h"); "time" when
-            // the server didn't send one. Same copy as `traineeStatusCopy` in statusupdate.js.
-            let limit: String = {
-                guard let total = (notification["limitMinutes"] as? String).flatMap(Int.init), total > 0 else { return "time" }
+            // The limit hit, spelled out as Screen Time writes durations ("1 hr 15 min", "45 min",
+            // "2 hr"), leading the body; empty when the server didn't send one. Same copy as
+            // `traineeStatusCopy` in statusupdate.js.
+            let limitIs: String = {
+                guard let total = (notification["limitMinutes"] as? String).flatMap(Int.init), total > 0 else { return "" }
                 let hours = total / 60, minutes = total % 60
-                if hours == 0 { return "\(minutes)m" }
-                return minutes == 0 ? "\(hours)h" : "\(hours)h \(minutes)m"
+                let limit = hours == 0 ? "\(minutes) min" : minutes == 0 ? "\(hours) hr" : "\(hours) hr \(minutes) min"
+                return "Their limit is \(limit). "
             }()
-            let limitTitle = "\(traineeName) hit their \(limit) limit! 👀"
+            let limitTitle = "\(traineeName) hit their time limit! 👀"
 
             // Title = "{trainee} <short event>"; body elaborates (who/why). `nil` → no notification
             // (allClear is the silent daily reset — the coach's Status Center refreshes from Firestore).
@@ -155,11 +156,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 switch status {
                 case TraineeStatus.attentionNeeded.rawValue:
                     // Standard-only: hitting the limit in Hardcore goes straight to cutOff.
-                    return (limitTitle, "Go ahead and cut them off!")
+                    return (limitTitle, "\(limitIs)Go ahead and cut them off!")
                 case TraineeStatus.cutOff.rawValue:
                     switch cause {
                     case LockCause.hardcoreLimit.rawValue:
-                        return (limitTitle, "They're on Hardcore, so their apps locked themselves. 🔒")
+                        return (limitTitle, "\(limitIs)They're on Hardcore, so their apps locked themselves. 🔒")
                     case LockCause.coach.rawValue:
                         return ("\(traineeName) has been locked! 🔒",
                                 actedBySelf ? "You cut off their apps." : "\(byName) cut off their apps.")

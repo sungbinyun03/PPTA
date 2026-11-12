@@ -200,13 +200,13 @@ function limitAlert(hours, minutes) {
   settingsFields = { coachIds: ['c1'], thresholdHour: hours, thresholdMinutes: minutes };
 }
 
-test('limit alert names the limit in the title', async () => {
-  for (const [h, m, shown] of [[1, 15, '1h 15m'], [0, 45, '45m'], [2, 0, '2h']]) {
+test('limit alert names the limit in the body', async () => {
+  for (const [h, m, shown] of [[1, 4, '1 hr 4 min'], [0, 45, '45 min'], [2, 0, '2 hr']]) {
     sent = [];
     limitAlert(h, m);
     assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
-    assert.strictEqual(sent[0].apns.payload.aps.alert.title, `Sam hit their ${shown} limit! 👀`);
-    assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'Go ahead and cut them off!');
+    assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
+    assert.strictEqual(sent[0].apns.payload.aps.alert.body, `Their limit is ${shown}. Go ahead and cut them off!`);
     assert.strictEqual(sent[0].data.limitMinutes, String(h * 60 + m));
   }
 });
@@ -214,14 +214,15 @@ test('limit alert names the limit in the title', async () => {
 test('hardcore limit lock: same title as Standard, Hardcore body', async () => {
   limitAlert(1, 15);
   assert.strictEqual(await call(hardcoreLimit()), 200);
-  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their 1h 15m limit! 👀');
-  assert.strictEqual(sent[0].apns.payload.aps.alert.body, "They're on Hardcore, so their apps locked themselves. 🔒");
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, "Their limit is 1 hr 15 min. They're on Hardcore, so their apps locked themselves. 🔒");
 });
 
 test('no limit stored: previous wording, no limitMinutes', async () => {
   settingsFields = { coachIds: ['c1'] };
   assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
   assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'Go ahead and cut them off!');
   assert.ok(!('limitMinutes' in sent[0].data));
 });
 

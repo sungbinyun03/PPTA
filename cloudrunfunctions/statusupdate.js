@@ -98,30 +98,32 @@ function limitMinutes(hours, minutes) {
     (Number.isFinite(minutes) ? Math.floor(minutes) : 0);
 }
 
-// As the app's Daily Limit tile shows it: "1h 15m", "45m", "2h". The limit is stored in whole
-// minutes, so there are no seconds to round. null for no limit.
+// Spelled out as Screen Time writes durations: "1 hr 15 min", "45 min", "2 hr". The limit is stored
+// in whole minutes, so there are no seconds to round. null for no limit.
 function formatLimit(total) {
   if (!(total > 0)) return null;
   const h = Math.floor(total / 60);
   const m = total % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
 // Banner copy for a traineeStatus push, rendered per recipient: the coach who acted sees "You…".
 // `null` = no banner (allClear is the silent daily reset). Mirrors the app's fallback copy.
-// `limit` (formatLimit) names the limit hit; without it the copy says "time limit" as before.
+// `limit` (formatLimit) names the limit hit, in the body so the title stays short; without it the
+// body is the old one.
 function traineeStatusCopy({ status, cause, traineeFirst, byFirst, actedBySelf, limit }) {
-  const limitTitle = `${traineeFirst} hit their ${limit || 'time'} limit! 👀`;
+  const limitTitle = `${traineeFirst} hit their time limit! 👀`;
+  const limitIs = limit ? `Their limit is ${limit}. ` : '';
   switch (status) {
     case 'attentionNeeded':
-      return { title: limitTitle, body: 'Go ahead and cut them off!' };
+      return { title: limitTitle, body: `${limitIs}Go ahead and cut them off!` };
     case 'cutOff': {
       const title = `${traineeFirst} has been locked! 🔒`;
       switch (cause) {
         case LOCK_CAUSE.HARDCORE_LIMIT:
           // Same title as Standard's: the event is the limit; Hardcore is why there's nothing to do.
-          return { title: limitTitle, body: "They're on Hardcore, so their apps locked themselves. 🔒" };
+          return { title: limitTitle, body: `${limitIs}They're on Hardcore, so their apps locked themselves. 🔒` };
         case LOCK_CAUSE.COACH:
           return { title, body: actedBySelf ? 'You cut off their apps.' : `${byFirst} cut off their apps.` };
         case LOCK_CAUSE.SNOOZE_ENDED:
