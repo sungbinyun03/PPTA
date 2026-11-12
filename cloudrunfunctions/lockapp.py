@@ -157,8 +157,8 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
     if not token or (isinstance(token, str) and not token.strip()):
         return _command_ok(cmd_id, "no-token")
 
-    parts = coach_name.split()
-    first = parts[0] if parts else "Your coach"
+    # The title is the coach's full name; the body says what they did.
+    coach_full = " ".join(coach_name.split()) or "Your coach"
 
     if ALERT_PUSH:
         apns = messaging.APNSConfig(
@@ -171,8 +171,8 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
             payload=messaging.APNSPayload(
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
-                        title=f"Locked by {first} 🔒",
-                        body=note or "Head to a coach's profile to ask them to snooze the lock.",
+                        title=coach_full,
+                        body=f"Locked your apps 🔒 \u201c{note}\u201d" if note else "Locked your apps 🔒 Head to a coach's profile to ask for a snooze.",
                     ),
                     sound="default",
                     content_available=True,

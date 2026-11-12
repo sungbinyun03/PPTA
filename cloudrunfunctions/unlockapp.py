@@ -203,8 +203,8 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
         print(f"Token for UID [{uid}] is a whitespace-only string")
         return _command_ok(cmd_id, "no-token")
 
-    parts = coach_name.split()
-    first = parts[0] if parts else "Your coach"
+    # The title is the coach's full name; the body says what they did.
+    coach_full = " ".join(coach_name.split()) or "Your coach"
 
     if ALERT_PUSH:
         apns = messaging.APNSConfig(
@@ -217,8 +217,8 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
             payload=messaging.APNSPayload(
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
-                        title=f"Lock snoozed by {first}! ⏳",
-                        body=f"\u201c{note}\u201d" if note else "You've got 10 minutes before your apps lock again — make them count!",
+                        title=coach_full,
+                        body=f"Snoozed your lock ⏳ \u201c{note}\u201d" if note else "Snoozed your lock ⏳ You've got 10 minutes, make them count!",
                     ),
                     sound="default",
                     content_available=True,

@@ -393,8 +393,8 @@ struct LockMessageTests {
     }
 
     @Test func notificationBodyQuotesMessageElseKeepsHint() {
-        #expect(ActionMessage.lockNotificationBody(message: "Go study") == "\u{201C}Go study\u{201D}")
-        #expect(ActionMessage.lockNotificationBody(message: nil).hasPrefix("Head to a coach"))
+        #expect(ActionMessage.lockNotificationBody(message: "Go study") == "Locked your apps 🔒 \u{201C}Go study\u{201D}")
+        #expect(ActionMessage.lockNotificationBody(message: nil) == "Locked your apps 🔒 Head to a coach's profile to ask for a snooze.")
     }
 
     @Test func lockMessageStoreRoundTripsAndClears() {

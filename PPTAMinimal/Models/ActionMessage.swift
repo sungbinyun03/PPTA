@@ -38,18 +38,18 @@ enum ActionMessage {
     /// rather than app copy. One definition for notifications and the lock / snooze tooltips.
     static func quoted(_ note: String) -> String { "\u{201C}\(note)\u{201D}" }
 
-    /// Body of the local "Locked by ..." notification: the coach's note when there is one, else the
-    /// standing hint.
+    /// Body of the local lock notification (titled with the coach's name): what they did, then their
+    /// note when there is one, else the standing hint. Same copy as lockapp.py's alert.
     static func lockNotificationBody(message: String?) -> String {
-        if let message = clean(message) { return quoted(message) }
-        return "Head to a coach's profile to ask them to snooze the lock."
+        if let message = clean(message) { return "Locked your apps 🔒 \(quoted(message))" }
+        return "Locked your apps 🔒 Head to a coach's profile to ask for a snooze."
     }
 
-    /// Body of the local "Lock snoozed by ..." notification: the coach's note when there is one, else
-    /// the standing grace-period line.
+    /// Body of the local snooze notification (titled with the coach's name): what they did, then their
+    /// note when there is one, else the standing grace-period line. Same copy as unlockapp.py's alert.
     static func snoozeNotificationBody(message: String?, minutes: Int) -> String {
-        if let message = clean(message) { return quoted(message) }
-        return "You've got \(minutes) minutes before your apps lock again — make them count!"
+        if let message = clean(message) { return "Snoozed your lock ⏳ \(quoted(message))" }
+        return "Snoozed your lock ⏳ You've got \(minutes) minutes, make them count!"
     }
 
     /// Secondary line for the Home "Apps Locked" banner, or nil to keep the default copy.

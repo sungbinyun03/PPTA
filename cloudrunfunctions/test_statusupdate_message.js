@@ -93,7 +93,8 @@ test.beforeEach(() => { sets = []; sent = []; acks = []; lockCommand = undefined
 test('mercy request without a message is unchanged', async () => {
   assert.strictEqual(await call(mercy()), 200);
   assert.deepStrictEqual(sets[0].data, { snoozeRequestedCoachIds: { union: 'c1' } });
-  assert.strictEqual(sent[0].notification.body, 'Open PPTA to snooze their lock.');
+  assert.strictEqual(sent[0].notification.title, 'Sam Trainee');
+  assert.strictEqual(sent[0].notification.body, 'Asking for more time 🛐 Open PPTA to snooze their lock.');
   assert.deepStrictEqual(Object.keys(sent[0].data).sort(), ['traineeName', 'type', 'uid']);
 });
 
@@ -108,7 +109,7 @@ test('mercy request stores a cleaned message per coach and pushes it', async () 
   assert.deepStrictEqual(sets[0].data.snoozeRequestMessages, { c1: 'ten more minutes' });
   assert.strictEqual(sets[0].opts.merge, true);
   assert.strictEqual(sent[0].data.message, 'ten more minutes');
-  assert.strictEqual(sent[0].notification.body, '"ten more minutes"');
+  assert.strictEqual(sent[0].notification.body, 'Asking for more time 🛐 "ten more minutes"');
 });
 
 test('message is unsigned: signature does not cover it', async () => {
@@ -205,8 +206,8 @@ test('limit alert names the limit in the body', async () => {
     sent = [];
     limitAlert(h, m);
     assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
-    assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
-    assert.strictEqual(sent[0].apns.payload.aps.alert.body, `Their limit is ${shown}. Go ahead and cut them off!`);
+    assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam Trainee');
+    assert.strictEqual(sent[0].apns.payload.aps.alert.body, `Hit their ${shown} limit. Go ahead and cut them off! 👀`);
     assert.strictEqual(sent[0].data.limitMinutes, String(h * 60 + m));
   }
 });
@@ -214,15 +215,15 @@ test('limit alert names the limit in the body', async () => {
 test('hardcore limit lock: same title as Standard, Hardcore body', async () => {
   limitAlert(1, 15);
   assert.strictEqual(await call(hardcoreLimit()), 200);
-  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
-  assert.strictEqual(sent[0].apns.payload.aps.alert.body, "Their limit is 1 hr 15 min. They're on Hardcore, so their apps locked themselves. 🔒");
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam Trainee');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, "Hit their 1 hr 15 min limit. They're on Hardcore, so their apps locked themselves. 🔒");
 });
 
 test('no limit stored: previous wording, no limitMinutes', async () => {
   settingsFields = { coachIds: ['c1'] };
   assert.strictEqual(await call(statusBody('attentionNeeded')), 200);
-  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam hit their time limit! 👀');
-  assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'Go ahead and cut them off!');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam Trainee');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'Hit their time limit. Go ahead and cut them off! 👀');
   assert.ok(!('limitMinutes' in sent[0].data));
 });
 
@@ -230,7 +231,8 @@ test('coach lock copy is unchanged by a stored limit', async () => {
   limitAlert(1, 15);
   lockCommand = { id: 'abc123', action: 'lock' };
   assert.strictEqual(await call(coachStatus('cutOff', 'abc123')), 200);
-  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam has been locked! 🔒');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.title, 'Sam Trainee');
+  assert.strictEqual(sent[0].apns.payload.aps.alert.body, 'You cut off their apps. 🔒');
 });
 
 function settingsChanged(extra = {}) {
@@ -246,28 +248,28 @@ async function settingsAlert(extra) {
   return sent[0].notification;
 }
 
-const ASK = "Ask for a screenshot of their App Limits to know what they're tracking!";
+const ASK = "Ask for a screenshot to see what they're tracking!";
+const N = 'Sam Trainee';
 
 test('settings change names what changed', async () => {
   assert.deepStrictEqual(await settingsAlert({ event: 'pressureOff' }),
-    { title: 'Sam stopped tracking their apps! 🥀', body: "Their apps aren't being tracked anymore. Why did they stop locking in?" });
+    { title: N, body: 'Stopped tracking their apps 🥀 Why did they stop locking in?' });
   assert.deepStrictEqual(await settingsAlert({ event: 'pressureOn' }),
-    { title: 'Sam started tracking their apps! 💪', body: ASK });
+    { title: N, body: `Started tracking their apps 💪 ${ASK}` });
   assert.deepStrictEqual(await settingsAlert({ event: 'levelChanged', level: 'Hardcore' }),
-    { title: 'Sam switched to Hardcore 🔥', body: ASK });
+    { title: N, body: `Switched to Hardcore 🔥 ${ASK}` });
   assert.deepStrictEqual(await settingsAlert({ event: 'levelChanged', level: 'Standard' }),
-    { title: 'Sam switched to Standard', body: ASK });
+    { title: N, body: `Switched to Standard. ${ASK}` });
   assert.deepStrictEqual(await settingsAlert({ event: 'appsChanged' }),
-    { title: 'Sam changed their monitored apps', body: ASK });
+    { title: N, body: `Changed their monitored apps. ${ASK}` });
   assert.deepStrictEqual(await settingsAlert({ event: 'limitChanged', fromMinutes: '90', toMinutes: '64' }),
-    { title: 'Sam changed their time limit', body: 'From 1 hr 30 min to 1 hr 4 min. Monitored apps stayed the same.' });
+    { title: N, body: 'Changed their time limit from 1 hr 30 min to 1 hr 4 min. Monitored apps stayed the same.' });
   assert.deepStrictEqual(await settingsAlert({ event: 'appsAndLimitChanged', fromMinutes: '45', toMinutes: '120' }),
-    { title: 'Sam changed all their App Limits', body: ASK });
+    { title: N, body: `Changed all their App Limits. ${ASK}` });
 });
 
 test('settings change from an older app, or with bad details, gets the generic copy', async () => {
-  const generic = { title: 'Sam changed their App Limits',
-    body: 'They updated their App Limits, reach out to them for a screenshot so you know their goals!' };
+  const generic = { title: N, body: `Changed their App Limits. ${ASK}` };
   assert.deepStrictEqual(await settingsAlert({}), generic);
   assert.deepStrictEqual(await settingsAlert({ event: 'somethingNew' }), generic);
   assert.deepStrictEqual(await settingsAlert({ event: 'limitChanged', fromMinutes: 'x' }), generic);

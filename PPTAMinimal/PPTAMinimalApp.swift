@@ -58,6 +58,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         (notification["aps"] as? [String: Any])?["alert"] != nil
     }
 
+    /// A person's full name (first and last) from a push payload, for notification titles and request
+    /// bodies. `fallback` when absent or blank.
+    private static func fullName(_ value: Any?, fallback: String) -> String {
+        let name = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? fallback : name
+    }
+
     /// Runs `work`, then calls `completionHandler(.newData)`. The call is what tells iOS it may
     /// suspend the app, so it has to come after the handler's Firestore and `statusUpdate` writes,
     /// or they can be left in flight. A background task plus a cap keep a stalled network from
@@ -131,53 +138,51 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let type = notification["type"] as? String, type == "traineeStatus",
             let status = notification["status"] as? String
         {
-            // First names only — the server sends full display names, but "Damien Koh's lock has
-            // been snoozed!" runs long in a title.
-            let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
+            // Title = the trainee's full name; the body says what happened. Same copy as
+            // `traineeStatusCopy` in statusupdate.js.
+            let traineeName = Self.fullName(notification["traineeName"], fallback: "Your trainee")
             let cause = notification["cause"] as? String
             let byUID = notification["by"] as? String
             let byName = (notification["byName"] as? String)?.firstNameOnly ?? "A coach"
             // The fan-out reaches every coach, including the one who acted. Show them "You…".
             let actedBySelf = byUID != nil && byUID == Auth.auth().currentUser?.uid
+            let actor = actedBySelf ? "You" : byName
             // The limit hit, spelled out as Screen Time writes durations ("1 hr 15 min", "45 min",
-            // "2 hr"), leading the body; empty when the server didn't send one. Same copy as
-            // `traineeStatusCopy` in statusupdate.js.
-            let limitIs: String = {
-                guard let total = (notification["limitMinutes"] as? String).flatMap(Int.init), total > 0 else { return "" }
+            // "2 hr"); left out when the server didn't send one.
+            let hit: String = {
+                guard let total = (notification["limitMinutes"] as? String).flatMap(Int.init), total > 0 else { return "Hit their time limit." }
                 let hours = total / 60, minutes = total % 60
                 let limit = hours == 0 ? "\(minutes) min" : minutes == 0 ? "\(hours) hr" : "\(hours) hr \(minutes) min"
-                return "Their limit is \(limit). "
+                return "Hit their \(limit) limit."
             }()
-            let limitTitle = "\(traineeName) hit their time limit! 👀"
 
-            // Title = "{trainee} <short event>"; body elaborates (who/why). `nil` → no notification
-            // (allClear is the silent daily reset — the coach's Status Center refreshes from Firestore).
-            let content: (title: String, body: String)? = {
+            // `nil` → no notification (allClear is the silent daily reset — the coach's views
+            // refresh from Firestore).
+            let body: String? = {
                 switch status {
                 case TraineeStatus.attentionNeeded.rawValue:
                     // Standard-only: hitting the limit in Hardcore goes straight to cutOff.
-                    return (limitTitle, "\(limitIs)Go ahead and cut them off!")
+                    return "\(hit) Go ahead and cut them off! 👀"
                 case TraineeStatus.cutOff.rawValue:
                     switch cause {
                     case LockCause.hardcoreLimit.rawValue:
-                        return (limitTitle, "\(limitIs)They're on Hardcore, so their apps locked themselves. 🔒")
+                        return "\(hit) They're on Hardcore, so their apps locked themselves. 🔒"
                     case LockCause.coach.rawValue:
-                        return ("\(traineeName) has been locked! 🔒",
-                                actedBySelf ? "You cut off their apps." : "\(byName) cut off their apps.")
+                        return "\(actor) cut off their apps. 🔒"
                     case LockCause.snoozeEnded.rawValue:
-                        return ("\(traineeName) has been locked! 🔒", "Their snooze ran out — they're locked again.")
+                        return "Their snooze ran out, so they're locked again. 🔒"
                     default:
-                        return ("\(traineeName) has been locked! 🔒", "Their apps are now locked.")
+                        return "Their apps are now locked. 🔒"
                     }
                 case TraineeStatus.snoozedLock.rawValue:
-                    return ("\(traineeName)'s lock has been snoozed! ⏳",
-                            actedBySelf ? "You gave them 10 more minutes." : "\(byName) gave them 10 more minutes.")
+                    return "\(actor) snoozed their lock for 10 minutes. ⏳"
                 case TraineeStatus.allClear.rawValue:
                     return nil
                 default:
-                    return ("Accountability update", "\(traineeName) has a status update.")
+                    return "Has a status update."
                 }
             }()
+            let content = body.map { (title: traineeName, body: $0) }
             // A server alert is shown by iOS itself (even when the app is closed); the local copy
             // above is only the fallback for a silent push from a server that predates alerts.
             if let content, !Self.carriesAlert(notification) {
@@ -194,10 +199,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // whether they were locked when they left). The local copy is only the fallback for a
             // silent push from a server that predates alerts.
             if !Self.carriesAlert(notification) {
-                let traineeName = (notification["traineeName"] as? String)?.firstNameOnly ?? "Your trainee"
                 NotificationManager.shared.sendNotification(
-                    title: "\(traineeName) reinstalled PPTA",
-                    body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨"
+                    title: Self.fullName(notification["traineeName"], fallback: "Your trainee"),
+                    body: "Deleted and reinstalled PPTA. Might want to check if they're cheating 🤨"
                 )
             }
             completionHandler(.newData)
@@ -206,12 +210,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         if let type = notification["type"] as? String, type == "roleRequestReceived" {
             if !Self.carriesAlert(notification) {
-                let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
+                let name = Self.fullName(notification["requesterName"], fallback: "Someone")
                 let role = notification["role"] as? String ?? "coach"
                 let roleLabel = role == "trainee" ? "trainee" : "coach"
                 NotificationManager.shared.sendNotification(
-                    title: "New role request! 🤝",
-                    body: "\(name) wants to be your \(roleLabel)."
+                    title: roleLabel == "trainee" ? "Trainee Request" : "Coach Request",
+                    body: "\(name) wants to be your \(roleLabel). 🤝"
                 )
             }
             completionHandler(.newData)
@@ -234,10 +238,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // Server alert push (role-requests `sendFriendRequest`). The local copy is only the
             // fallback while that service's ALERT_PUSH is off.
             if !Self.carriesAlert(notification) {
-                let name = (notification["requesterName"] as? String)?.firstNameOnly ?? "Someone"
+                let name = Self.fullName(notification["requesterName"], fallback: "Someone")
                 NotificationManager.shared.sendNotification(
-                    title: "New friend request! 👋",
-                    body: "\(name) sent you a friend request."
+                    title: "Friend Request",
+                    body: "\(name) sent you a friend request. 👋"
                 )
             }
             completionHandler(.newData)
@@ -246,10 +250,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         if let type = notification["type"] as? String, type == "friendRequestAccepted" {
             if !Self.carriesAlert(notification) {
-                let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
+                let name = Self.fullName(notification["acceptorName"], fallback: "Your friend")
                 NotificationManager.shared.sendNotification(
-                    title: "Friend request accepted! 🎉",
-                    body: "\(name) accepted your friend request."
+                    title: "Friend Request",
+                    body: "\(name) accepted your friend request! 🎉"
                 )
             }
             completionHandler(.newData)
@@ -258,12 +262,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         if let type = notification["type"] as? String, type == "roleRequestAccepted" {
             if !Self.carriesAlert(notification) {
-                let name = (notification["acceptorName"] as? String)?.firstNameOnly ?? "Your friend"
+                let name = Self.fullName(notification["acceptorName"], fallback: "Your friend")
                 let role = notification["role"] as? String ?? "coach"
                 let roleLabel = role == "trainee" ? "trainee" : "coach"
                 NotificationManager.shared.sendNotification(
-                    title: "Request accepted! 🎉",
-                    body: "\(name) accepted your \(roleLabel) request."
+                    title: roleLabel == "trainee" ? "Trainee Request" : "Coach Request",
+                    body: "\(name) accepted your \(roleLabel) request! 🎉"
                 )
             }
             completionHandler(.newData)

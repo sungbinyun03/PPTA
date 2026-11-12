@@ -480,7 +480,7 @@ class DeviceActivityManager {
 
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
-                title: "Locked by \(coach) 🔒",
+                title: coach,
                 body: ActionMessage.lockNotificationBody(message: message)
             )
         }
@@ -516,7 +516,7 @@ class DeviceActivityManager {
 
         if !pushShowsBanner {
             NotificationManager.shared.sendNotification(
-                title: "Lock snoozed by \(coach)! ⏳",
+                title: coach,
                 body: ActionMessage.snoozeNotificationBody(message: message, minutes: UnlockGrace.durationMinutes)
             )
         }

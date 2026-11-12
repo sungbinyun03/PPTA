@@ -131,7 +131,8 @@ test('send creates a pending doc with an id field and pushes the requestee', asy
   assert.equal(sent.length, 1);
   assert.equal(sent[0].token, 'tok-bob');
   assert.equal(sent[0].data.type, 'friendRequestReceived');
-  assert.equal(sent[0].apns.payload.aps.alert.body, 'Alice sent you a friend request.');
+  assert.equal(sent[0].apns.payload.aps.alert.title, 'Friend Request');
+  assert.equal(sent[0].apns.payload.aps.alert.body, 'Alice Smith sent you a friend request. 👋');
 });
 
 test('sending twice is idempotent: one doc, one push', async () => {

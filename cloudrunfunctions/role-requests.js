@@ -186,9 +186,10 @@ async function sendAlertPush(token, data, title, body, collapseId) {
   }
 }
 
-function firstName(name, fallback) {
-  const first = String(name || "").trim().split(/\s+/)[0];
-  return first || fallback;
+/// The person's name as stored (first and last), for naming them in request notifications.
+function fullName(name, fallback) {
+  const full = String(name || "").trim().replace(/\s+/g, " ");
+  return full || fallback;
 }
 
 /// Silent nudge so the other device drops coachIds/traineeIds entries that this
@@ -233,8 +234,8 @@ async function sendFriendAcceptedPush(requesterId, acceptorId, acceptorName, fri
     acceptorId,
     acceptorName: acceptorName || "Your friend",
     friendshipId,
-  }, "Friend request accepted! 🎉",
-  `${firstName(acceptorName, "Your friend")} accepted your friend request.`,
+  }, "Friend Request",
+  `${fullName(acceptorName, "Your friend")} accepted your friend request! 🎉`,
   `friendAcc-${friendshipId}`);
 }
 
@@ -307,8 +308,8 @@ functions.http("roleRequests", async (req, res) => {
         requesterId: uid,
         requesterName: requesterName || "Someone",
         role,
-      }, "New role request! 🤝",
-      `${firstName(requesterName, "Someone")} wants to be your ${role}.`,
+      }, role === "coach" ? "Coach Request" : "Trainee Request",
+      `${fullName(requesterName, "Someone")} wants to be your ${role}. 🤝`,
       `roleReq-${id}`);
 
       return json(res, 200, { id });
@@ -372,8 +373,8 @@ functions.http("roleRequests", async (req, res) => {
         acceptorId: uid,
         acceptorName: acceptorName || "Your friend",
         role,
-      }, "Request accepted! 🎉",
-      `${firstName(acceptorName, "Your friend")} accepted your ${role} request.`,
+      }, role === "coach" ? "Coach Request" : "Trainee Request",
+      `${fullName(acceptorName, "Your friend")} accepted your ${role} request! 🎉`,
       `roleAcc-${id}`);
 
       return json(res, 200, { ok: true });
@@ -482,8 +483,8 @@ functions.http("roleRequests", async (req, res) => {
             requesterId: uid,
             requesterName: myName || "Someone",
             friendshipId: result.id,
-          }, "New friend request! 👋",
-          `${firstName(myName, "Someone")} sent you a friend request.`,
+          }, "Friend Request",
+          `${fullName(myName, "Someone")} sent you a friend request. 👋`,
           `friendReq-${result.id}`);
         } else {
           await sendFriendAcceptedPush(targetId, uid, myName, result.id);

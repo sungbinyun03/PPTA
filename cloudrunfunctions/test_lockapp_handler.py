@@ -178,7 +178,15 @@ class WithMessage(unittest.TestCase):
         _, _, fm = call(lockapp, good_args(msg="hello"), alert_push=True)
         (_, kw), = fm.sent
         alert = kw["apns"][1]["payload"][1]["aps"][1]["alert"][1]
-        self.assertEqual(alert["body"], "hello")
+        self.assertEqual(alert["body"], "Locked your apps 🔒 \u201chello\u201d")
+
+    def test_alert_copy_titles_the_coach_by_full_name(self):
+        _, _, fm = call(lockapp, good_args(), alert_push=True)
+        (_, kw), = fm.sent
+        alert = kw["apns"][1]["payload"][1]["aps"][1]["alert"][1]
+        self.assertEqual(alert["body"], "Locked your apps 🔒 Head to a coach's profile to ask for a snooze.")
+        self.assertNotIn("Locked by", alert["title"])
+        self.assertTrue(alert["title"].strip())
 
     def test_over_long_message_truncated_not_rejected(self):
         resp, db, fm = call(lockapp, good_args(msg="x" * 500))
@@ -193,8 +201,9 @@ class WithMessage(unittest.TestCase):
 
 
 # Fields added for the notification service extension (`at` in the data, `mutable_content` on the
-# alert). The HEAD comparisons below ignore them so they keep guarding everything else.
-NSE_FIELDS = {"at", "mutable_content"}
+# alert), and the alert copy itself (reworded since; checked in test_alert_copy). The HEAD comparisons
+# below ignore them so they keep guarding everything else.
+NSE_FIELDS = {"at", "mutable_content", "alert"}
 
 
 def without_nse_fields(o):

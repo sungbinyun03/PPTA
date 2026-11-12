@@ -13,14 +13,17 @@ Users add each other as friends, then ask a friend to be their coach or trainee.
 
 | When | Title | Body |
 |---|---|---|
-| Friend request received | `New friend request! 👋` | `Sam sent you a friend request.` |
-| Friend request accepted | `Friend request accepted! 🎉` | `Sam accepted your friend request.` |
-| Role request received | `New role request! 🤝` | `Sam wants to be your coach.` / `…your trainee.` |
-| Role request accepted | `Request accepted! 🎉` | `Sam accepted your coach request.` / `…trainee request.` |
+| Friend request received | `Friend Request` | `Sam Trainee sent you a friend request. 👋` |
+| Friend request accepted | `Friend Request` | `Sam Trainee accepted your friend request! 🎉` |
+| Wants to be your coach | `Coach Request` | `Sam Trainee wants to be your coach. 🤝` |
+| Wants to be your trainee | `Trainee Request` | `Sam Trainee wants to be your trainee. 🤝` |
+| Coach request accepted | `Coach Request` | `Sam Trainee accepted your coach request! 🎉` |
+| Trainee request accepted | `Trainee Request` | `Sam Trainee accepted your trainee request! 🎉` |
 
 ## Decisions
 
 - 2026-10-11: Friend requests moved to the `role-requests` service with push notifications.
+- 2026-11-11: Request notifications use a fixed title (`Friend Request`, `Coach Request`, `Trainee Request`) and name the person (full name) in the body.
 
 ## Where it lives
 

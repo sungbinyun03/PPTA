@@ -110,71 +110,70 @@ function formatLimit(total) {
 
 // What a settingsChanged event changed, as the trainee's app reports it (unsigned; copy only).
 const SETTINGS_EVENTS = ['pressureOff', 'pressureOn', 'levelChanged', 'appsChanged', 'limitChanged', 'appsAndLimitChanged'];
-const SCREENSHOT_ASK = "Ask for a screenshot of their App Limits to know what they're tracking!";
+const SCREENSHOT_ASK = "Ask for a screenshot to see what they're tracking!";
 
-// Banner copy for a settingsChanged push. Anything that may have touched the app selection asks the
-// coach to get a screenshot, since coaches can't see a trainee's apps. Turning Pressure off is reported
-// alone: nothing is tracked, and turning it back on asks for the screenshot. `null` for an event this
-// server doesn't know (an older app build sends none), and the caller falls back to the generic copy.
-function settingsChangedCopy({ event, traineeFirst, level, fromMinutes, toMinutes }) {
+// Banner copy for a settingsChanged push. The title is the trainee's full name; the body says what
+// changed. Anything that may have touched the app selection asks the coach to get a screenshot, since
+// coaches can't see a trainee's apps. Turning Pressure off is reported alone: nothing is tracked, and
+// turning it back on asks for the screenshot. `null` for an event this server doesn't know (an older
+// app build sends none), and the caller falls back to the generic copy.
+function settingsChangedCopy({ event, traineeName, level, fromMinutes, toMinutes }) {
   const from = formatLimit(fromMinutes);
   const to = formatLimit(toMinutes);
+  const title = traineeName;
   switch (event) {
     case 'pressureOff':
-      return { title: `${traineeFirst} stopped tracking their apps! 🥀`, body: "Their apps aren't being tracked anymore. Why did they stop locking in?" };
+      return { title, body: 'Stopped tracking their apps 🥀 Why did they stop locking in?' };
     case 'pressureOn':
-      return { title: `${traineeFirst} started tracking their apps! 💪`, body: SCREENSHOT_ASK };
+      return { title, body: `Started tracking their apps 💪 ${SCREENSHOT_ASK}` };
     case 'levelChanged':
-      if (level !== 'Hardcore' && level !== 'Standard') return null;
-      return {
-        title: level === 'Hardcore' ? `${traineeFirst} switched to Hardcore 🔥` : `${traineeFirst} switched to Standard`,
-        body: SCREENSHOT_ASK,
-      };
+      if (level === 'Hardcore') return { title, body: `Switched to Hardcore 🔥 ${SCREENSHOT_ASK}` };
+      if (level === 'Standard') return { title, body: `Switched to Standard. ${SCREENSHOT_ASK}` };
+      return null;
     case 'appsChanged':
-      return { title: `${traineeFirst} changed their monitored apps`, body: SCREENSHOT_ASK };
+      return { title, body: `Changed their monitored apps. ${SCREENSHOT_ASK}` };
     case 'limitChanged':
       if (!from || !to) return null;
-      return { title: `${traineeFirst} changed their time limit`, body: `From ${from} to ${to}. Monitored apps stayed the same.` };
+      return { title, body: `Changed their time limit from ${from} to ${to}. Monitored apps stayed the same.` };
     case 'appsAndLimitChanged':
-      return { title: `${traineeFirst} changed all their App Limits`, body: SCREENSHOT_ASK };
+      return { title, body: `Changed all their App Limits. ${SCREENSHOT_ASK}` };
     default:
       return null;
   }
 }
 
+// The generic App Limits copy, for an older app build that doesn't say what changed.
+function settingsChangedGenericCopy(traineeName) {
+  return { title: traineeName, body: `Changed their App Limits. ${SCREENSHOT_ASK}` };
+}
+
 // Banner copy for a traineeStatus push, rendered per recipient: the coach who acted sees "You…".
-// `null` = no banner (allClear is the silent daily reset). Mirrors the app's fallback copy.
-// `limit` (formatLimit) names the limit hit, in the body so the title stays short; without it the
-// body is the old one.
-function traineeStatusCopy({ status, cause, traineeFirst, byFirst, actedBySelf, limit }) {
-  const limitTitle = `${traineeFirst} hit their time limit! 👀`;
-  const limitIs = limit ? `Their limit is ${limit}. ` : '';
+// The title is the trainee's full name; the body says what happened. `null` = no banner (allClear is
+// the silent daily reset). Mirrors the app's fallback copy. `limit` (formatLimit) names the limit hit;
+// without it the body leaves the limit out.
+function traineeStatusCopy({ status, cause, traineeName, byFirst, actedBySelf, limit }) {
+  const title = traineeName;
+  const hit = limit ? `Hit their ${limit} limit.` : 'Hit their time limit.';
   switch (status) {
     case 'attentionNeeded':
-      return { title: limitTitle, body: `${limitIs}Go ahead and cut them off!` };
-    case 'cutOff': {
-      const title = `${traineeFirst} has been locked! 🔒`;
+      return { title, body: `${hit} Go ahead and cut them off! 👀` };
+    case 'cutOff':
       switch (cause) {
         case LOCK_CAUSE.HARDCORE_LIMIT:
-          // Same title as Standard's: the event is the limit; Hardcore is why there's nothing to do.
-          return { title: limitTitle, body: `${limitIs}They're on Hardcore, so their apps locked themselves. 🔒` };
+          return { title, body: `${hit} They're on Hardcore, so their apps locked themselves. 🔒` };
         case LOCK_CAUSE.COACH:
-          return { title, body: actedBySelf ? 'You cut off their apps.' : `${byFirst} cut off their apps.` };
+          return { title, body: `${actedBySelf ? 'You' : byFirst} cut off their apps. 🔒` };
         case LOCK_CAUSE.SNOOZE_ENDED:
-          return { title, body: "Their snooze ran out — they're locked again." };
+          return { title, body: "Their snooze ran out, so they're locked again. 🔒" };
         default:
-          return { title, body: 'Their apps are now locked.' };
+          return { title, body: 'Their apps are now locked. 🔒' };
       }
-    }
     case 'snoozedLock':
-      return {
-        title: `${traineeFirst}'s lock has been snoozed! ⏳`,
-        body: actedBySelf ? 'You gave them 10 more minutes.' : `${byFirst} gave them 10 more minutes.`,
-      };
+      return { title, body: `${actedBySelf ? 'You' : byFirst} snoozed their lock for 10 minutes. ⏳` };
     case 'allClear':
       return null;
     default:
-      return { title: 'Accountability update', body: `${traineeFirst} has a status update.` };
+      return { title, body: 'Has a status update.' };
   }
 }
 
@@ -439,8 +438,10 @@ functions.http('statusUpdate', async (req, res) => {
               ...(requestMessage ? { message: requestMessage } : {}),
             },
             notification: {
-              title: `${traineeName} is asking for more time`,
-              body: requestMessage ? `"${requestMessage}"` : 'Open PPTA to snooze their lock.',
+              title: traineeName,
+              body: requestMessage
+                ? `Asking for more time 🛐 "${requestMessage}"`
+                : 'Asking for more time 🛐 Open PPTA to snooze their lock.',
             },
             apns: {
               headers: {
@@ -481,8 +482,8 @@ functions.http('statusUpdate', async (req, res) => {
               traineeName,
             },
             {
-              title: `${firstName(traineeName, 'Your trainee')} reinstalled PPTA`,
-              body: "They deleted the app and reinstalled it, might want to check if they're cheating 🤨",
+              title: traineeName,
+              body: "Deleted and reinstalled PPTA. Might want to check if they're cheating 🤨",
             },
             `reinstall-${uid}`
           );
@@ -493,21 +494,17 @@ functions.http('statusUpdate', async (req, res) => {
     } else if (isSettingsChanged) {
       // ▲ NEW: a trainee changed their App Limits — alert ALL their coaches with what changed
       //   (settingsChangedCopy), or the generic "App Limits" copy when the app didn't say (older
-      //   builds). First name only in the title. Alert push (like mercyRequest) so it shows even if
+      //   builds). Full name in the title. Alert push (like mercyRequest) so it shows even if
       //   the coach's app is closed; the server composes the copy since there's no client handler.
       //   No status/state is written.
-      const traineeFirstName = String(traineeName).trim().split(/\s+/)[0] || traineeName;
       const copy = (SETTINGS_EVENTS.includes(event) &&
         settingsChangedCopy({
           event,
-          traineeFirst: traineeFirstName,
+          traineeName,
           level: typeof level === 'string' ? level : undefined,
           fromMinutes: Number(fromMinutes),
           toMinutes: Number(toMinutes),
-        })) || {
-        title: `${traineeFirstName} changed their App Limits`,
-        body: 'They updated their App Limits, reach out to them for a screenshot so you know their goals!',
-      };
+        })) || settingsChangedGenericCopy(traineeName);
 
       const settingsSnap = await settingsRef.get();
       const rawCoachIds = settingsSnap.exists ? settingsSnap.get('coachIds') : [];
@@ -587,7 +584,7 @@ functions.http('statusUpdate', async (req, res) => {
             traineeStatusCopy({
               status: String(status),
               cause: hasCause ? String(cause) : undefined,
-              traineeFirst: firstName(traineeName, 'Your trainee'),
+              traineeName,
               byFirst: firstName(byName, 'A coach'),
               actedBySelf: hasBy && String(by) === coachId,
               limit,

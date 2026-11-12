@@ -2,6 +2,16 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-11: Notifications titled with the person's name
+
+- **Changed**: coach notifications about a trainee (limit, locks, snoozes, more-time asks, reinstall,
+  App Limits) and the trainee's lock/snooze notifications are titled with the other person's full
+  name; the body says what happened. Friend, coach and trainee requests are titled `Friend Request`,
+  `Coach Request`, `Trainee Request`, with the person's full name in the body. More-time asks gain 🛐.
+  The trainee's own screen time warnings are unchanged.
+- **Why**: matches how other apps word notifications about a person.
+- **Rollout**: server copy changes on deploy; the app's fallback copy with the next TestFlight build.
+
 ## 2026-11-11: App Limits notifications say what changed
 
 - **Changed**: coaches now get a specific notification for Pressure off, Pressure on, a Standard ↔

@@ -6,7 +6,8 @@ fallback copy for silent pushes from an older server.
 
 ## Behaviour
 
-- Names are first names only.
+- Titles are the trainee's full name (first and last); the body says what happened. Another coach
+  named in a body uses their first name.
 - Durations are written as Screen Time does: `1 hr 4 min`, `45 min`, `2 hr`. Limits are stored in
   whole minutes, so there are no seconds.
 - **Status changes** (`traineeStatus`) go to every coach of the trainee. The coach who acted sees "You…".
@@ -23,46 +24,49 @@ fallback copy for silent pushes from an older server.
 
 ## Copy
 
+Every title is the trainee's full name (first and last), e.g. `Sam Trainee`; shown below as `Sam Trainee`.
+The body says what happened. Another coach is named by first name in the body (`Alex`).
+
 ### Trainee hit their limit
 
 | When | Title | Body |
 |---|---|---|
-| Standard, limit hit | `Sam hit their time limit! 👀` | `Their limit is 1 hr 4 min. Go ahead and cut them off!` |
-| Hardcore, apps locked automatically | `Sam hit their time limit! 👀` | `Their limit is 1 hr 4 min. They're on Hardcore, so their apps locked themselves. 🔒` |
-| Limit unknown (safety net) | `Sam hit their time limit! 👀` | Body without the `Their limit is …` sentence |
+| Standard, limit hit | `Sam Trainee` | `Hit their 1 hr 4 min limit. Go ahead and cut them off! 👀` |
+| Hardcore, apps locked automatically | `Sam Trainee` | `Hit their 1 hr 4 min limit. They're on Hardcore, so their apps locked themselves. 🔒` |
+| Limit unknown (safety net) | `Sam Trainee` | `Hit their time limit. Go ahead and cut them off! 👀` |
 
 ### Locks and snoozes
 
 | When | Title | Body |
 |---|---|---|
-| Coach locked them | `Sam has been locked! 🔒` | `You cut off their apps.` / `Alex cut off their apps.` |
-| Snooze ran out | `Sam has been locked! 🔒` | `Their snooze ran out — they're locked again.` |
-| Other lock | `Sam has been locked! 🔒` | `Their apps are now locked.` |
-| Snoozed | `Sam's lock has been snoozed! ⏳` | `You gave them 10 more minutes.` / `Alex gave them 10 more minutes.` |
+| Coach locked them | `Sam Trainee` | `You cut off their apps. 🔒` / `Alex cut off their apps. 🔒` |
+| Snooze ran out | `Sam Trainee` | `Their snooze ran out, so they're locked again. 🔒` |
+| Other lock | `Sam Trainee` | `Their apps are now locked. 🔒` |
+| Snoozed | `Sam Trainee` | `You snoozed their lock for 10 minutes. ⏳` / `Alex snoozed their lock for 10 minutes. ⏳` |
 | New day (allClear) | none | none |
 
 ### Requests and alerts
 
 | When | Title | Body |
 |---|---|---|
-| Trainee asks this coach for more time | `Sam is asking for more time` | Their note in quotes, or `Open PPTA to snooze their lock.` |
-| Trainee deleted and reinstalled PPTA | `Sam reinstalled PPTA` | `They deleted the app and reinstalled it, might want to check if they're cheating 🤨` |
+| Trainee asks this coach for more time | `Sam Trainee` | `Asking for more time 🛐 "note"` or `Asking for more time 🛐 Open PPTA to snooze their lock.` |
+| Trainee deleted and reinstalled PPTA | `Sam Trainee` | `Deleted and reinstalled PPTA. Might want to check if they're cheating 🤨` |
 | Coach's lock/snooze not confirmed (old server only) | `Lock not confirmed for Sam yet` / `Snooze not confirmed for Sam yet` | `Sam's phone hasn't confirmed the lock.` / `…the snooze.` |
 
 ### App Limits changed
 
-`ASK` = `Ask for a screenshot of their App Limits to know what they're tracking!`
+`ASK` = `Ask for a screenshot to see what they're tracking!`
 
 | When | Title | Body |
 |---|---|---|
-| Pressure turned Off | `Sam stopped tracking their apps! 🥀` | `Their apps aren't being tracked anymore. Why did they stop locking in?` |
-| Pressure turned on | `Sam started tracking their apps! 💪` | `ASK` |
-| Switched to Hardcore | `Sam switched to Hardcore 🔥` | `ASK` |
-| Switched to Standard | `Sam switched to Standard` | `ASK` |
-| Monitored apps changed | `Sam changed their monitored apps` | `ASK` |
-| Time limit changed | `Sam changed their time limit` | `From 1 hr 30 min to 2 hr. Monitored apps stayed the same.` |
-| Apps and time limit changed | `Sam changed all their App Limits` | `ASK` |
-| Older app build (no detail) | `Sam changed their App Limits` | `They updated their App Limits, reach out to them for a screenshot so you know their goals!` |
+| Pressure turned Off | `Sam Trainee` | `Stopped tracking their apps 🥀 Why did they stop locking in?` |
+| Pressure turned on | `Sam Trainee` | `Started tracking their apps 💪 ` + ASK |
+| Switched to Hardcore | `Sam Trainee` | `Switched to Hardcore 🔥 ` + ASK |
+| Switched to Standard | `Sam Trainee` | `Switched to Standard. ` + ASK |
+| Monitored apps changed | `Sam Trainee` | `Changed their monitored apps. ` + ASK |
+| Time limit changed | `Sam Trainee` | `Changed their time limit from 1 hr 30 min to 2 hr. Monitored apps stayed the same.` |
+| Apps and time limit changed | `Sam Trainee` | `Changed all their App Limits. ` + ASK |
+| Older app build (no detail) | `Sam Trainee` | `Changed their App Limits. ` + ASK |
 
 ## Decisions
 
@@ -70,16 +74,18 @@ fallback copy for silent pushes from an older server.
 - 2026-08-25: Going back to all clear at the new day is silent.
 
 - 2026-11-11: The limit goes in the **body**, not the title ("1h 15m" in a title read awkwardly and
-  could be cut off by long names). The title stays `hit their time limit!`.
-- 2026-11-11: Hardcore auto-lock uses the same title as Standard; only the body differs.
+  could be cut off by long names).
+- 2026-11-11: Every coach notification about a trainee is titled with the trainee's **full name**;
+  the body merges what used to be the title and body (like other apps' person notifications).
 - 2026-11-11: App Limits notifications name what changed. Anything that may involve the app selection
   asks the coach to get a screenshot from the trainee, because iOS hides a trainee's apps from coaches.
 - 2026-11-11: Turning Pressure off is reported alone; turning it back on asks for the screenshot.
 - 2026-11-11: A Standard ↔ Hardcore switch assumes apps/time limit may also have changed, so it asks
   for a screenshot.
-- 2026-11-11: The screenshot ask is explicit: `Ask for a screenshot of their App Limits to know what
-  they're tracking!`. A time-limit-only change says `Monitored apps stayed the same.`; when apps and
-  the time limit both change, the body is only the screenshot ask (no from → to).
+- 2026-11-11: The screenshot ask: `Ask for a screenshot to see what they're tracking!`. A
+  time-limit-only change says `Monitored apps stayed the same.`; when apps and the time limit both
+  change, there is no from → to.
+- 2026-11-11: A more-time ask carries 🛐 (not used by any other notification).
 
 ## Where it lives
 
