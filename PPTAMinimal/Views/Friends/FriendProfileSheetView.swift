@@ -132,8 +132,8 @@ struct FriendProfileSheetView: View {
                 .presentationDetents([.height(280)])
             }
             .sheet(isPresented: $showGrantNote) {
-                ActionNoteSheet(title: "Snooze \(vm.name.firstNameOnly)'s lock?", subtitle: "They'll see your note with the snooze.",
-                                confirmTitle: "Snooze", confirmColor: TraineeStatus.snoozedLock.ringColor ?? .blue,
+                ActionNoteSheet(title: "Give \(vm.name.firstNameOnly) 10 minutes?", subtitle: "They'll see your note with the extra time.",
+                                confirmTitle: "Give", confirmColor: TraineeStatus.snoozedLock.ringColor ?? .blue,
                                 note: $grantNote) { note in
                     unlock(message: note)
                 }

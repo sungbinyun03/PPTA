@@ -170,12 +170,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     case LockCause.coach.rawValue:
                         return "\(actor) cut off their apps. 🔒"
                     case LockCause.snoozeEnded.rawValue:
-                        return "Their snooze ran out, so they're locked again. 🔒"
+                        return "Their 10 minutes ran out, so they're locked again. 🔒"
                     default:
                         return "Their apps are now locked. 🔒"
                     }
                 case TraineeStatus.snoozedLock.rawValue:
-                    return "\(actor) snoozed their lock for 10 minutes. ⏳"
+                    return "\(actor) gave them 10 minutes. ⏳"
                 case TraineeStatus.allClear.rawValue:
                     return nil
                 default:

@@ -218,7 +218,7 @@ def unlockApp(req: https_fn.Request) -> https_fn.Response:
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
                         title=coach_full,
-                        body=f"Snoozed your lock ⏳ \u201c{note}\u201d" if note else "Snoozed your lock ⏳ You've got 10 minutes, make them count!",
+                        body=f"Gave you 10 minutes ⏳ \u201c{note}\u201d" if note else "Gave you 10 minutes ⏳ Make them count!",
                     ),
                     sound="default",
                     content_available=True,

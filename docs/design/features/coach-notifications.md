@@ -42,18 +42,18 @@ The body says what happened. Another coach is named by first name in the body (`
 | When | Title | Body |
 |---|---|---|
 | Coach locked them | `Sam Trainee` | `You cut off their apps. 🔒` / `Alex cut off their apps. 🔒` |
-| Snooze ran out | `Sam Trainee` | `Their snooze ran out, so they're locked again. 🔒` |
+| Extra time ran out | `Sam Trainee` | `Their 10 minutes ran out, so they're locked again. 🔒` |
 | Other lock | `Sam Trainee` | `Their apps are now locked. 🔒` |
-| Snoozed | `Sam Trainee` | `You snoozed their lock for 10 minutes. ⏳` / `Alex snoozed their lock for 10 minutes. ⏳` |
+| Gave them 10 minutes | `Sam Trainee` | `You gave them 10 minutes. ⏳` / `Alex gave them 10 minutes. ⏳` |
 | New day (allClear) | none | none |
 
 ### Requests and alerts
 
 | When | Title | Body |
 |---|---|---|
-| Trainee asks this coach for more time | `Sam Trainee` | `Asking for more time 🛐 "note"` or `Asking for more time 🛐 Open PPTA to snooze their lock.` |
+| Trainee asks this coach for more time | `Sam Trainee` | `Asking for more time 🛐 "note"` or `Asking for more time 🛐 Open PPTA to give them 10 minutes.` |
 | Trainee deleted and reinstalled PPTA | `Sam Trainee` | `Deleted and reinstalled PPTA. Might want to check if they're cheating 🤨` |
-| Coach's lock/snooze not confirmed (old server only) | `Lock not confirmed for Sam yet` / `Snooze not confirmed for Sam yet` | `Sam's phone hasn't confirmed the lock.` / `…the snooze.` |
+| Coach's lock/snooze not confirmed (old server only) | `Lock not confirmed for Sam yet` / `Sam's 10 minutes aren't confirmed yet` | `Sam's phone hasn't confirmed the lock.` / `…the extra time.` |
 
 ### App Limits changed
 

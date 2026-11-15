@@ -2,6 +2,17 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-15: "Snooze" leaves the UI
+
+- **Changed**: every user-facing "snooze" now says what happens: coaches **Give 10 More Minutes**, trainees
+  **Ask for 10 Min**, the state is **Extra time**. Notifications: `Alex gave them 10 minutes. ⏳`,
+  `Their 10 minutes ran out, so they're locked again. 🔒`, `Gave you 10 minutes ⏳ Make them count!`,
+  `Extra Time's Up! 🔒`, and "ask for a snooze" hints read "ask for 10 more minutes". Full list in
+  locks-and-snoozes.md, coach-notifications.md and trainee-notifications.md.
+- **Unchanged**: code and Firestore names (`snoozedLock`, `snoozeRequestedCoachIds`, `unlockapp`).
+- **Why**: "snooze" confused users; "10 minutes" says exactly what they get.
+- **Rollout**: push copy on deploy; in-app copy with the next TestFlight build.
+
 ## 2026-11-11: Pressure Off is an emergency exit; coaches hear about it
 
 - **Changed**: turning Pressure Off lifts a coach lock too (it used to stay, with an in-app `Coach

@@ -94,7 +94,7 @@ test('mercy request without a message is unchanged', async () => {
   assert.strictEqual(await call(mercy()), 200);
   assert.deepStrictEqual(sets[0].data, { snoozeRequestedCoachIds: { union: 'c1' } });
   assert.strictEqual(sent[0].notification.title, 'Sam Trainee');
-  assert.strictEqual(sent[0].notification.body, 'Asking for more time 🛐 Open PPTA to snooze their lock.');
+  assert.strictEqual(sent[0].notification.body, 'Asking for more time 🛐 Open PPTA to give them 10 minutes.');
   assert.deepStrictEqual(Object.keys(sent[0].data).sort(), ['traineeName', 'type', 'uid']);
 });
 

@@ -172,7 +172,7 @@ def lockApp(req: https_fn.Request) -> https_fn.Response:
                 aps=messaging.Aps(
                     alert=messaging.ApsAlert(
                         title=coach_full,
-                        body=f"Locked your apps 🔒 \u201c{note}\u201d" if note else "Locked your apps 🔒 Head to a coach's profile to ask for a snooze.",
+                        body=f"Locked your apps 🔒 \u201c{note}\u201d" if note else "Locked your apps 🔒 Head to a coach's profile to ask for 10 more minutes.",
                     ),
                     sound="default",
                     content_available=True,

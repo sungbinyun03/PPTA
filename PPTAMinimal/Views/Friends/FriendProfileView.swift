@@ -85,14 +85,14 @@ struct FriendProfileView: View {
         case .stalled(let isLock):
             text = "\(first)'s phone hasn't confirmed yet. The \(isLock ? "lock" : "snooze") applies as soon as it's online or PPTA opens."
         case .confirmed(let isLock):
-            text = isLock ? "\(first)'s apps are locked" : "\(first)'s lock is snoozed"
+            text = isLock ? "\(first)'s apps are locked" : "\(first) has 10 extra minutes"
             icon = "checkmark.circle.fill"
         case .notEnforced(_, let result):
             switch result {
             case "notTracking": text = "\(first) has pressure turned off, so nothing changed."
             case "emptySelection": text = "\(first) has no apps selected, so nothing changed."
             case "pressureOff": text = "\(first) turned Pressure off, so their lock ended."
-            case "superseded": text = "A newer lock or snooze replaced this one."
+            case "superseded": text = "A newer lock or extra time replaced this one."
             default: text = "\(first)'s phone received this but didn't apply it."
             }
             icon = "info.circle"
@@ -284,7 +284,7 @@ struct FriendProfileView: View {
                             let isSnoozed = traineeStatus == .snoozedLock || isAwaitingTrainee
                             Button { onUnlock() } label: {
                                 HStack {
-                                    Text("Snooze Lock for 10 Min")
+                                    Text("Give 10 More Minutes")
                                         .font(.system(size: 15, weight: .semibold))
                                     Spacer()
                                     Image(systemName: "lock.open")
@@ -307,7 +307,7 @@ struct FriendProfileView: View {
                         if let onRequestSnooze {
                             Button { onRequestSnooze() } label: {
                                 HStack {
-                                    Text(hasRequestedSnooze ? "Snooze request sent" : "Request to Snooze Lock for 10 Min")
+                                    Text(hasRequestedSnooze ? "Asked for 10 min" : "Ask for 10 Min")
                                         .font(.system(size: 15, weight: .semibold))
                                     Spacer()
                                     Image(systemName: hasRequestedSnooze ? "checkmark" : "hand.raised.fill")
@@ -598,7 +598,7 @@ struct FriendProfileView: View {
             case .allClear:        return "All clear"
             case .attentionNeeded: return "Attention needed"
             case .cutOff:          return "Cut off"
-            case .snoozedLock:     return "Snoozed Lock"
+            case .snoozedLock:     return "Extra time"
             case .noStatus:        return "No status"
             }
         }()

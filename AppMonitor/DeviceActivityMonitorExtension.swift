@@ -92,7 +92,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
                 sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .snoozeEnded)
                 scheduleLocalNotification(
-                    title: "Snoozed Lock Ended! 🔒",
+                    title: "Extra Time's Up! 🔒",
                     body: "Your \(UnlockGrace.durationMinutes) minutes are up — your apps are locked again."
                 )
                 return
@@ -186,7 +186,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .hardcoreLimit)
             scheduleLocalNotification(
                 title: "Time's up, you're cut off! 🔒",
-                body: "Head to a coach's profile to ask them to snooze the lock."
+                body: "Head to a coach's profile to ask for 10 more minutes."
             )
         }
     

@@ -120,7 +120,7 @@ struct TraineeCircleView: View {
                             .buttonStyle(.plain)
                             .offset(y: 10)
                             .popover(isPresented: $showHaloPopover, arrowEdge: .bottom) {
-                                Text(haloTooltip ?? "\(firstName) snoozed your lock. Enjoy the break!")
+                                Text(haloTooltip ?? "\(firstName) gave you 10 minutes. Enjoy the break!")
                                     .font(.subheadline)
                                     .multilineTextAlignment(.leading)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -145,7 +145,7 @@ struct TraineeCircleView: View {
                         .buttonStyle(.plain)
                         .offset(y: 10)
                         .popover(isPresented: $showLockPopover, arrowEdge: .bottom) {
-                            Text(lockTooltip ?? "\(firstName) locked your apps. Open their profile to ask for a snooze.")
+                            Text(lockTooltip ?? "\(firstName) locked your apps. Open their profile to ask for 10 more minutes.")
                                 .font(.subheadline)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)

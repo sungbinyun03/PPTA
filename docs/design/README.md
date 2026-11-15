@@ -14,6 +14,16 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 | App Limits and Pressure | Live | [features/app-limits.md](features/app-limits.md) |
 | Backend deploy pipeline (Cloud Run via Cloud Build) | Live | [features/backend-deploy.md](features/backend-deploy.md) |
 
+## Terminology
+
+| Internal name (code, Firestore, docs) | What users see |
+|---|---|
+| snooze (`unlockapp`, `requestSnooze`, `snoozeRequestedCoachIds`) | **give 10 min** (`Give 10 More Minutes`, `Alex gave you 10 minutes`, `Ask for 10 Min`) |
+| `TraineeStatus.snoozedLock` | **Extra time** (status pill, Home banner) |
+
+Never put the word snooze in user-facing copy. Identifiers stay as they are: renaming them would need
+a Firestore migration and break older app builds.
+
 ## Open proposals (not decided)
 
 - **Permissions gate.** A screen that every install sees until Screen Time and notifications are

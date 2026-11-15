@@ -36,7 +36,7 @@ struct HowItWorksView: View {
              detail: "Go over your limit and your coaches can lock your apps. When your trainees go over, it's your turn."),
         Step(emoji: "🛐",
              title: "Beg for mercy",
-             detail: "Locked out? Ask a coach to snooze it for 10 minutes. Better make it a good excuse."),
+             detail: "Locked out? Ask a coach for 10 more minutes. Better make it a good excuse."),
     ]
 
     var body: some View {

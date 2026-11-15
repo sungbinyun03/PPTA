@@ -69,7 +69,7 @@ class ShieldActionExtension: ShieldActionDelegate {
     private func postHandoffNotification() {
         let content = UNMutableNotificationContent()
         content.title = "Ask a coach for more time 🙏"
-        content.body = "Open a coach's profile to request a snoozed lock from them."
+        content.body = "Open a coach's profile to ask for 10 more minutes."
         content.sound = .default
         content.userInfo = ["type": ShieldHandoff.requestMoreTimeType]
 

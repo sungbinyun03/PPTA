@@ -4,6 +4,9 @@ A coach can lock a trainee's monitored apps, and snooze a lock for 10 minutes. T
 applied on the trainee's phone (iOS only lets an app shield apps on its own device), so the server
 records the command and pushes it, and the phone confirms ("acks") once applied.
 
+"Snooze" is the internal name (code, Firestore, these docs). Users never see it: the app says
+**give 10 min** for the action and **Extra time** for the state. See [README](../README.md#terminology).
+
 ## Behaviour
 
 - **Lock** is offered only while the trainee is **Attention needed**. **Snooze** is offered only while
@@ -32,10 +35,26 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
 |---|---|
 | Waiting | `Waiting for Sam's phone` |
 | Stalled | `Sam's phone hasn't confirmed yet. The lock applies as soon as it's online or PPTA opens.` |
-| Confirmed | `Sam's apps are locked` / `Sam's lock is snoozed` |
-| Not applied | `Sam has pressure turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or snooze replaced this one.` |
+| Confirmed | `Sam's apps are locked` / `Sam has 10 extra minutes` |
+| Not applied | `Sam has pressure turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or extra time replaced this one.` |
 | Trainee turned Pressure off | `Sam turned Pressure off, so their lock ended.` |
 | Resend button | `Resend` |
+
+## Copy (buttons, banners, tips)
+
+| Where | Text |
+|---|---|
+| Coach sheet button | `Give 10 More Minutes` |
+| Note sheet before giving time | `Give Sam 10 minutes?` / `They'll see your note with the extra time.` / button `Give` |
+| Status pill | `Extra time` |
+| Trainee's request button on a coach's profile | `Ask for 10 Min` / `Asked for 10 min` |
+| Home banner while it runs | `Extra Time` / `Your coach gave you 10 minutes. Apps re-lock when time's up.` |
+| Home banner, cut off | `Alex locked your apps. Tap their avatar to ask for 10 more minutes.` / Hardcore: `You hit your limit and your apps were auto-locked. Ask a coach for 10 more minutes if you need them.` / `A coach locked your apps. If you need more time, ask a coach for 10 minutes.` |
+| Coach avatar tooltips (trainee) | `Alex gave you 10 minutes. Enjoy the break!` / `Alex locked your apps. Open their profile to ask for 10 more minutes.` / `Alex locked your apps, then gave you 10 minutes.` |
+| Trainee halo tooltip (coach) | `Sam is asking for more time — open their profile to give them 10 minutes.` |
+| Coach row tip (trainee) | `Open a coach's profile and tap Ask for 10 Min.` |
+| Shield tap notification | `Open a coach's profile to ask for 10 more minutes.` |
+| Onboarding step | `Locked out? Ask a coach for 10 more minutes. Better make it a good excuse.` |
 
 Notification copy for locks and snoozes: see [coach-notifications.md](coach-notifications.md).
 
@@ -44,6 +63,7 @@ Notification copy for locks and snoozes: see [coach-notifications.md](coach-noti
 - 2026-10-01: Off never lifts a coach lock (otherwise two taps escape any lock). Reversed 2026-11-11.
 - 2026-11-11: Off lifts every lock, coach locks included, for emergencies. Coaches are told it's
   cheating instead of the trainee being kept locked.
+- 2026-11-15: "Snooze" leaves the UI; users see "give 10 min" / "Extra time". Code keeps snooze.
 - 2026-10-11: Snoozes are scoped to the day they were granted.
 - 2026-10-27: Coach resend for stalled locks only, client-side (no server change).
 

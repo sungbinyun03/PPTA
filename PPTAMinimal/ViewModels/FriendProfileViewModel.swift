@@ -434,8 +434,8 @@ final class FriendProfileViewModel: ObservableObject {
         } else {
             scheduleVerification(
                 expected: .snoozedLock,
-                failureTitle: "Snooze not confirmed for \(name.firstNameOnly) yet",
-                failureBody: "\(name.firstNameOnly)'s phone hasn't confirmed the snooze."
+                failureTitle: "\(name.firstNameOnly)'s 10 minutes aren't confirmed yet",
+                failureBody: "\(name.firstNameOnly)'s phone hasn't confirmed the extra time."
             )
         }
     }

@@ -184,7 +184,7 @@ class WithMessage(unittest.TestCase):
         _, _, fm = call(lockapp, good_args(), alert_push=True)
         (_, kw), = fm.sent
         alert = kw["apns"][1]["payload"][1]["aps"][1]["alert"][1]
-        self.assertEqual(alert["body"], "Locked your apps 🔒 Head to a coach's profile to ask for a snooze.")
+        self.assertEqual(alert["body"], "Locked your apps 🔒 Head to a coach's profile to ask for 10 more minutes.")
         self.assertNotIn("Locked by", alert["title"])
         self.assertTrue(alert["title"].strip())
 

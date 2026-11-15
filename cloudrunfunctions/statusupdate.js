@@ -168,12 +168,12 @@ function traineeStatusCopy({ status, cause, traineeName, byFirst, actedBySelf, l
         case LOCK_CAUSE.COACH:
           return { title, body: `${actedBySelf ? 'You' : byFirst} cut off their apps. 🔒` };
         case LOCK_CAUSE.SNOOZE_ENDED:
-          return { title, body: "Their snooze ran out, so they're locked again. 🔒" };
+          return { title, body: "Their 10 minutes ran out, so they're locked again. 🔒" };
         default:
           return { title, body: 'Their apps are now locked. 🔒' };
       }
     case 'snoozedLock':
-      return { title, body: `${actedBySelf ? 'You' : byFirst} snoozed their lock for 10 minutes. ⏳` };
+      return { title, body: `${actedBySelf ? 'You' : byFirst} gave them 10 minutes. ⏳` };
     case 'allClear':
       return null;
     default:
@@ -447,7 +447,7 @@ functions.http('statusUpdate', async (req, res) => {
               title: traineeName,
               body: requestMessage
                 ? `Asking for more time 🛐 "${requestMessage}"`
-                : 'Asking for more time 🛐 Open PPTA to snooze their lock.',
+                : 'Asking for more time 🛐 Open PPTA to give them 10 minutes.',
             },
             apns: {
               headers: {

@@ -42,14 +42,14 @@ enum ActionMessage {
     /// note when there is one, else the standing hint. Same copy as lockapp.py's alert.
     static func lockNotificationBody(message: String?) -> String {
         if let message = clean(message) { return "Locked your apps 🔒 \(quoted(message))" }
-        return "Locked your apps 🔒 Head to a coach's profile to ask for a snooze."
+        return "Locked your apps 🔒 Head to a coach's profile to ask for 10 more minutes."
     }
 
     /// Body of the local snooze notification (titled with the coach's name): what they did, then their
     /// note when there is one, else the standing grace-period line. Same copy as unlockapp.py's alert.
     static func snoozeNotificationBody(message: String?, minutes: Int) -> String {
-        if let message = clean(message) { return "Snoozed your lock ⏳ \(quoted(message))" }
-        return "Snoozed your lock ⏳ You've got \(minutes) minutes, make them count!"
+        if let message = clean(message) { return "Gave you \(minutes) minutes ⏳ \(quoted(message))" }
+        return "Gave you \(minutes) minutes ⏳ Make them count!"
     }
 
     /// Secondary line for the Home "Apps Locked" banner, or nil to keep the default copy.
@@ -76,6 +76,6 @@ enum ActionMessage {
     /// `firstName` is already reduced with `firstNameOnly`.
     static func snoozeRequestTooltip(firstName: String, note: String?) -> String {
         if let note { return quoted(note) }
-        return "\(firstName) is asking for more time — open their profile to snooze their lock for 10 minutes."
+        return "\(firstName) is asking for more time — open their profile to give them 10 minutes."
     }
 }

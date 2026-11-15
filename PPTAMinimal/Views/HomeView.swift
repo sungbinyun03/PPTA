@@ -131,7 +131,7 @@ struct HomeView: View {
             case .snoozedLock:
                 statusBanner(
                     icon: "clock",
-                    title: "Snooze Active",
+                    title: "Extra Time",
                     message: "Your coach gave you 10 minutes. Apps re-lock when time's up.",
                     color: TraineeStatus.snoozedLock.ringColor ?? .blue
                 )
@@ -152,15 +152,15 @@ struct HomeView: View {
             if let uid = settings.lockedByUID, statusCenter.coaches.contains(where: { $0.id == uid }) {
                 return statusCenter.coachActions[uid]?.lockNote != nil
                     ? "\(first) locked your apps. Tap the lock on their avatar below for their note."
-                    : "\(first) locked your apps. Tap their avatar to ask for a snooze."
+                    : "\(first) locked your apps. Tap their avatar to ask for 10 more minutes."
             }
             if let note = ActionMessage.lockBannerText(coachFirstName: first, message: LocalSettingsStore.lockMessage) {
                 return note
             }
         }
         return settings.pressureLevel == .hardcore
-            ? "You hit your limit and your apps were auto-locked. Reach out to a coach to snooze the lock if you want more time."
-            : "A coach locked your apps. If you want more time, have a coach snooze the lock for you."
+            ? "You hit your limit and your apps were auto-locked. Ask a coach for 10 more minutes if you need them."
+            : "A coach locked your apps. If you need more time, ask a coach for 10 minutes."
     }
 
     /// Compact status strip: dot/icon + title, with the longer explanation as a small secondary line.

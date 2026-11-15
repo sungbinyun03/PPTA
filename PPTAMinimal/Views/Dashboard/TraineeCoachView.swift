@@ -248,7 +248,7 @@ struct TraineeCoachView: View {
                     }
                     .buttonStyle(.plain)
                     .popover(isPresented: $showAskCoachInfo, arrowEdge: .bottom) {
-                        Text("Open a coach's profile and tap Request to snooze your lock for 10 minutes.")
+                        Text("Open a coach's profile and tap Ask for 10 Min.")
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
