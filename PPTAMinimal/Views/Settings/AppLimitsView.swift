@@ -35,17 +35,6 @@ struct AppLimitsView: View {
     /// Shown when the picker came back with whole categories, which we drop (see `dropCategories`).
     @State private var showCategoriesRemovedAlert = false
 
-    /// A Hardcore trainee who is cut off can't edit their apps or time limit, or switch to Standard:
-    /// the save would reset their status while the shield stayed up. They can switch to Off, the
-    /// emergency exit that lifts the shield (their coaches are told). `canSave` gates the save.
-    private var isLocked: Bool {
-        userSettingsManager.userSettings.traineeStatus == .cutOff &&
-        userSettingsManager.userSettings.pressureLevel == .hardcore
-    }
-
-    /// While `isLocked`, only a switch to Off may be saved.
-    private var canSave: Bool { !isLocked || draftPressureLevel == .off }
-
     @State private var selection = FamilyActivitySelection()
     /// Drafts (saved only on "Save Settings"), like `selection`.
     @State private var draftThresholdHour: Int = 0
@@ -84,7 +73,7 @@ struct AppLimitsView: View {
                 // alert (the user must do this to enter the app), and label reads "Save & Continue".
                 PrimaryButton(
                     title: "Save & Continue",
-                    isDisabled: !canSave,
+                    isDisabled: false,
                     disabledBackground: Color(.systemGray4)
                 ) {
                     attemptOnboardingSave()
@@ -92,7 +81,7 @@ struct AppLimitsView: View {
             } else {
                 PrimaryButton(
                     title: hasUnsavedChanges ? "Save Settings" : "Save Settings (Unchanged)",
-                    isDisabled: !canSave || !hasUnsavedChanges,
+                    isDisabled: !hasUnsavedChanges,
                     disabledBackground: Color(.systemGray4)
                 ) {
                     showSaveConfirm = true
@@ -354,9 +343,6 @@ struct AppLimitsView: View {
             }
         }
         .buttonStyle(.plain)
-        // Cut off on Hardcore: only Off (the emergency exit) or staying on Hardcore.
-        .disabled(isLocked && level == .standard)
-        .opacity(isLocked && level == .standard ? 0.4 : 1)
     }
 
     private func pressureDescription(_ title: String, _ text: String) -> some View {
@@ -397,10 +383,9 @@ struct AppLimitsView: View {
         Button(action: action) {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundColor(isLocked ? .secondary : Color("primaryColor"))
+                .foregroundColor(Color("primaryColor"))
         }
         .buttonStyle(.plain)
-        .disabled(isLocked)
         .accessibilityLabel("Edit")
     }
 
@@ -473,8 +458,6 @@ struct AppLimitsView: View {
     /// - Returns: `true` if saved; `false` if validation blocked the save.
     @discardableResult
     private func saveToFirebase() -> Bool {
-        guard canSave else { return false }
-
         let wouldBeViable = UserSettings.appLimitsAreViable(
             thresholdHour: draftThresholdHour,
             thresholdMinutes: draftThresholdMinutes,
@@ -488,11 +471,15 @@ struct AppLimitsView: View {
 
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
-        // An empty selection arms nothing, so a limit shield would have nothing left to lower it.
-        if selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty {
-            if let ended = DeviceActivityManager.shared.liftUserClearableShield() {
-                Task { await LockReconciler.shared.ackEndedByPressureOff(ended) }
-            }
+        // Any save starts today over under the new App Limits: lift every lock (Hardcore's or a
+        // coach's) and any extra time, then the monitoring restart re-checks today's usage
+        // (`LimitFireGate.resetReached` below). Still over the new limit means Standard is back to
+        // attention needed (coaches notified) and Hardcore locks again at once. Coaches also hear
+        // that the save was made over the limit (`UserSettingsManager.wasOverLimit`).
+        DeviceActivityManager.shared.cancelUnlockGracePeriod()
+        if let ended = DeviceActivityManager.shared.liftUserClearableShield() {
+            let reason: LockReconciler.EndedReason = draftPressureLevel == .off ? .pressureOff : .appLimitsChanged
+            Task { await LockReconciler.shared.ackLockEnded(ended, reason: reason) }
         }
 
         var settings = userSettingsManager.userSettings
@@ -524,8 +511,7 @@ struct AppLimitsView: View {
         settings.thresholdMinutes = draftThresholdMinutes
         settings.pressureLevel = draftPressureLevel
         // Restarting monitoring (threshold → 0) means starting status fresh while tracking.
-        // `saveSettings` maps Off → noStatus, so only touch this when tracking. A cut-off Hardcore
-        // user only reaches here switching to Off (`canSave`).
+        // `saveSettings` maps Off → noStatus, so only touch this when tracking.
         if settings.pressureLevel != PressureLevel.off {
             settings.traineeStatus = .allClear
             // ...and let the restart re-apply the limit if today's usage is already over it.

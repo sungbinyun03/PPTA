@@ -454,7 +454,7 @@ struct CoachActionDisplayTests {
 
     @Test func coachLockBadgesTheLockerOnlyWithItsNote() {
         let r = derive(["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand(["message": "exam at 4"])])
-        #expect(r == ["A": CoachActionDisplay(lock: .active, lockNote: "exam at 4")])
+        #expect(r == ["A": CoachActionDisplay(lock: .active, lockNote: "exam at 4", lockId: "L1")])
     }
 
     @Test func coachLockWithoutNoteHasBadgeButNoNote() {
@@ -526,7 +526,7 @@ struct CoachActionDisplayTests {
 
     @Test func lockNoteOnALockCommandIsIgnored() {
         let r = derive(["traineeStatus": "cutOff", "lockedByUID": "A", "lockCommand": lockCommand(["lockNote": note])])
-        #expect(r == ["A": CoachActionDisplay(lock: .active)])
+        #expect(r == ["A": CoachActionDisplay(lock: .active, lockId: "L1")])
     }
 
     @Test func snoozeEndedAutoRelockKeepsGreyBadgeAndHaloWithoutActiveBadge() {
@@ -542,7 +542,7 @@ struct CoachActionDisplayTests {
         #expect(r.count == 1)
         #expect(r["A"]?.halo == true)
         #expect(r["A"]?.lock == nil)
-        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "go")
+        #expect(r["A"]?.haloTooltip(coachFirstName: "Alex") == "\u{201C}go\u{201D}")
         #expect(r["A"]?.receivedNotes == ["exam at 4", "go"])
     }
 
@@ -588,18 +588,18 @@ struct CoachActionDisplayTests {
 
     @Test func tooltipCopy() {
         #expect(CoachActionDisplay(lock: .active, lockNote: "hi").tooltip(coachFirstName: "Alex")
-                == "hi")
+                == "\u{201C}hi\u{201D}")
         #expect(CoachActionDisplay(lock: .active).tooltip(coachFirstName: "Alex")
                 == "Alex locked your apps. Open their profile to ask for 10 more minutes.")
         #expect(CoachActionDisplay(lock: .snoozed, lockNote: "hi", snoozedByName: "Bea Lee").tooltip(coachFirstName: "Alex")
-                == "hi")
+                == "\u{201C}hi\u{201D}")
         #expect(CoachActionDisplay(lock: .snoozed).tooltip(coachFirstName: "Alex")
                 == "Alex locked your apps, then gave you 10 minutes.")
-        #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: "please, 10 min") == "please, 10 min")
+        #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: "please, 10 min") == "\u{201C}please, 10 min\u{201D}")
         #expect(ActionMessage.snoozeRequestTooltip(firstName: "Sam", note: nil)
                 == "Sam is asking for more time — open their profile to give them 10 minutes.")
         #expect(CoachActionDisplay(lock: nil, halo: true).tooltip(coachFirstName: "Bea") == nil)
-        #expect(CoachActionDisplay(lock: nil, halo: true, snoozeNote: "go").haloTooltip(coachFirstName: "Alex") == "go")
+        #expect(CoachActionDisplay(lock: nil, halo: true, snoozeNote: "go").haloTooltip(coachFirstName: "Alex") == "\u{201C}go\u{201D}")
         #expect(CoachActionDisplay(lock: nil, halo: true).haloTooltip(coachFirstName: "Alex") == "Alex gave you 10 minutes. Enjoy the break!")
     }
 

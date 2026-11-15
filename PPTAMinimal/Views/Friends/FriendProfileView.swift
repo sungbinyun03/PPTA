@@ -83,7 +83,7 @@ struct FriendProfileView: View {
         case .waiting:
             text = "Waiting for \(first)'s phone"
         case .stalled(let isLock):
-            text = "\(first)'s phone hasn't confirmed yet. The \(isLock ? "lock" : "snooze") applies as soon as it's online or PPTA opens."
+            text = "\(first)'s phone hasn't confirmed yet. The \(isLock ? "lock" : "extra time") applies as soon as it's online or PPTA opens."
         case .confirmed(let isLock):
             text = isLock ? "\(first)'s apps are locked" : "\(first) has 10 extra minutes"
             icon = "checkmark.circle.fill"
@@ -92,6 +92,7 @@ struct FriendProfileView: View {
             case "notTracking": text = "\(first) has pressure turned off, so nothing changed."
             case "emptySelection": text = "\(first) has no apps selected, so nothing changed."
             case "pressureOff": text = "\(first) turned Pressure off, so their lock ended."
+            case "appLimitsChanged": text = "\(first) changed their App Limits, so their lock ended."
             case "superseded": text = "A newer lock or extra time replaced this one."
             default: text = "\(first)'s phone received this but didn't apply it."
             }

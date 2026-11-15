@@ -81,17 +81,13 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 text: "Got it",
                 color: .white
             ),
-            primaryButtonBackgroundColor: Palette.button,
-            // Only offered when the user actually has coaches — PPTAShieldAction handles the
-            // tap. Passing nil omits the button entirely.
-            secondaryButtonLabel: context?.hasCoaches == true
-                ? ShieldConfiguration.Label(text: "Ask a coach for more time", color: Palette.title)
-                : nil
+            primaryButtonBackgroundColor: Palette.button
+            // No secondary button: the subtitle already says where to ask for more time.
         )
     }
 
-    /// A coach's note is the whole subtitle, quoted; the title already names the coach, and the
-    /// "Ask a coach" button keeps the way out visible. Without a note, the standing hint.
+    /// A coach's note is the whole subtitle, quoted; the title already names the coach. Without a
+    /// note, the standing hint, which is the only pointer to asking for more time.
     private func subtitle(context: ShieldContext?) -> String {
         let hint = "Open Peer Pressure the App and request more time from your coaches."
         guard context?.lockedByName?.isEmpty == false,

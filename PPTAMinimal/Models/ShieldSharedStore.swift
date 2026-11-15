@@ -118,11 +118,6 @@ struct ShieldContext: Codable {
     var isHardcore: Bool
     var streakStart: Date?
 
-    /// Whether the user actually has coaches. Optional so payloads written before this field
-    /// existed still decode. The shield only offers "Ask my coach" when this is true — a
-    /// button that has nobody to contact is worse than no button.
-    var hasCoaches: Bool?
-
     /// The locking coach's optional note. Optional so older payloads still decode. Only populated
     /// alongside `lockedByName`, so it can't outlive the lock or ride a Hardcore auto-lock.
     var lockMessage: String?
@@ -141,13 +136,12 @@ struct ShieldContext: Codable {
     }
 }
 
-// MARK: - Shield "Ask my coach" handoff
+// MARK: - Shield "Ask my coach" handoff (legacy)
 
-/// Identifier for the local notification the shield action extension posts when a trainee taps
-/// "Ask my coach for more time." A shield extension can't open the app itself, so the notification's
-/// *tap* is the bridge in; its body self-describes ("open a coach's profile to request a snooze"), so
-/// no in-app handling is needed. Defined here because both the app and the `PPTAShieldAction` target
-/// compile this file.
+/// Legacy: the shield's "Ask a coach for more time" button (removed 2026-11-15) posted a local
+/// notification of this type, whose tap opened the coaches popover on Home. Nothing posts it any
+/// more; the app still routes a tap on one already delivered. Safe to delete with that handler
+/// (`PPTAMinimalApp.userNotificationCenter(_:didReceive:)`) and `requestCoachesPopover`.
 enum ShieldHandoff {
     static let askCoachIdentifier = "pptaAskCoach"
     /// `userInfo["type"]` on that notification; the app routes its tap to the coaches popover on Home.

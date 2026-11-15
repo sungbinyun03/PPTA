@@ -400,7 +400,7 @@ struct HomeView: View {
             // Stopping leaves a raised shield up with nothing armed to lower it; lift it, a coach
             // lock included (Off is the emergency exit), and tell that coach's sheet.
             if let ended = DeviceActivityManager.shared.liftUserClearableShield() {
-                Task { await LockReconciler.shared.ackEndedByPressureOff(ended) }
+                Task { await LockReconciler.shared.ackLockEnded(ended, reason: .pressureOff) }
             }
             UserDefaults.standard.set(false, forKey: monitoringKey)
             print("Tracking disabled; monitoring is not running.")

@@ -196,7 +196,6 @@ final class UserSettingsManager : ObservableObject{
                 lockedByName: lockedByName,
                 isHardcore: settings.pressureLevel == .hardcore,
                 streakStart: settings.startDailyStreakDate,
-                hasCoaches: !settings.coachIds.isEmpty,
                 lockMessage: lockedByName?.isEmpty == false ? LocalSettingsStore.lockMessage : nil
             )
         )

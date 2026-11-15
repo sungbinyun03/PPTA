@@ -424,15 +424,15 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
 
-    /// What the user turning Pressure Off (or saving an empty selection, only possible with Off) does
-    /// to a standing shield: lifts it, whatever raised it, stamping the release so the Hardcore
-    /// re-assert gate doesn't raise it again. A coach lock is lifted too: Off is the trainee's
-    /// emergency exit, and their coaches are told (the App Limits notification). That lock is marked
-    /// ended so `LockReconciler` doesn't put it back if Pressure goes back on the same day; a new
-    /// lock from a coach works as usual. Stopping monitoring does none of this, and nothing is armed
-    /// afterwards to lower the shield.
+    /// What the user turning Pressure Off, or saving App Limits at all, does to a standing shield:
+    /// lifts it, whatever raised it, stamping the release so the Hardcore re-assert gate doesn't
+    /// raise it again. A coach lock is lifted too: the trainee starts the day over under the new
+    /// limits, and their coaches are told (the App Limits notification). That lock is marked ended so
+    /// `LockReconciler` doesn't put it back later the same day; a new lock from a coach works as
+    /// usual. Stopping monitoring does none of this, and nothing is armed afterwards to lower the
+    /// shield; a save's monitoring restart re-locks if they're still over the new limit.
     /// - Returns: the coach lock's command id when one was ended, for the caller to ack
-    ///   (`LockReconciler.ackEndedByPressureOff`; this file also builds into extensions without it).
+    ///   (`LockReconciler.ackLockEnded`; this file also builds into extensions without it).
     @discardableResult
     func liftUserClearableShield() -> String? {
         var ended: String?

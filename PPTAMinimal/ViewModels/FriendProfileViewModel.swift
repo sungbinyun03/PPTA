@@ -335,7 +335,33 @@ final class FriendProfileViewModel: ObservableObject {
         hasPendingLock = pendingLock
         hasPendingUnlock = pendingUnlock
 
+        // The trainee ended today's lock themselves (Pressure Off or an App Limits save,
+        // `LockReconciler.EndedReason`). Shown to every coach whenever the sheet is open, not only
+        // the one tracking that command, until a newer lock or extra time replaces it.
+        if trackedCommand == nil {
+            if let reason = Self.lockEndedByTrainee(data) {
+                lockDelivery = .notEnforced(isLock: true, result: reason)
+            } else if case .notEnforced(_, let result) = lockDelivery,
+                      Self.traineeEndedResults.contains(result) {
+                lockDelivery = nil
+            }
+        }
+
         resolveTrackedCommand()
+    }
+
+    /// `lockAck.result` values for a lock the trainee ended themselves (`LockReconciler.EndedReason`).
+    static let traineeEndedResults: Set<String> = ["pressureOff", "appLimitsChanged"]
+
+    /// The reason, when today's latest command is a lock the trainee's own ack says they ended.
+    static func lockEndedByTrainee(_ data: [String: Any]) -> String? {
+        guard let cmd = data["lockCommand"] as? [String: Any],
+              let id = cmd["id"] as? String, cmd["action"] as? String == "lock",
+              let at = (cmd["at"] as? Timestamp)?.dateValue(), Calendar.current.isDateInToday(at),
+              let ack = data["lockAck"] as? [String: Any], ack["id"] as? String == id,
+              let result = ack["result"] as? String, traineeEndedResults.contains(result)
+        else { return nil }
+        return result
     }
 
     private func resolveTrackedCommand() {

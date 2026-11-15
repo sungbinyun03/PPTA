@@ -302,7 +302,7 @@ final class LockReconciler {
 
         switch command.action {
         case .lock:
-            // Ended by the trainee turning Pressure Off (`liftUserClearableShield`): never re-applied.
+            // Ended by the trainee (Pressure Off or an App Limits save, `liftUserClearableShield`): never re-applied.
             guard LocalSettingsStore.endedLockCommandId != command.id else { return }
             // An ack that isn't "applied" (pressure was Off, no apps) is not an enforced lock, so
             // the command is retried now that settings may have changed.
@@ -412,9 +412,16 @@ final class LockReconciler {
     /// `lockAck` is a single field, so a late ack for an older command would erase the real ack for
     /// the newest one and leave the coach waiting. The write is a transaction that re-reads the
     /// document and skips if its `lockCommand` is no longer this command.
-    /// Tells the coach's sheet that the trainee ended this lock by turning Pressure Off.
-    func ackEndedByPressureOff(_ commandId: String) async {
-        await writeAck(id: commandId, action: "lock", result: "pressureOff")
+    /// Why the trainee ended a coach lock themselves (`liftUserClearableShield`). The raw value is
+    /// the `lockAck.result` the coach's sheet reads (`FriendProfileView.lockDeliveryStrip`).
+    enum EndedReason: String {
+        case pressureOff
+        case appLimitsChanged
+    }
+
+    /// Tells the coach's sheet that the trainee ended this lock (Pressure Off or any App Limits save).
+    func ackLockEnded(_ commandId: String, reason: EndedReason) async {
+        await writeAck(id: commandId, action: "lock", result: reason.rawValue)
     }
 
     private func writeAck(_ command: Command, result: String) async {

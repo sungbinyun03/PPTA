@@ -24,20 +24,25 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
   with PPTA closed, needs notification permission), or when PPTA opens.
 - A snooze belongs to the day it was granted. A snooze still running at midnight is cancelled by the
   new day, not turned into a lock.
-- Turning Pressure **Off** lifts any lock, a coach lock included: it's the trainee's emergency exit,
-  and their coaches are told (see coach-notifications.md, "after going over their limit"). A coach
-  lock ended this way stays ended if Pressure goes back on the same day; a new lock works as usual.
-  Hardcore trainees who are cut off can switch to Off too (only to Off).
+- Any App Limits save (Pressure Off included) lifts any lock, a coach lock included, and cancels
+  extra time; usage is then re-checked under the new limits, so a trainee still over the limit is
+  back to attention needed (Standard) or locked again (Hardcore). Their coaches are told (see
+  coach-notifications.md, "after going over their limit"). A coach lock ended this way stays ended
+  for the rest of the day; a new lock works as usual.
 
 ## Copy (coach sheet)
 
 | State | Text |
 |---|---|
 | Waiting | `Waiting for Sam's phone` |
-| Stalled | `Sam's phone hasn't confirmed yet. The lock applies as soon as it's online or PPTA opens.` |
+| Stalled | `Sam's phone hasn't confirmed yet. The lock applies as soon as it's online or PPTA opens.` (extra time: `The extra time applies…`) |
 | Confirmed | `Sam's apps are locked` / `Sam has 10 extra minutes` |
 | Not applied | `Sam has pressure turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or extra time replaced this one.` |
 | Trainee turned Pressure off | `Sam turned Pressure off, so their lock ended.` |
+| Trainee changed App Limits | `Sam changed their App Limits, so their lock ended.` |
+
+The two "lock ended" rows show to every coach on the trainee's sheet for the rest of the day, until a
+newer lock or extra time replaces them.
 | Resend button | `Resend` |
 
 ## Copy (buttons, banners, tips)
@@ -53,7 +58,7 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
 | Coach avatar tooltips (trainee) | `Alex gave you 10 minutes. Enjoy the break!` / `Alex locked your apps. Open their profile to ask for 10 more minutes.` / `Alex locked your apps, then gave you 10 minutes.` |
 | Trainee halo tooltip (coach) | `Sam is asking for more time — open their profile to give them 10 minutes.` |
 | Coach row tip (trainee) | `Open a coach's profile and tap Ask for 10 Min.` |
-| Shield tap notification | `Open a coach's profile to ask for 10 more minutes.` |
+| Lock screen (shield) | `You've reached your limit on <app>` / `Open Peer Pressure the App and request more time from your coaches.` / one button `Got it` |
 | Onboarding step | `Locked out? Ask a coach for 10 more minutes. Better make it a good excuse.` |
 
 Notification copy for locks and snoozes: see [coach-notifications.md](coach-notifications.md).
@@ -63,6 +68,10 @@ Notification copy for locks and snoozes: see [coach-notifications.md](coach-noti
 - 2026-10-01: Off never lifts a coach lock (otherwise two taps escape any lock). Reversed 2026-11-11.
 - 2026-11-11: Off lifts every lock, coach locks included, for emergencies. Coaches are told it's
   cheating instead of the trainee being kept locked.
+- 2026-11-15: The lock screen drops its "Ask a coach for more time" button; its text already says
+  where to go.
+- 2026-11-15: Any App Limits save lifts every lock and cancels extra time, then re-checks usage under
+  the new limits.
 - 2026-11-15: "Snooze" leaves the UI; users see "give 10 min" / "Extra time". Code keeps snooze.
 - 2026-10-11: Snoozes are scoped to the day they were granted.
 - 2026-10-27: Coach resend for stalled locks only, client-side (no server change).

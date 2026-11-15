@@ -2,6 +2,20 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-15: Changing App Limits lifts locks and starts over
+
+- **Changed**: App Limits is never disabled, even for a cut-off Hardcore trainee. Any save lifts
+  every lock (Hardcore's or a coach's) and cancels extra time, then re-checks today's usage under
+  the new limits: still over means attention needed again (Standard) or locked again (Hardcore).
+  Coaches get the "after going over their limit" notification; the coach sheet says
+  `Sam changed their App Limits, so their lock ended.`
+- **Fixed**: the coach sheet's stalled extra-time row said "snooze".
+- **Fixed**: the "lock ended" row (Pressure Off / App Limits) showed only to a coach who had sent
+  that lock from the sheet in the same session; it now shows to every coach for the rest of the day.
+- **Removed**: the lock screen's "Ask a coach for more time" button (and the notification it posted).
+- **Why**: the notification is the deterrent, not a disabled screen; the limits should always
+  reflect what the trainee chose.
+
 ## 2026-11-15: "Snooze" leaves the UI
 
 - **Changed**: every user-facing "snooze" now says what happens: coaches **Give 10 More Minutes**, trainees
