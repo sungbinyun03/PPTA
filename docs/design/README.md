@@ -11,6 +11,7 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 | Trainee notifications (screen time warnings, locks) | Live | [features/trainee-notifications.md](features/trainee-notifications.md) |
 | Friends and roles (requests, notifications) | Live | [features/friends-and-roles.md](features/friends-and-roles.md) |
 | Locks and snoozes (coach actions, delivery, resend, midnight) | Live | [features/locks-and-snoozes.md](features/locks-and-snoozes.md) |
+| App icon badge (red count of things waiting on you) | Live | [features/app-badge.md](features/app-badge.md) |
 | App Limits and Pressure | Live | [features/app-limits.md](features/app-limits.md) |
 | Backend deploy pipeline (Cloud Run via Cloud Build) | Live | [features/backend-deploy.md](features/backend-deploy.md) |
 

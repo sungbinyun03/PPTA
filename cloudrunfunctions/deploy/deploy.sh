@@ -39,7 +39,8 @@ trap 'rm -rf "$STAGE"' EXIT
 cp "$DIR/deploy/$SERVICE"/* "$STAGE"/
 case "$SOURCE_FILE" in
   *.py) cp "$DIR/$SOURCE_FILE" "$STAGE/main.py" ;;
-  *.js) cp "$DIR/$SOURCE_FILE" "$STAGE/index.js" ;;
+  # badge.js: the app icon count, shared by the Node functions (require('./badge')).
+  *.js) cp "$DIR/$SOURCE_FILE" "$STAGE/index.js"; cp "$DIR/badge.js" "$STAGE/badge.js" ;;
   *) echo "unsupported source file: $SOURCE_FILE" >&2; exit 2 ;;
 esac
 

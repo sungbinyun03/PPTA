@@ -13,6 +13,9 @@ struct TabNavigator: View {
     @StateObject private var friendsBadgeVm = FriendsViewModel()
     @StateObject private var statusVm = StatusCenterViewModel()
     @ObservedObject private var notifications = NotificationManager.shared
+    /// The badge lists have loaded once; until then the icon keeps what the last push set, so a
+    /// half-loaded count can't clear it.
+    @State private var badgeListsLoaded = false
     
     private let previewMode: Bool
     
@@ -80,6 +83,9 @@ struct TabNavigator: View {
                 .padding(.top, 8)
             }
         }
+        .onChange(of: appBadgeCount) { _, count in
+            if badgeListsLoaded { AppBadge.set(count) }
+        }
         .onReceive(notifications.$coachesPopoverRequestedAt) { requestedAt in
             // The popover lives on Home.
             if requestedAt != nil { selected = 0 }
@@ -93,11 +99,22 @@ struct TabNavigator: View {
             await friendsBadgeVm.refresh()
             friendsBadgeVm.startListening()
             await people
+            badgeListsLoaded = true
+            AppBadge.set(appBadgeCount)
         }
         .onDisappear {
             roleInbox.stopListening()
             friendsBadgeVm.stopListening()
         }
+    }
+}
+
+extension TabNavigator {
+    /// The app icon's red count (`AppBadge`), from the same live lists as the tab badges.
+    private var appBadgeCount: Int {
+        AppBadge.count(trainees: statusVm.trainees,
+                       incomingFriendRequests: friendsBadgeVm.incomingRequests.count,
+                       incomingRoleRequests: roleInbox.incoming.count)
     }
 }
 

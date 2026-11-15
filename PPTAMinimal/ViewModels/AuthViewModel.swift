@@ -398,7 +398,7 @@ class AuthViewModel: ObservableObject {
         let uid = authService.currentUser?.uid
         Task { @MainActor in
             await clearFCMToken(uid: uid)
-            do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil; self.routedUID = nil }
+            do { try authService.signOut(); googleSignInService.signOut(); self.userSession = nil; self.currentUser = nil; self.routedUID = nil; AppBadge.set(0) }
             catch { print("DEBUG: signOut error: \(error.localizedDescription)") }
         }
     }

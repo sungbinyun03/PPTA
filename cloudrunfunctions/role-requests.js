@@ -2,6 +2,7 @@
 
 const functions = require("@google-cloud/functions-framework");
 const admin = require("firebase-admin");
+const { badgeCountFor, withBadgeData, withBadgeAps } = require("./badge");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -131,13 +132,14 @@ async function getFcmToken(uid) {
   }
 }
 
-async function sendDataPush(token, data) {
+/// `badge` (both helpers) is the recipient's app icon total from badge.js, or null to leave it.
+async function sendDataPush(token, data, badge = null) {
   if (!token) return;
 
   try {
     await admin.messaging().send({
       token,
-      data,
+      data: withBadgeData(data, badge),
       apns: {
         headers: {
           "apns-priority": "5",
@@ -157,14 +159,14 @@ async function sendDataPush(token, data) {
 /// the same keys as the silent push so the app's handler still runs its side effects (the
 /// content-available wake) and can skip its own local banner. Falls back to `sendDataPush` while
 /// ALERT_PUSH is off.
-async function sendAlertPush(token, data, title, body, collapseId) {
-  if (!ALERT_PUSH) return sendDataPush(token, data);
+async function sendAlertPush(token, data, title, body, collapseId, badge = null) {
+  if (!ALERT_PUSH) return sendDataPush(token, data, badge);
   if (!token) return;
 
   try {
     await admin.messaging().send({
       token,
-      data,
+      data: withBadgeData(data, badge),
       apns: {
         headers: {
           "apns-priority": "10",
@@ -173,11 +175,11 @@ async function sendAlertPush(token, data, title, body, collapseId) {
           "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600),
         },
         payload: {
-          aps: {
+          aps: withBadgeAps({
             alert: { title, body },
             sound: "default",
             "content-available": 1,
-          },
+          }, badge),
         },
       },
     });
@@ -195,7 +197,7 @@ function fullName(name, fallback) {
 /// Silent nudge so the other device drops coachIds/traineeIds entries that this
 /// request just deleted. Deliberately produces no user-visible alert.
 async function sendRelationshipsChanged(uid) {
-  await sendDataPush(await getFcmToken(uid), { type: "relationshipsChanged" });
+  await sendDataPush(await getFcmToken(uid), { type: "relationshipsChanged" }, await badgeCountFor(db, uid));
 }
 
 /// True when the requester's relationship arrays actually back an "accepted" request
@@ -236,7 +238,7 @@ async function sendFriendAcceptedPush(requesterId, acceptorId, acceptorName, fri
     friendshipId,
   }, "Friend Request",
   `${fullName(acceptorName, "Your friend")} accepted your friend request! 🎉`,
-  `friendAcc-${friendshipId}`);
+  `friendAcc-${friendshipId}`, await badgeCountFor(db, requesterId));
 }
 
 functions.http("roleRequests", async (req, res) => {
@@ -310,7 +312,7 @@ functions.http("roleRequests", async (req, res) => {
         role,
       }, role === "coach" ? "Coach Request" : "Trainee Request",
       `${fullName(requesterName, "Someone")} wants to be your ${role}. 🤝`,
-      `roleReq-${id}`);
+      `roleReq-${id}`, await badgeCountFor(db, targetId));
 
       return json(res, 200, { id });
     }
@@ -375,7 +377,7 @@ functions.http("roleRequests", async (req, res) => {
         role,
       }, role === "coach" ? "Coach Request" : "Trainee Request",
       `${fullName(acceptorName, "Your friend")} accepted your ${role} request! 🎉`,
-      `roleAcc-${id}`);
+      `roleAcc-${id}`, await badgeCountFor(db, requesterId));
 
       return json(res, 200, { ok: true });
     }
@@ -485,7 +487,7 @@ functions.http("roleRequests", async (req, res) => {
             friendshipId: result.id,
           }, "Friend Request",
           `${fullName(myName, "Someone")} sent you a friend request. 👋`,
-          `friendReq-${result.id}`);
+          `friendReq-${result.id}`, await badgeCountFor(db, targetId));
         } else {
           await sendFriendAcceptedPush(targetId, uid, myName, result.id);
         }

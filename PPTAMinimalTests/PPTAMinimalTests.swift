@@ -627,3 +627,30 @@ struct CoachActionDisplayTests {
         #expect(d["c1"]?.lockId == "L1")
     }
 }
+
+struct AppBadgeTests {
+    private func trainee(_ status: TraineeStatus, askingMe: Bool = false) -> StatusCenterPerson {
+        StatusCenterPerson(id: UUID().uuidString, name: "Sam Lee", profileImageURL: nil,
+                           isCoach: false, isTrainee: true, traineeStatus: status, streakDays: 0,
+                           timeLimitMinutes: 30, pressureLevel: .standard, lockedByName: nil,
+                           isRequestingSnoozeFromMe: askingMe)
+    }
+
+    @Test func countsWhatIsWaitingOnMe() {
+        let trainees = [
+            trainee(.attentionNeeded),
+            trainee(.cutOff, askingMe: true),
+            trainee(.cutOff),                          // cut off, asked nobody (or another coach)
+            trainee(.snoozedLock, askingMe: true),     // already has extra time
+            trainee(.allClear),
+        ]
+        #expect(AppBadge.count(trainees: trainees, incomingFriendRequests: 2, incomingRoleRequests: 1) == 5)
+        #expect(AppBadge.count(trainees: [], incomingFriendRequests: 0, incomingRoleRequests: 0) == 0)
+    }
+
+    @Test func readsTheBadgeAPushCarried() {
+        #expect(AppBadge.count(fromPush: ["badge": "3"]) == 3)
+        #expect(AppBadge.count(fromPush: ["type": "traineeStatus"]) == nil)
+        #expect(AppBadge.count(fromPush: ["badge": "x"]) == nil)
+    }
+}

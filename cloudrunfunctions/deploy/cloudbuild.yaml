@@ -12,7 +12,7 @@ steps:
     name: node:22-slim
     dir: cloudrunfunctions
     waitFor: ['-']
-    args: [node, --test, test_statusupdate_message.js, test_role_requests_friends.js]
+    args: [node, --test, test_statusupdate_message.js, test_role_requests_friends.js, test_badge.js]
   - id: lockapp
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash

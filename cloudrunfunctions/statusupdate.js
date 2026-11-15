@@ -3,6 +3,7 @@
 const functions = require('@google-cloud/functions-framework');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+const { badgeCountFor, withBadgeData, withBadgeAps } = require('./badge');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -184,7 +185,9 @@ function traineeStatusCopy({ status, cause, traineeName, byFirst, actedBySelf, l
 // One send path for the coach fan-out. With ALERT_PUSH on and copy present: an alert push (shows
 // while the app is force-quit) that still carries `data` and content-available so the app's handler
 // runs its side effects. Otherwise the old silent background push.
-async function sendCoachPush(token, data, copy, collapseId) {
+// `badge` is the coach's app icon total (badge.js): in `data` always, and in `aps` on an alert push.
+async function sendCoachPush(token, data, copy, collapseId, badge = null) {
+  data = withBadgeData(data, badge);
   if (!ALERT_PUSH || !copy) {
     return admin.messaging().send({
       token,
@@ -212,11 +215,11 @@ async function sendCoachPush(token, data, copy, collapseId) {
         'apns-expiration': String(Math.floor(Date.now() / 1000) + 3600),
       },
       payload: {
-        aps: {
+        aps: withBadgeAps({
           alert: { title: copy.title, body: copy.body },
           sound: 'default',
           'content-available': 1,
-        },
+        }, badge),
       },
     },
   });
@@ -435,14 +438,15 @@ functions.http('statusUpdate', async (req, res) => {
         const coachSnap = await db.collection('users').doc(targetCoach).get();
         const token = coachSnap.exists ? coachSnap.get('fcmToken') : null;
         if (token) {
+          const badge = await badgeCountFor(db, targetCoach);
           await admin.messaging().send({
             token,
-            data: {
+            data: withBadgeData({
               type: 'mercyRequest',
               uid: String(uid),
               traineeName,
               ...(requestMessage ? { message: requestMessage } : {}),
-            },
+            }, badge),
             notification: {
               title: traineeName,
               body: requestMessage
@@ -455,7 +459,7 @@ functions.http('statusUpdate', async (req, res) => {
                 'apns-push-type': 'alert',
               },
               payload: {
-                aps: { sound: 'default' },
+                aps: withBadgeAps({ sound: 'default' }, badge),
               },
             },
           });
@@ -491,7 +495,8 @@ functions.http('statusUpdate', async (req, res) => {
               title: traineeName,
               body: "Deleted and reinstalled PPTA. Might want to check if they're cheating 🤨",
             },
-            `reinstall-${uid}`
+            `reinstall-${uid}`,
+            await badgeCountFor(db, coachId)
           );
         } catch (_) {
           // best-effort
@@ -525,14 +530,15 @@ functions.http('statusUpdate', async (req, res) => {
           const token = coachSnap.exists ? coachSnap.get('fcmToken') : null;
           if (!token) continue;
 
+          const badge = await badgeCountFor(db, coachId);
           await admin.messaging().send({
             token,
-            data: {
+            data: withBadgeData({
               type: 'traineeSettingsChanged',
               uid: String(uid),
               traineeName,
               change: String(change ?? ''),
-            },
+            }, badge),
             notification: copy,
             apns: {
               headers: {
@@ -540,7 +546,7 @@ functions.http('statusUpdate', async (req, res) => {
                 'apns-push-type': 'alert',
               },
               payload: {
-                aps: { sound: 'default' },
+                aps: withBadgeAps({ sound: 'default' }, badge),
               },
             },
           });
@@ -596,7 +602,8 @@ functions.http('statusUpdate', async (req, res) => {
               actedBySelf: hasBy && String(by) === coachId,
               limit,
             }),
-            `status-${uid}`
+            `status-${uid}`,
+            await badgeCountFor(db, coachId)
           );
         } catch (_) {
           // best-effort

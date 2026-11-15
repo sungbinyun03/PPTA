@@ -107,6 +107,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             completionHandler(.noData)
             return
         }
+        // Every server push carries this user's app icon total (badge.js); a silent one can only set
+        // it from here.
+        if let badge = AppBadge.count(fromPush: notification) {
+            AppBadge.set(badge)
+        }
         if
             let type = notification["type"] as? String, type == "unlock",
             notification["by"] as? String != nil

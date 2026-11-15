@@ -2,6 +2,15 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-15: Red count on the app icon
+
+- **Added**: PPTA's app icon shows how many things are waiting on you: trainees needing attention,
+  trainees asking you for more time, and incoming friend and coach/trainee requests. Every push
+  carries the current total, so it updates while PPTA is closed. See features/app-badge.md.
+- **Why**: Chee Seng: make it clearer when something needs doing.
+- **Rollout**: pushes carry the count on deploy; the in-app count and silent-push handling with the
+  next build.
+
 ## 2026-11-15: Changing App Limits lifts locks and starts over
 
 - **Changed**: App Limits is never disabled, even for a cut-off Hardcore trainee. Any save lifts
