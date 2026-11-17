@@ -20,6 +20,7 @@ enum OnboardingStep: String, CaseIterable {
     case howItWorks
     case profile
     case appLimits
+    case permissions
     case findCoach
     case completed
 }
@@ -47,7 +48,7 @@ final class OnboardingCoordinator: ObservableObject {
     /// One flow for everyone — new accounts, reinstalls and new phones alike. Returning users see
     /// their saved App Limits pre-filled. The profile step always shows (pre-filled when the name is
     /// known): it also sets the profile picture, which Apple/Google sign-in never supplies.
-    let steps: [OnboardingStep] = [.intro, .howItWorks, .profile, .appLimits, .findCoach]
+    let steps: [OnboardingStep] = [.intro, .howItWorks, .profile, .appLimits, .permissions, .findCoach]
 
     /// Zero-based position of the current step, for the page indicator.
     var progressIndex: Int {
@@ -72,7 +73,14 @@ final class OnboardingCoordinator: ObservableObject {
     func advance() {
         guard let index = steps.firstIndex(of: currentStep) else { return }
         isGoingBack = false
-        let next = index + 1
+        var next = index + 1
+        // Only skipped when there's nothing left to offer (full alerts and Screen Time already on, a
+        // returning user); quiet still sees it, for the option of full alerts. Back still shows it.
+        // advance() is only called from button taps, on the main thread.
+        if next < steps.count, steps[next] == .permissions,
+           MainActor.assumeIsolated({ PermissionsMonitor.shared.gap.nothingToOffer }) {
+            next += 1
+        }
         if next < steps.count {
             setStep(steps[next])
         } else {

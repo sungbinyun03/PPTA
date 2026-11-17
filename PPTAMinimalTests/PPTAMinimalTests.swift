@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 @testable import PPTAMinimal
+import UserNotifications
 
 struct PPTAMinimalTests {
 
@@ -652,5 +653,49 @@ struct AppBadgeTests {
         #expect(AppBadge.count(fromPush: ["badge": "3"]) == 3)
         #expect(AppBadge.count(fromPush: ["type": "traineeStatus"]) == nil)
         #expect(AppBadge.count(fromPush: ["badge": "x"]) == nil)
+    }
+}
+
+struct PermissionsTests {
+    @Test func mapsEveryNotificationStatus() {
+        #expect(NotificationAccess(.notDetermined) == .notAsked)
+        #expect(NotificationAccess(.provisional) == .quiet)
+        #expect(NotificationAccess(.authorized) == .alerts)
+        #expect(NotificationAccess(.ephemeral) == .alerts)
+        #expect(NotificationAccess(.denied) == .denied)
+    }
+
+    @Test func bannersAndSoundsOffInSettingsReadsAsQuiet() {
+        #expect(NotificationAccess(.authorized, alertStyle: .none, sound: .disabled) == .quietBySettings)
+        #expect(NotificationAccess(.authorized, alertStyle: .none, sound: .enabled) == .alerts)   // still buzzes
+        #expect(NotificationAccess(.authorized, alertStyle: .banner, sound: .disabled) == .alerts)
+        #expect(NotificationAction(.quietBySettings) == .openSettings)
+        #expect(PermissionGap(notifications: .quietBySettings, screenTimeApproved: true).isEmpty)
+    }
+
+    @Test func quietAndAlertsBothLetLocksApplyWhileClosed() {
+        #expect(NotificationAccess.quiet.locksWorkWhileClosed)
+        #expect(NotificationAccess.alerts.locksWorkWhileClosed)
+        #expect(!NotificationAccess.denied.locksWorkWhileClosed)
+        #expect(!NotificationAccess.notAsked.locksWorkWhileClosed)
+    }
+
+    @Test func buttonPerState() {
+        #expect(NotificationAction(.notAsked) == .askForAlerts)
+        #expect(NotificationAction(.quiet) == .askForAlerts)
+        #expect(NotificationAction(.denied) == .openSettings)
+        #expect(NotificationAction(.alerts) == .none)
+    }
+
+    @Test func remindsOnlyWhenNotificationsOffOrScreenTimeOff() {
+        #expect(PermissionGap(notifications: .alerts, screenTimeApproved: true).isEmpty)
+        #expect(PermissionGap(notifications: .quiet, screenTimeApproved: true).isEmpty)
+        #expect(!PermissionGap(notifications: .notAsked, screenTimeApproved: true).isEmpty)
+        // Onboarding still offers full alerts to quiet users.
+        #expect(!PermissionGap(notifications: .quiet, screenTimeApproved: true).nothingToOffer)
+        #expect(PermissionGap(notifications: .alerts, screenTimeApproved: true).nothingToOffer)
+        #expect(PermissionGap(notifications: .quietBySettings, screenTimeApproved: true).nothingToOffer)
+        #expect(!PermissionGap(notifications: .alerts, screenTimeApproved: false).isEmpty)
+        #expect(!PermissionGap(notifications: .denied, screenTimeApproved: true).isEmpty)
     }
 }

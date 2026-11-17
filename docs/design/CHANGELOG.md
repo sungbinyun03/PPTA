@@ -2,6 +2,17 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-16: Permissions screen, quiet notifications, launch reminder
+
+- **Added**: a permissions screen (Screen Time + notifications, with why), as an onboarding step
+  after App Limits and as a reminder over the app on each launch while either is missing ("Not now"
+  to skip). Settings → Alerts to choose Alerts or Quiet.
+- **Changed**: launch requests quiet (provisional) notifications silently instead of showing iOS's
+  prompt with no context, so locks apply while PPTA is closed even for people who never answer.
+  Find Coach no longer asks for notifications.
+- **Why**: the lock extension only runs when notifications are on, and the app can't require them.
+- **Rollout**: next app build. See features/permissions.md.
+
 ## 2026-11-15: Coach/trainee request pushes were never delivered
 
 - **Fixed**: "Coach Request" / "Trainee Request" pushes and their "accepted" pushes were rejected by

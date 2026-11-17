@@ -13,6 +13,7 @@ struct SettingsView: View {
     // MARK: – Dependencies
     @EnvironmentObject var viewModel: AuthViewModel
     @ObservedObject private var settingsMgr = UserSettingsManager.shared
+    @ObservedObject private var permissions = PermissionsMonitor.shared
     
     // MARK: – Local state
     @State private var selectedTab     = "Settings"
@@ -297,6 +298,33 @@ struct SettingsView: View {
                         .frame(width: 260)
                         .presentationCompactAdaptation(.popover)
                 }
+                // Quiet or full alerts (AlertsSettingsView); the status says which is on now.
+                NavigationLink(destination: AlertsSettingsView()) {
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "bell.badge")
+                            .scaleEffect(1.2)
+                            .foregroundStyle(Color("primaryColor"))
+                            .frame(width: Self.settingsRowIconSlotWidth, height: Self.settingsRowIconSlotHeight)
+                            .clipped()
+                        Text("Alerts")
+                            .foregroundColor(.primary)
+                        if !permissions.notifications.locksWorkWhileClosed {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.orange)
+                        }
+                        Spacer()
+                        Text(alertsStatus)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                }
+                .buttonStyle(.plain)
+                .task { await permissions.refresh() }
+
                 // Same screen as onboarding step 2, pushed full-screen like App Limits. It never
                 // advances anything, so the coordinator is a throwaway the scaffold needs.
                 NavigationLink(destination: HowItWorksView(coordinator: OnboardingCoordinator(), standalone: true)) {
@@ -326,6 +354,15 @@ struct SettingsView: View {
         }
     }
     
+    /// The Alerts row's trailing status.
+    private var alertsStatus: String {
+        switch permissions.notifications {
+        case .alerts: return "On"
+        case .quiet, .quietBySettings: return "Quiet"
+        case .denied, .notAsked: return "Off"
+        }
+    }
+
     /// Fixed icon slot — same for all rows so layout and row height stay uniform.
     private static let settingsRowIconSlotWidth: CGFloat = 44
     private static let settingsRowIconSlotHeight: CGFloat = 32

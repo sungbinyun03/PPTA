@@ -20,7 +20,6 @@
 import SwiftUI
 import Contacts
 import UIKit
-import UserNotifications
 
 struct FindCoachView: View {
     @ObservedObject var coordinator: OnboardingCoordinator
@@ -33,7 +32,6 @@ struct FindCoachView: View {
     @State private var appUsers: [User] = []
     @State private var requested: Set<String> = []
     @State private var contactsDenied = false
-    @State private var didRequestNotifications = false
 
     private let firestoreService = FirestoreService()
     private let primaryColor = Color("primaryColor")
@@ -311,23 +309,12 @@ struct FindCoachView: View {
         requested.insert(targetId)
 
         Task {
-            await requestNotificationsOnce()
-
             if friendsVM.friends.contains(where: { $0.id == targetId }) { return }
 
             // The server handles the rest: if they already asked us it accepts theirs, and if ours
             // is already out it's a no-op.
             await friendsVM.addFriend(userId: targetId)
         }
-    }
-
-    /// Notifications are asked for here rather than on their own screen: "we'll tell you when they
-    /// accept" is the most concrete reason the user will ever have to say yes.
-    private func requestNotificationsOnce() async {
-        guard !didRequestNotifications else { return }
-        didRequestNotifications = true
-        _ = try? await UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge])
     }
 
     private func finish() {

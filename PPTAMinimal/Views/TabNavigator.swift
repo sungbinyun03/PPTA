@@ -16,6 +16,10 @@ struct TabNavigator: View {
     /// The badge lists have loaded once; until then the icon keeps what the last push set, so a
     /// half-loaded count can't clear it.
     @State private var badgeListsLoaded = false
+    /// Launch reminder (`PermissionsView`): once per app launch while Screen Time or full
+    /// notifications are missing. "Not now" closes it until the next launch.
+    @State private var showPermissionsReminder = false
+    @ObservedObject private var permissions = PermissionsMonitor.shared
     
     private let previewMode: Bool
     
@@ -101,6 +105,12 @@ struct TabNavigator: View {
             await people
             badgeListsLoaded = true
             AppBadge.set(appBadgeCount)
+            // After the launch facade (the people load above), so the reminder isn't hidden under it.
+            await showPermissionsReminderIfNeeded()
+        }
+        .fullScreenCover(isPresented: $showPermissionsReminder) {
+            PermissionsView(coordinator: OnboardingCoordinator(),
+                            mode: .reminder(onClose: { showPermissionsReminder = false }))
         }
         .onDisappear {
             roleInbox.stopListening()
@@ -110,6 +120,14 @@ struct TabNavigator: View {
 }
 
 extension TabNavigator {
+    /// Once per launch: anything missing opens the permissions screen over the app.
+    private func showPermissionsReminderIfNeeded() async {
+        guard !previewMode, !permissions.checkedThisLaunch else { return }
+        permissions.checkedThisLaunch = true
+        await permissions.refresh()
+        if !permissions.gap.isEmpty { showPermissionsReminder = true }
+    }
+
     /// The app icon's red count (`AppBadge`), from the same live lists as the tab badges.
     private var appBadgeCount: Int {
         AppBadge.count(trainees: statusVm.trainees,

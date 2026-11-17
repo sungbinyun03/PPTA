@@ -19,8 +19,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
           // Register for APNs unconditionally — required for Firebase Phone Auth silent
           // push verification regardless of whether the user grants notification permission.
           UIApplication.shared.registerForRemoteNotifications()
-          UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+          // Quiet (provisional) notifications for anyone never asked: no prompt, and the lock
+          // extension runs, so a coach's lock applies while PPTA is closed. iOS's real prompt is
+          // shown only from `PermissionsView`, after it explains why (Permissions.swift).
+          PermissionsMonitor.requestQuietIfNotAsked()
           UNUserNotificationCenter.current().delegate = self
           Messaging.messaging().delegate = self
           return true

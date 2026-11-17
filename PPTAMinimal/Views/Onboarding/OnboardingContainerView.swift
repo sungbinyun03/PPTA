@@ -97,6 +97,8 @@ struct OnboardingContainerView: View {
             // enabled, no confirm alert, ensures Screen Time auth, marks onboarding complete, then
             // advances the flow. Returning users see their saved settings pre-filled.
             AppLimitsView(onboarding: true, onContinue: { coordinator.advance() })
+        case .permissions:
+            PermissionsView(coordinator: coordinator, mode: .onboarding)
         case .findCoach:
             FindCoachView(coordinator: coordinator)
         case .completed:
