@@ -155,6 +155,15 @@ async function sendDataPush(token, data, badge = null) {
   }
 }
 
+/// APNs rejects the whole push when `apns-collapse-id` is over 64 bytes, and a role request's id
+/// (`requester_target_role`, two 28-character uids) makes `roleReq-<id>` about 73. Long ids are
+/// replaced by a hash: still one stable id per request, so a resend replaces the banner as before.
+function apnsCollapseId(id) {
+  const value = String(id);
+  if (Buffer.byteLength(value) <= 64) return value;
+  return require("crypto").createHash("sha256").update(value).digest("hex"); // 64 hex chars
+}
+
 /// User-visible push: iOS shows the banner itself, even when the app is force-quit. `data` keeps
 /// the same keys as the silent push so the app's handler still runs its side effects (the
 /// content-available wake) and can skip its own local banner. Falls back to `sendDataPush` while
@@ -171,7 +180,7 @@ async function sendAlertPush(token, data, title, body, collapseId, badge = null)
         headers: {
           "apns-priority": "10",
           "apns-push-type": "alert",
-          "apns-collapse-id": collapseId,
+          "apns-collapse-id": apnsCollapseId(collapseId),
           "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600),
         },
         payload: {

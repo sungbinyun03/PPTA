@@ -25,6 +25,11 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 Never put the word snooze in user-facing copy. Identifiers stay as they are: renaming them would need
 a Firestore migration and break older app builds.
 
+## Worth revisiting
+
+Parked ideas, more expensive alternatives and further research, each with why it was deferred and
+when to pick it up: [worth-revisiting.md](worth-revisiting.md).
+
 ## Open proposals (not decided)
 
 - **Permissions gate.** A screen that every install sees until Screen Time and notifications are

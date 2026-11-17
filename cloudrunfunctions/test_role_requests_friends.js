@@ -188,3 +188,18 @@ test('decline is requestee-only, cancel is requester-only; both delete and toler
   assert.equal((await call('alice', { action: 'cancelFriendRequest', id: body.id })).statusCode, 200);
   assert.equal(friendships().length, 0);
 });
+
+test('role request pushes keep apns-collapse-id within APNs 64-byte limit for real 28-char uids', async () => {
+  reset();
+  const a = 'A'.repeat(28);
+  const b = 'B'.repeat(28);
+  coll('users').set(a, { name: 'Ann Lee', fcmToken: 'tok-a' });
+  coll('users').set(b, { name: 'Ben Ong', fcmToken: 'tok-b' });
+  coll('friendships').set('f1', { id: 'f1', requesterId: a, requesteeId: b, status: 'accepted' });
+
+  const res = await call(a, { action: 'createRoleRequest', targetId: b, role: 'trainee' });
+  assert.equal(res.statusCode, 200);
+  const push = sent.find((m) => m.data && m.data.type === 'roleRequestReceived');
+  assert.ok(push, 'role request push was sent');
+  assert.ok(Buffer.byteLength(push.apns.headers['apns-collapse-id']) <= 64);
+});

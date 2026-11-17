@@ -2,6 +2,13 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+## 2026-11-15: Coach/trainee request pushes were never delivered
+
+- **Fixed**: "Coach Request" / "Trainee Request" pushes and their "accepted" pushes were rejected by
+  Apple since server-composed alerts shipped (`876bc9a`): the push's `apns-collapse-id` was
+  `roleReq-<requester>_<target>_<role>`, about 73 bytes, over APNs' 64-byte limit. Long ids are now
+  hashed (`role-requests.js` `apnsCollapseId`). Friend request pushes were unaffected.
+
 ## 2026-11-15: Red count on the app icon
 
 - **Added**: PPTA's app icon shows how many things are waiting on you: trainees needing attention,

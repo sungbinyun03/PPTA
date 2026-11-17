@@ -32,4 +32,5 @@ The red count on PPTA's home-screen icon: how many things are waiting on the use
 
 ## Open questions
 
-- `badge-sync` (see `.omc/plans/app-icon-badge.md`) if the known gap matters in practice.
+- `badge-sync`, if the known gap matters in practice: see
+  [worth-revisiting.md](../worth-revisiting.md#badge-sync-keep-the-app-icon-badge-exact-while-ppta-is-closed).
