@@ -26,6 +26,11 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 Never put the word snooze in user-facing copy. Identifiers stay as they are: renaming them would need
 a Firestore migration and break older app builds.
 
+## Roadmap
+
+The next big versions (peers, feed, stats, personas, ads, sharing, removing Hardcore), with
+decisions and open questions: [roadmap/](roadmap/README.md).
+
 ## Worth revisiting
 
 Parked ideas, more expensive alternatives and further research, each with why it was deferred and

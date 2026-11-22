@@ -2,6 +2,12 @@
 
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
+
+## 2026-11-21: Roadmap for the next big versions
+- **Added** `roadmap/`: one file per planned feature (remove Hardcore, peers, stats, tabs and feed,
+  personas, ads and in-app purchases, invite link), with the decisions made in chat, open questions
+  and the agreed order. Nothing built yet.
+
 ## 2026-11-16: Permissions screen, quiet notifications, launch reminder
 
 - **Added**: a permissions screen (Screen Time + notifications, with why), as an onboarding step
