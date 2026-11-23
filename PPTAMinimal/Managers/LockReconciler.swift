@@ -48,7 +48,7 @@ import FirebaseFirestore
 /// - *A stale cache must not decide.* Only server-confirmed snapshots are acted on, so a cached
 ///   lock can't be applied a moment before the real unlock arrives.
 /// - *A late unlock must not lift a later shield.* An unlock is skipped if something raised a shield
-///   after it (`ShieldPolicy.lastRaisedAt`: a Hardcore cutoff or an expired snooze), so a Release whose
+///   after it (`ShieldPolicy.lastRaisedAt`: an expired snooze), so a Release whose
 ///   push was dropped can't unlock a limit-based shield hours afterwards. The push path is live and
 ///   doesn't need this.
 /// - *A late lock push must not beat a newer unlock.* The push path asks the server for the latest
@@ -59,7 +59,7 @@ import FirebaseFirestore
 ///   The decisions are in `LockDecision`.
 /// - *A stale ack must not replace the real one.* `lockAck` is one field; acks are written in a
 ///   transaction that skips when a newer command exists, and superseded pushes write none.
-/// - Hardcore and snooze-ended shields are never cleared or re-attributed by anything here: the only
+/// - Snooze-ended shields are never cleared or re-attributed by anything here: the only
 ///   clear is `handleRemoteUnlock` for an unlock command that passed the checks above.
 ///
 /// ### The notification service extension applies commands too

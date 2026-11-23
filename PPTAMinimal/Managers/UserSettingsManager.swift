@@ -124,10 +124,9 @@ final class UserSettingsManager : ObservableObject{
         status == .attentionNeeded || status == .cutOff || status == .snoozedLock
     }
 
-    /// Which change the coach hears about. Turning Pressure off is reported alone, whatever else
-    /// changed: nothing is tracked, and turning it back on asks the coach for a screenshot. Any
-    /// change of level is assumed to come with app/limit changes, so it asks for one too. Edits
-    /// made while Pressure stays off aren't reported (nil): nothing they set is being enforced.
+    /// Which change the coach hears about. Turning App Limits off is reported alone, whatever else
+    /// changed: nothing is tracked, and turning them back on asks the coach for a screenshot. Edits
+    /// made while App Limits stay off aren't reported (nil): nothing they set is being enforced.
     static func settingsEvent(
         from oldLevel: PressureLevel,
         to newLevel: PressureLevel,
@@ -140,7 +139,6 @@ final class UserSettingsManager : ObservableObject{
         case (false, true): return .pressureOn
         case (false, false): return nil
         case (true, true):
-            if oldLevel != newLevel { return .levelChanged(to: newLevel) }
             let limitChanged = fromMinutes != toMinutes
             switch (appsChanged, limitChanged) {
             case (true, true): return .appsAndLimitChanged(fromMinutes: fromMinutes, toMinutes: toMinutes)
@@ -194,7 +192,6 @@ final class UserSettingsManager : ObservableObject{
         ShieldContext.save(
             ShieldContext(
                 lockedByName: lockedByName,
-                isHardcore: settings.pressureLevel == .hardcore,
                 streakStart: settings.startDailyStreakDate,
                 lockMessage: lockedByName?.isEmpty == false ? LocalSettingsStore.lockMessage : nil
             )
@@ -260,6 +257,29 @@ final class UserSettingsManager : ObservableObject{
         await withCheckedContinuation { continuation in
             saveSettings(draft) { _ in continuation.resume() }
         }
+    }
+
+    /// One-time, silent move off the removed Hardcore level (2026-11-22; docs/design/roadmap/
+    /// remove-hardcore.md). A stored "Hardcore" already reads as On; this writes it back as On and
+    /// lifts a Hardcore auto-lock if one is up (any cut-off with no coach behind it), then restarts
+    /// monitoring the way an App Limits save does: still over the limit means attention needed and
+    /// the coaches' usual "Hit their limit" push, and they decide. Coaches get no settings push:
+    /// the previous local snapshot also reads as On, so `notifyCoachesIfSetupChanged` sees no change.
+    /// A coach's lock is left alone (`LockReconciler` owns it).
+    @MainActor
+    func migrateFromHardcoreIfNeeded() {
+        let settings = userSettings
+        guard settings.wasHardcore, settings.id != nil else { return }
+        settings.wasHardcore = false
+        if settings.traineeStatus == .cutOff, ShieldPolicy.coachLockedBy == nil {
+            UserDefaults.standard.set(false, forKey: "isMonitoringActive")
+            DeviceActivityManager.shared.stopMonitoring()
+            DeviceActivityManager.shared.cancelUnlockGracePeriod()
+            DeviceActivityManager.shared.liftUserClearableShield()
+            LimitFireGate.resetReached()
+            settings.traineeStatus = .allClear
+        }
+        saveSettings(settings)
     }
 
     /// Reads and clears any pending trainee status / streak updates that were

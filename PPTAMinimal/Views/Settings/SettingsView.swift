@@ -290,7 +290,7 @@ struct SettingsView: View {
                     .padding()
                 }
                 .popover(isPresented: $showAppLimitsWarning) {
-                    Text("Set a daily time limit, pick at least one app, and turn Pressure on (Standard or Hardcore).")
+                    Text("Set a daily time limit, pick at least one app, and turn App Limits on.")
                         .font(.subheadline)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)

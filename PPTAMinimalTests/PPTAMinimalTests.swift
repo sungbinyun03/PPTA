@@ -87,21 +87,21 @@ struct LimitFireGateTests {
     private let day = "2026-09-30"
 
     @Test func reachedActsOnceAPerDayForTheSameLimitAndPressure() {
-        let first = LimitFireGate.nextReachedMarker(stored: nil, day: day, limitMinutes: 5, pressure: "Hardcore")
+        let first = LimitFireGate.nextReachedMarker(stored: nil, day: day, limitMinutes: 5, pressure: "Standard")
         #expect(first != nil)
         // A relaunch / re-save re-fires the event: dropped, so no re-lock after a Release.
-        #expect(LimitFireGate.nextReachedMarker(stored: first, day: day, limitMinutes: 5, pressure: "Hardcore") == nil)
+        #expect(LimitFireGate.nextReachedMarker(stored: first, day: day, limitMinutes: 5, pressure: "Standard") == nil)
     }
 
     @Test func reachedActsAgainOnANewDay() {
-        let yesterday = LimitFireGate.nextReachedMarker(stored: nil, day: "2026-09-29", limitMinutes: 5, pressure: "Hardcore")
-        #expect(LimitFireGate.nextReachedMarker(stored: yesterday, day: day, limitMinutes: 5, pressure: "Hardcore") != nil)
+        let yesterday = LimitFireGate.nextReachedMarker(stored: nil, day: "2026-09-29", limitMinutes: 5, pressure: "Standard")
+        #expect(LimitFireGate.nextReachedMarker(stored: yesterday, day: day, limitMinutes: 5, pressure: "Standard") != nil)
     }
 
     @Test func reachedActsAgainWhenTheLimitOrPressureIsChanged() {
         let m = LimitFireGate.nextReachedMarker(stored: nil, day: day, limitMinutes: 30, pressure: "Standard")
         #expect(LimitFireGate.nextReachedMarker(stored: m, day: day, limitMinutes: 5, pressure: "Standard") != nil)
-        #expect(LimitFireGate.nextReachedMarker(stored: m, day: day, limitMinutes: 30, pressure: "Hardcore") != nil)
+        #expect(LimitFireGate.nextReachedMarker(stored: m, day: day, limitMinutes: 30, pressure: "Off") != nil)
     }
 
     @Test func warningsOnlyFireAboveTheHighestAlreadyFired() {
@@ -132,7 +132,8 @@ struct LimitFireGateTests {
         #expect(LimitFireGate.dayStamp(d, calendar: cal) == "2026-09-30")
     }
 
-    // MARK: - Re-asserting the shield on a repeat fire
+    // MARK: - Helpers
+
 
     private var cal: Calendar {
         var c = Calendar(identifier: .gregorian)
@@ -141,31 +142,6 @@ struct LimitFireGateTests {
     }
     private func at(_ hour: Int, day d: Int = 30) -> Date {
         cal.date(from: DateComponents(year: 2026, month: 9, day: d, hour: hour))!
-    }
-
-    @Test func hardcoreRepeatFireReraisesALostShield() {
-        // Fired at 10:00, nothing released: a relaunch re-fire at 15:00 puts it back.
-        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: nil, raised: at(10), now: at(15), calendar: cal))
-        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: nil, raised: nil, now: at(15), calendar: cal))
-    }
-
-    @Test func standardNeverReraises() {
-        #expect(!LimitFireGate.shouldReassert(pressure: "Standard", released: nil, raised: at(10), now: at(15), calendar: cal))
-    }
-
-    @Test func releaseAfterTheFireWinsOverARepeatFire() {
-        // Raised 10:00, coach Released (or snoozed) 11:00: stays lifted across relaunches.
-        #expect(!LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: at(10), now: at(15), calendar: cal))
-        #expect(!LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: nil, now: at(15), calendar: cal))
-    }
-
-    @Test func aNewRaiseAfterTheReleaseReenablesReassertion() {
-        // Snooze at 11:00, the grace expiry re-locked at 12:00 (a stamped raise).
-        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11), raised: at(12), now: at(15), calendar: cal))
-    }
-
-    @Test func aReleaseFromAnEarlierDayIsIgnored() {
-        #expect(LimitFireGate.shouldReassert(pressure: "Hardcore", released: at(11, day: 29), raised: at(10, day: 29), now: at(15), calendar: cal))
     }
 
     // MARK: - intervalDidEnd
@@ -201,26 +177,55 @@ struct SettingsEventTests {
     }
 
     @Test func turningOffIsReportedAloneWhateverElseChanged() {
-        #expect(event(.standard, .off, apps: true, 60, 30) == .pressureOff)
+        #expect(event(.on, .off, apps: true, 60, 30) == .pressureOff)
     }
 
     @Test func turningOnIsReportedAsStartedTracking() {
-        #expect(event(.off, .hardcore, apps: true, 60, 30) == .pressureOn)
+        #expect(event(.off, .on, apps: true, 60, 30) == .pressureOn)
     }
 
     @Test func changesWhileOffAreNotReported() {
         #expect(event(.off, .off, apps: true, 60, 30) == nil)
     }
 
-    @Test func aLevelSwitchWinsOverAppAndLimitChanges() {
-        #expect(event(.standard, .hardcore, apps: true, 60, 30) == .levelChanged(to: .hardcore))
+    @Test func appsLimitAndBoth() {
+        #expect(event(.on, .on, apps: true) == .appsChanged)
+        #expect(event(.on, .on, 90, 64) == .limitChanged(fromMinutes: 90, toMinutes: 64))
+        #expect(event(.on, .on, apps: true, 45, 120) == .appsAndLimitChanged(fromMinutes: 45, toMinutes: 120))
+        #expect(event(.on, .on) == nil)
+    }
+}
+
+/// Hardcore was removed on 2026-11-22: App Limits are On or Off. On keeps the stored value
+/// "Standard" so Firestore, the server and older builds need no migration.
+struct PressureLevelTests {
+    @Test func onIsStoredAsStandard() {
+        #expect(PressureLevel.on.rawValue == "Standard")
+        #expect(PressureLevel.on.title == "On")
+        #expect(PressureLevel.off.title == "Off")
     }
 
-    @Test func appsLimitAndBoth() {
-        #expect(event(.standard, .standard, apps: true) == .appsChanged)
-        #expect(event(.standard, .standard, 90, 64) == .limitChanged(fromMinutes: 90, toMinutes: 64))
-        #expect(event(.hardcore, .hardcore, apps: true, 45, 120) == .appsAndLimitChanged(fromMinutes: 45, toMinutes: 120))
-        #expect(event(.standard, .standard) == nil)
+    @Test func legacyValuesReadAsOnOrOff() {
+        #expect(PressureLevel(decodingFirestore: "Standard") == .on)
+        #expect(PressureLevel(decodingFirestore: "Hardcore") == .on)
+        #expect(PressureLevel(decodingFirestore: "Hard") == .on)
+        #expect(PressureLevel(decodingFirestore: "Chill") == .on)
+        #expect(PressureLevel(decodingFirestore: "Off") == .off)
+        #expect(PressureLevel(decodingFirestore: "garbage") == .off)
+    }
+
+    @Test func storedHardcoreIsFlaggedForTheOneTimeMove() throws {
+        let hardcore = try JSONDecoder().decode(UserSettings.self, from: Data(#"{"selectedMode":"Hardcore"}"#.utf8))
+        #expect(hardcore.pressureLevel == .on)
+        #expect(hardcore.wasHardcore)
+        let standard = try JSONDecoder().decode(UserSettings.self, from: Data(#"{"selectedMode":"Standard"}"#.utf8))
+        #expect(!standard.wasHardcore)
+    }
+
+    @Test func onIsWrittenBackAsStandard() throws {
+        let hardcore = try JSONDecoder().decode(UserSettings.self, from: Data(#"{"selectedMode":"Hardcore"}"#.utf8))
+        let json = try #require(String(data: JSONEncoder().encode(hardcore), encoding: .utf8))
+        #expect(json.contains(#""selectedMode":"Standard""#))
     }
 }
 
@@ -464,7 +469,7 @@ struct CoachActionDisplayTests {
         #expect(r["A"]?.lockNote == nil)
     }
 
-    @Test func hardcoreAutoLockHasNoBadgeEvenWithStaleLockCommand() {
+    @Test func uncoachedLockHasNoBadgeEvenWithStaleLockCommand() {
         let r = derive(["traineeStatus": "cutOff", "lockCommand": lockCommand(["message": "old"])])
         #expect(r.isEmpty)
     }
@@ -633,7 +638,7 @@ struct AppBadgeTests {
     private func trainee(_ status: TraineeStatus, askingMe: Bool = false) -> StatusCenterPerson {
         StatusCenterPerson(id: UUID().uuidString, name: "Sam Lee", profileImageURL: nil,
                            isCoach: false, isTrainee: true, traineeStatus: status, streakDays: 0,
-                           timeLimitMinutes: 30, pressureLevel: .standard, lockedByName: nil,
+                           timeLimitMinutes: 30, pressureLevel: .on, lockedByName: nil,
                            isRequestingSnoozeFromMe: askingMe)
     }
 

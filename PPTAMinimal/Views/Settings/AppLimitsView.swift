@@ -108,7 +108,7 @@ struct AppLimitsView: View {
         .appConfirm(
             isPresented: $showSaveConfirm,
             title: "Are you sure?",
-            message: "Any change that isn't decreasing your time limit or going from Standard to Hardcore will reset your Commitment Streak.",
+            message: "Any change that isn't decreasing your time limit will reset your Commitment Streak.",
             confirmTitle: "Yes",
             cancelTitle: "No"
         ) {
@@ -122,7 +122,7 @@ struct AppLimitsView: View {
         .appAlert(
             isPresented: $showViableRequiredAlert,
             title: "Set up App Limits first",
-            message: "Set a daily time limit and pick at least one app before choosing Standard or Hardcore."
+            message: "Set a daily time limit and pick at least one app before turning App Limits on."
         )
         .appAlert(
             isPresented: $showCategoriesRemovedAlert,
@@ -267,22 +267,21 @@ struct AppLimitsView: View {
         }
     }
 
-    // MARK: - Pressure level
+    // MARK: - On / Off (internally "pressure level"; users see App Limits On / Off)
 
     private var pressureSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text("Pressure Level")
+                Text("App Limits")
                     .font(.custom("SatoshiVariable-Bold_Light", size: 20))
-                infoButton($showPressureInfo, "About pressure levels")
+                infoButton($showPressureInfo, "About turning App Limits on or off")
                 Spacer()
             }
 
             if showPressureInfo {
                 VStack(alignment: .leading, spacing: 6) {
-                    pressureDescription("Off", "No monitoring or pressure. Take a break :)")
-                    pressureDescription("Standard", "Coaches can lock you out when you exceed your limit.")
-                    pressureDescription("Hardcore", "You get locked instantly the moment you exceed.")
+                    pressureDescription("Off", "No monitoring. Take a break :)")
+                    pressureDescription("On", "Your coaches are told when you hit your limit and can lock your apps.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -291,12 +290,9 @@ struct AppLimitsView: View {
                 pressurePill(.off, "Off",
                              background: Color("primaryColor").opacity(0.08),
                              foreground: Color("primaryColor"))
-                pressurePill(.standard, "Standard",
+                pressurePill(.on, "On",
                              background: Color("primaryButtonColor"),
                              foreground: .white, star: true)
-                pressurePill(.hardcore, "Hardcore",
-                             background: Color("primaryColor"),
-                             foreground: .white)
             }
             .modifier(SettingsBox())
         }
@@ -439,7 +435,7 @@ struct AppLimitsView: View {
         draftThresholdMinutes = s.thresholdMinutes
         draftPressureLevel = s.pressureLevel
 
-        // Fresh onboarding users have no saved settings — seed sensible defaults (Standard, 1h, blank
+        // Fresh onboarding users have no saved settings — seed sensible defaults (On, 1h, blank
         // app selection). Returning users (reinstall / new phone) are hydrated from their saved
         // settings, so their non-empty values are preserved untouched. The Save gate still requires
         // ≥1 app before saving.
@@ -449,7 +445,7 @@ struct AppLimitsView: View {
                 draftThresholdHour = 1
             }
             if draftPressureLevel == .off {
-                draftPressureLevel = .standard
+                draftPressureLevel = .on
             }
         }
     }
@@ -463,7 +459,7 @@ struct AppLimitsView: View {
             thresholdMinutes: draftThresholdMinutes,
             applications: selection
         )
-        // Standard/Hardcore require viable limits; Off may be saved freely (e.g. to clear tracking).
+        // On requires viable limits; Off may be saved freely (e.g. to clear tracking).
         if draftPressureLevel != PressureLevel.off, !wouldBeViable {
             showViableRequiredAlert = true
             return false
@@ -471,10 +467,10 @@ struct AppLimitsView: View {
 
         UserDefaults.standard.set(false, forKey: "isMonitoringActive")
         DeviceActivityManager.shared.stopMonitoring()
-        // Any save starts today over under the new App Limits: lift every lock (Hardcore's or a
-        // coach's) and any extra time, then the monitoring restart re-checks today's usage
-        // (`LimitFireGate.resetReached` below). Still over the new limit means Standard is back to
-        // attention needed (coaches notified) and Hardcore locks again at once. Coaches also hear
+        // Any save starts today over under the new App Limits: lift every lock (a coach's, or extra
+        // time that ran out) and any extra time, then the monitoring restart re-checks today's usage
+        // (`LimitFireGate.resetReached` below). Still over the new limit means attention needed
+        // again (coaches notified). Coaches also hear
         // that the save was made over the limit (`UserSettingsManager.wasOverLimit`).
         DeviceActivityManager.shared.cancelUnlockGracePeriod()
         if let ended = DeviceActivityManager.shared.liftUserClearableShield() {
@@ -493,15 +489,12 @@ struct AppLimitsView: View {
         let newTotalSec = draftThresholdHour * 3600 + draftThresholdMinutes * 60
         let limitIncreased = newTotalSec > oldTotalSec
         // `settings` still holds the pre-save pressure here (assigned below), so this compares old vs draft.
-        // A pressure change resets the streak in EVERY case except tightening Standard → Hardcore
-        // (turning on, turning off, or Hardcore → Standard all reset).
-        let pressureResetsStreak =
-            settings.pressureLevel != draftPressureLevel &&
-            !(settings.pressureLevel == PressureLevel.standard && draftPressureLevel == PressureLevel.hardcore)
+        // Turning App Limits on or off resets the streak.
+        let pressureResetsStreak = settings.pressureLevel != draftPressureLevel
 
         // `startDailyStreakDate` backs the Commitment Streak (days since App Limits last changed), so
-        // a change to apps, a limit increase, or a (non Standard→Hardcore) pressure change resets it —
-        // as does first setup. A limit decrease and Standard→Hardcore deliberately preserve the streak.
+        // a change to apps, a limit increase, or turning App Limits on or off resets it — as does first
+        // setup. A limit decrease deliberately preserves the streak.
         if appsChanged || limitIncreased || pressureResetsStreak || settings.startDailyStreakDate == nil {
             settings.startDailyStreakDate = Date()
         }

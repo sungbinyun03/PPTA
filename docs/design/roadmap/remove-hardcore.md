@@ -1,6 +1,6 @@
 # Remove Hardcore
 
-Status: decided (2026-11-21).
+Status: **Shipped** 2026-11-22. Current behaviour: `../features/app-limits.md`.
 
 ## Idea
 Keep the app streamlined: Pressure has two levels, **On** and **Off**. No Standard or Hardcore.
@@ -18,6 +18,9 @@ coaches, who decide. About 20 files mention Hardcore, including the monitor and 
   lifted. Why: tiny beta group, no notice needed.
 - 2026-11-21: **No auto-lock replaces it.** If no peer locks you, you keep going (it shows in stats
   and the feed). Why: the point is peer pressure; one less rule to explain.
+
+- 2026-11-22: **No "Pressure" in the UI.** The setting is "App Limits On / Off". Internal names
+  (`PressureLevel`, `selectedMode`, `pressureOn/Off` events) stay, mapped in the README Terminology.
 
 ## Technical defaults (no decision needed)
 - Old builds still store `hardcore`: the server and new app treat it as On until everyone has

@@ -2,8 +2,8 @@
 //  PressureOffHomeCardView.swift
 //  PPTAMinimal
 //
-//  Olive callout when `pressureLevel == PressureLevel.off` — nudges Settings and choosing how serious
-//  accountability is (Standard vs Hardcore). Matches `NoAppLimitsHomeCardView` styling.
+//  Olive callout when App Limits are off (`pressureLevel == PressureLevel.off`) — nudges Settings to
+//  turn them on. Matches `NoAppLimitsHomeCardView` styling.
 //
 
 import SwiftUI
@@ -24,7 +24,7 @@ struct PressureOffHomeCardView: View {
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Pressure Off")
+                Text("App Limits Off")
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
@@ -32,13 +32,9 @@ struct PressureOffHomeCardView: View {
                 (
                     Text("Go to ") +
                         Text("Settings").bold() +
-                        Text(" and set your ") +
-                        Text("Pressure level").bold() +
-                        Text(" — ") +
-                        Text("Standard").bold() +
-                        Text(" or ") +
-                        Text("Hardcore").bold() +
-                        Text(" — to choose how serious accountability is.")
+                        Text(" and turn ") +
+                        Text("App Limits").bold() +
+                        Text(" on so your coaches can hold you to your limit.")
                 )
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.95))
@@ -57,7 +53,7 @@ struct PressureOffHomeCardView: View {
     }
 }
 
-#Preview("Pressure Off card") {
+#Preview("App Limits Off card") {
     NavigationStack {
         PressureOffHomeCardView()
     }

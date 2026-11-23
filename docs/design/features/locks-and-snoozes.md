@@ -24,9 +24,9 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
   with PPTA closed, needs notification permission), or when PPTA opens.
 - A snooze belongs to the day it was granted. A snooze still running at midnight is cancelled by the
   new day, not turned into a lock.
-- Any App Limits save (Pressure Off included) lifts any lock, a coach lock included, and cancels
+- Any App Limits save (turning them Off included) lifts any lock, a coach lock included, and cancels
   extra time; usage is then re-checked under the new limits, so a trainee still over the limit is
-  back to attention needed (Standard) or locked again (Hardcore). Their coaches are told (see
+  back to attention needed. Their coaches are told (see
   coach-notifications.md, "after going over their limit"). A coach lock ended this way stays ended
   for the rest of the day; a new lock works as usual.
 
@@ -37,8 +37,8 @@ records the command and pushes it, and the phone confirms ("acks") once applied.
 | Waiting | `Waiting for Sam's phone` |
 | Stalled | `Sam's phone hasn't confirmed yet. The lock applies as soon as it's online or PPTA opens.` (extra time: `The extra time applies…`) |
 | Confirmed | `Sam's apps are locked` / `Sam has 10 extra minutes` |
-| Not applied | `Sam has pressure turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or extra time replaced this one.` |
-| Trainee turned Pressure off | `Sam turned Pressure off, so their lock ended.` |
+| Not applied | `Sam has App Limits turned off, so nothing changed.` / `Sam has no apps selected, so nothing changed.` / `A newer lock or extra time replaced this one.` |
+| Trainee turned App Limits off | `Sam turned App Limits off, so their lock ended.` |
 | Trainee changed App Limits | `Sam changed their App Limits, so their lock ended.` |
 
 The two "lock ended" rows show to every coach on the trainee's sheet for the rest of the day, until a
@@ -54,7 +54,7 @@ newer lock or extra time replaces them.
 | Status pill | `Extra time` |
 | Trainee's request button on a coach's profile | `Ask for 10 Min` / `Asked for 10 min` |
 | Home banner while it runs | `Extra Time` / `Your coach gave you 10 minutes. Apps re-lock when time's up.` |
-| Home banner, cut off | `Alex locked your apps. Tap their avatar to ask for 10 more minutes.` / Hardcore: `You hit your limit and your apps were auto-locked. Ask a coach for 10 more minutes if you need them.` / `A coach locked your apps. If you need more time, ask a coach for 10 minutes.` |
+| Home banner, cut off | `Alex locked your apps. Tap their avatar to ask for 10 more minutes.` / `A coach locked your apps. If you need more time, ask a coach for 10 minutes.` |
 | Coach avatar tooltips (trainee) | `Alex gave you 10 minutes. Enjoy the break!` / `Alex locked your apps. Open their profile to ask for 10 more minutes.` / `Alex locked your apps, then gave you 10 minutes.` |
 | Trainee halo tooltip (coach) | `Sam is asking for more time — open their profile to give them 10 minutes.` |
 | Coach row tip (trainee) | `Open a coach's profile and tap Ask for 10 Min.` |

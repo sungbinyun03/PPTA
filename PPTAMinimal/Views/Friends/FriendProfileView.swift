@@ -89,9 +89,9 @@ struct FriendProfileView: View {
             icon = "checkmark.circle.fill"
         case .notEnforced(_, let result):
             switch result {
-            case "notTracking": text = "\(first) has pressure turned off, so nothing changed."
+            case "notTracking": text = "\(first) has App Limits turned off, so nothing changed."
             case "emptySelection": text = "\(first) has no apps selected, so nothing changed."
-            case "pressureOff": text = "\(first) turned Pressure off, so their lock ended."
+            case "pressureOff": text = "\(first) turned App Limits off, so their lock ended."
             case "appLimitsChanged": text = "\(first) changed their App Limits, so their lock ended."
             case "superseded": text = "A newer lock or extra time replaced this one."
             default: text = "\(first)'s phone received this but didn't apply it."
@@ -336,8 +336,8 @@ struct FriendProfileView: View {
                                 caption: limitCaptionText
                             )
                             heroTile(
-                                label: "Pressure",
-                                value: pressureLevel.rawValue,
+                                label: "App Limits",
+                                value: pressureLevel.title,
                                 caption: nil,
                                 tint: pressureTint
                             )
@@ -449,13 +449,9 @@ struct FriendProfileView: View {
         traineeStatus.ringColor ?? primaryColor.opacity(0.25)
     }
 
-    /// Matches PressureLevelView's colour per tier.
+    /// Matches the On pill in App Limits.
     private var pressureTint: Color {
-        switch pressureLevel {
-        case .off:      return .secondary
-        case .standard: return Color("primaryButtonColor")
-        case .hardcore: return primaryColor
-        }
+        pressureLevel == .off ? .secondary : Color("primaryButtonColor")
     }
 
     /// Split so the tile can show a big number with a small unit beneath it rather than
@@ -659,7 +655,7 @@ struct FriendProfileView: View {
         traineeStatus: .attentionNeeded,
         streakDays: 6,
         timeLimitMinutes: 90,
-        pressureLevel: .standard,
+        pressureLevel: .on,
         onLock: nil,
         onUnlock: nil,
         lockedByName: nil,

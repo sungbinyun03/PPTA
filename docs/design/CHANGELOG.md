@@ -3,6 +3,22 @@
 Newest first. Each entry: what was added, changed, removed or fixed, why, and the commit.
 
 
+
+## 2026-11-22: Hardcore removed; App Limits are On or Off
+- **Removed** Hardcore (auto-lock at the limit). Hitting the limit always tells coaches, who decide.
+  Removed with it: the Hardcore pill, the "Hardcore mode locked <app>" shield title, the Hardcore
+  Home banner line and trainee notification, the repeat-fire shield re-assert, the Standard ↔
+  Hardcore coach notice, and the Standard → Hardcore streak exception. Deleted the unused
+  `PressureLevelCard.swift`.
+- **Changed** the word "Pressure" is gone from the UI: the setting is **App Limits On / Off** (App
+  Limits screen, Home card `App Limits Off`, Settings, friend profile tile, lock-ended lines).
+  Internal names stay (`PressureLevel.off` / `.on`; On is still stored as `Standard`).
+- **Added** a one-time silent move for Hardcore users: written back as On without a coach notice; a
+  Hardcore lock that is up is lifted and usage re-checked.
+- **Kept** for trainees on older builds: the `hardcoreLimit` coach copy and the server's
+  `levelChanged` copy (see worth-revisiting.md).
+- Why: keep the app streamlined; peers decide (roadmap/remove-hardcore.md).
+
 ## 2026-11-21: Roadmap for the next big versions
 - **Added** `roadmap/`: one file per planned feature (remove Hardcore, peers, stats, tabs and feed,
   personas, ads and in-app purchases, invite link), with the decisions made in chat, open questions

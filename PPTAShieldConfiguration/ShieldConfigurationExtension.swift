@@ -103,9 +103,6 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             let first = locker.split(separator: " ").first.map(String.init) ?? locker
             return "\(first) locked \(target)"
         }
-        if context?.isHardcore == true {
-            return "Hardcore mode locked \(target)"
-        }
         return "You've reached your limit on \(target)"
     }
 

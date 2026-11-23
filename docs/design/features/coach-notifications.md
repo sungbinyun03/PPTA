@@ -15,12 +15,10 @@ fallback copy for silent pushes from an older server.
   what changed and sends it; the server picks the copy. Only one notification per save:
   - Any save made after going over their limit today (attentionNeeded, cutOff or snoozed) gets the
     "cheating" copy instead, whatever changed.
-  - Pressure turned **Off** is reported alone, whatever else changed.
-  - Pressure turned **on** (from Off) asks for a screenshot.
-  - A **Standard ↔ Hardcore** switch is reported as the switch and asks for a screenshot (apps and
-    time limit may have changed too).
+  - App Limits turned **Off** is reported alone, whatever else changed.
+  - App Limits turned **on** (from Off) asks for a screenshot.
   - Otherwise: apps only, time limit only, or both.
-  - Edits made while Pressure stays Off are not reported.
+  - Edits made while App Limits stay Off are not reported.
   - First-time setup is not reported (no previous viable limits).
   - An older app build sends no detail, and coaches get the generic copy.
 
@@ -33,8 +31,8 @@ The body says what happened. Another coach is named by first name in the body (`
 
 | When | Title | Body |
 |---|---|---|
-| Standard, limit hit | `Sam Trainee` | `Hit their 1 hr 4 min limit. Go ahead and cut them off! 👀` |
-| Hardcore, apps locked automatically | `Sam Trainee` | `Hit their 1 hr 4 min limit. They're on Hardcore, so their apps locked themselves. 🔒` |
+| Limit hit | `Sam Trainee` | `Hit their 1 hr 4 min limit. Go ahead and cut them off! 👀` |
+| Hardcore auto-lock (older builds only; Hardcore removed 2026-11-22) | `Sam Trainee` | `Hit their 1 hr 4 min limit. They're on Hardcore, so their apps locked themselves. 🔒` |
 | Limit unknown (safety net) | `Sam Trainee` | `Hit their time limit. Go ahead and cut them off! 👀` |
 
 ### Locks and snoozes
@@ -62,10 +60,10 @@ The body says what happened. Another coach is named by first name in the body (`
 | When | Title | Body |
 |---|---|---|
 | Any change after going over their limit | `Sam Trainee` | `Changed their App Limits after going over their limit! They're cheating 👹` |
-| Pressure turned Off | `Sam Trainee` | `Stopped tracking their apps 🥀 Why did they stop locking in?` |
-| Pressure turned on | `Sam Trainee` | `Started tracking their apps 💪 ` + ASK |
-| Switched to Hardcore | `Sam Trainee` | `Switched to Hardcore 🔥 ` + ASK |
-| Switched to Standard | `Sam Trainee` | `Switched to Standard. ` + ASK |
+| App Limits turned Off | `Sam Trainee` | `Stopped tracking their apps 🥀 Why did they stop locking in?` |
+| App Limits turned on | `Sam Trainee` | `Started tracking their apps 💪 ` + ASK |
+| Switched to Hardcore (older builds only) | `Sam Trainee` | `Switched to Hardcore 🔥 ` + ASK |
+| Switched to Standard (older builds only) | `Sam Trainee` | `Switched to Standard. ` + ASK |
 | Monitored apps changed | `Sam Trainee` | `Changed their monitored apps. ` + ASK |
 | Time limit changed | `Sam Trainee` | `Changed their time limit from 1 hr 30 min to 2 hr. Monitored apps stayed the same.` |
 | Apps and time limit changed | `Sam Trainee` | `Changed all their App Limits. ` + ASK |
@@ -84,7 +82,7 @@ The body says what happened. Another coach is named by first name in the body (`
   asks the coach to get a screenshot from the trainee, because iOS hides a trainee's apps from coaches.
 - 2026-11-11: Turning Pressure off is reported alone; turning it back on asks for the screenshot.
 - 2026-11-11: A Standard ↔ Hardcore switch assumes apps/time limit may also have changed, so it asks
-  for a screenshot.
+  for a screenshot. (Hardcore removed 2026-11-22; the server keeps this copy for older builds.)
 - 2026-11-11: The screenshot ask: `Ask for a screenshot to see what they're tracking!`. A
   time-limit-only change says `Monitored apps stayed the same.`; when apps and the time limit both
   change, there is no from → to.

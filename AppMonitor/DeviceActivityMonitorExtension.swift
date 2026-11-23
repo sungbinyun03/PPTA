@@ -100,9 +100,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
             // The daily events count total usage since midnight (`includesPastActivity`), so every
             // restart of monitoring while already over fires them again. Act at most once per day
-            // (see `LimitFireGate`); a repeat must not re-notify coaches. It is the *side effects* that
-            // are deduped, not the shield: a repeat Hardcore fire silently re-asserts it, unless a coach
-            // Released or a snooze lifted it since the last raise.
+            // (see `LimitFireGate`); a repeat must not re-notify coaches.
             let suite = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")
             let day = LimitFireGate.dayStamp(Date())
             let limitMinutes = settings.thresholdHour * 60 + settings.thresholdMinutes
@@ -117,16 +115,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 guard let marker = LimitFireGate.nextReachedMarker(
                     stored: suite?.string(forKey: LimitFireGate.reachedKey),
                     day: day, limitMinutes: limitMinutes, pressure: settings.pressureLevel.rawValue
-                ) else {
-                    if LimitFireGate.shouldReassert(
-                        pressure: settings.pressureLevel.rawValue,
-                        released: ShieldPolicy.lastReleasedAt, raised: ShieldPolicy.lastRaisedAt, now: Date()
-                    ) {
-                        // No raise stamp, notification or status: not a new event.
-                        ShieldPolicy.apply(settings.applications, to: store, recordsRaise: false)
-                    }
-                    return
-                }
+                ) else { return }
                 suite?.set(marker, forKey: LimitFireGate.reachedKey)
             }
 
@@ -156,37 +145,14 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 return
             }
 
-            // Otherwise this is the daily limit itself (LimitEvent.reached).
-            // Mode behavior:
-            // - Off: no shielding (just status updates)
-            // - Standard / Hardcore: shield selected apps
-            switch settings.pressureLevel {
-            case .off:
-                return  // unreachable: guard settings.isTracking above already handles this
-            case .standard:
-                // Standard mode: notify coaches, no auto-lock. Coaches decide whether to shield.
-                LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
-                sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
-                scheduleLocalNotification(
-                    title: "Time's up! ⏰",
-                    body: "You've hit your daily limit — your coaches have been notified."
-                )
-                return
-            case .hardcore:
-                // An empty selection is refused (it would clear). Nothing was shielded, so don't tell
-                // the coaches the trainee is cut off either.
-                guard ShieldPolicy.apply(settings.applications, to: store) else { return }
-            }
-
-            // Persist locally for the app to pick up, AND notify backend immediately.
-            // `resetStartDate: nil` — `startDailyStreakDate` is now the Commitment Streak (days since
-            // App Limits last changed), so hitting the limit must NOT reset it. (A future Clean Streak
-            // will track cut-offs separately.)
-            LocalSettingsStore.savePendingStatus(.cutOff, resetStartDate: nil)
-            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .cutOff, cause: .hardcoreLimit)
+            // Otherwise this is the daily limit itself (LimitEvent.reached). App Limits are on (the
+            // `isTracking` guard above): tell the coaches, who decide whether to lock. Nothing is
+            // shielded here. (Hardcore, which auto-locked at this point, was removed on 2026-11-22.)
+            LocalSettingsStore.savePendingStatus(.attentionNeeded, resetStartDate: nil)
+            sendStatusUpdate(uid: LocalSettingsStore.loadCurrentUserId(), status: .attentionNeeded)
             scheduleLocalNotification(
-                title: "Time's up, you're cut off! 🔒",
-                body: "Head to a coach's profile to ask for 10 more minutes."
+                title: "Time's up! ⏰",
+                body: "You've hit your daily limit — your coaches have been notified."
             )
         }
     

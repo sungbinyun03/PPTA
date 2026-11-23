@@ -95,16 +95,9 @@ enum LimitEvent {
 /// The daily events are armed with `includesPastActivity: true`, so they count **total** usage since
 /// midnight (matching the report) and any restart of monitoring while the user is already over —
 /// app launch re-arm, an App Limits re-save, a reinstall — makes them fire again at once. Without a
-/// gate that re-sends the coaches' `statusUpdate`, repeats the local notification and, in Hardcore,
-/// re-raises a shield a coach Released or a snooze lifted (and stamps `ShieldPolicy.lastRaisedAt`,
-/// which would make a late Release look superseded).
-///
-/// The gate dedupes **side effects only** (coach push, local notification, status write). It must not
-/// dedupe the shield itself: the marker says "the limit fired today", not "the shield is up", so a
-/// shield lost for any other reason (a stop-induced `intervalDidEnd`, an app update, a cleared
-/// store) would otherwise stay down until midnight. A repeat Hardcore fire therefore silently
-/// re-asserts the shield (`shouldReassert`), unless a coach Release or snooze came after the last
-/// raise today.
+/// gate that re-sends the coaches' `statusUpdate` and repeats the local notification. (Hitting the
+/// limit never raises a shield: coaches decide. Hardcore, which auto-locked here, was removed on
+/// 2026-11-22.)
 ///
 /// Markers live in the App Group, written by the AppMonitor extension.
 /// - Limit reached: one string `day|limitMinutes|pressure`. Fires once per day for a given limit and
@@ -130,19 +123,6 @@ enum LimitFireGate {
         return stored == marker ? nil : marker
     }
 
-    /// Whether a *repeat* limit-reached fire (the marker already matched) should silently put the
-    /// shield back. Hardcore only: Standard never shields. Not if a coach Release/snooze happened
-    /// today after the last raise (`ShieldPolicy.lastReleasedAt` vs `lastRaisedAt`) — the Release
-    /// wins until something raises a new shield (a coach re-lock, snooze expiry), which stamps a
-    /// later `raised`. A Release from an earlier day is ignored.
-    static func shouldReassert(pressure: String, released: Date?, raised: Date?,
-                               now: Date, calendar: Calendar = .current) -> Bool {
-        guard pressure == PressureLevel.hardcore.rawValue else { return false }
-        guard let released, calendar.isDate(released, inSameDayAs: now) else { return true }
-        guard let raised else { return false }
-        return raised > released
-    }
-
     /// Forgets that the limit fired today. For a save that resets the status to `.allClear`: the
     /// restart re-fires the limit at once if today's usage is already over, and without this the
     /// marker would swallow that fire and leave the trainee green while over their limit. The repeat
@@ -163,14 +143,16 @@ enum LimitFireGate {
 }
 
 /// Why a `cutOff`/`snoozedLock` happened, sent to the backend so a coach's push can say the right
-/// thing (a coach locking them vs. a Hardcore auto-lock vs. a snooze timer running out).
+/// thing (a coach locking them vs. a snooze timer running out).
 ///
 /// Single source of truth for these strings — mirrored server-side as `LOCK_CAUSE` in the
 /// `statusUpdate` Cloud Function. Compiled into both the app and the AppMonitor extension (same
 /// arrangement as `LimitEvent`/`UnlockGrace`), so the raw values stay in sync across processes.
 enum LockCause: String {
-    case hardcoreLimit   // Hardcore mode auto-locked at the daily limit (no coach involved)
-    case coach           // a coach locked them (Standard) or snoozed their lock — `by` names them
+    /// Legacy: Hardcore auto-lock at the limit. Hardcore was removed on 2026-11-22; kept so the coach
+    /// copy still reads right for a trainee on an older build. Never sent by this build.
+    case hardcoreLimit
+    case coach           // a coach locked them or snoozed their lock — `by` names them
     case snoozeEnded     // the post-unlock grace timer ran out and re-locked them
 }
 
@@ -241,29 +223,13 @@ enum ShieldPolicy {
 
     private static let lastRaisedKey = "shield.lastRaisedAt"
 
-    /// When this process family last raised a shield for a *new* reason (coach lock, Hardcore limit,
-    /// snooze running out). Lets a late "unlock" command tell that something locked the trainee
+    /// When this process family last raised a shield for a *new* reason (coach lock, snooze running
+    /// out). Lets a late "unlock" command tell that something locked the trainee
     /// after the coach released them, so it must not lift that later shield.
     static var lastRaisedAt: Date? {
         guard let t = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
             .object(forKey: lastRaisedKey) as? Double else { return nil }
         return Date(timeIntervalSince1970: t)
-    }
-
-    private static let lastReleasedKey = "shield.lastReleasedAt"
-
-    /// When a coach Release / snooze last lifted the shield on this device. Compared with
-    /// `lastRaisedAt` by `LimitFireGate.shouldReassert`, so a repeat limit fire re-asserts a Hardcore
-    /// shield that something else lifted, but never one a coach lifted on purpose.
-    static var lastReleasedAt: Date? {
-        guard let t = UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
-            .object(forKey: lastReleasedKey) as? Double else { return nil }
-        return Date(timeIntervalSince1970: t)
-    }
-
-    static func recordRelease() {
-        UserDefaults(suiteName: "group.com.sungbinyun.com.PPTADev")?
-            .set(Date().timeIntervalSince1970, forKey: lastReleasedKey)
     }
 
     private static let coachLockedByKey = "shield.coachLockedBy"
@@ -293,8 +259,8 @@ enum ShieldPolicy {
 /// Tells the daily interval's real end from monitoring being stopped early.
 ///
 /// `intervalDidEnd(AppUsageMonitoring)` is the day boundary's clear, but it can also arrive when
-/// the app stops the activity mid-day (every cold launch, an App Limits re-save), and a Hardcore or
-/// coach shield must not drop then. The interval ends at 23:59:59, so a genuine end lands in the last
+/// the app stops the activity mid-day (every cold launch, an App Limits re-save), and a coach or
+/// extra-time-ended shield must not drop then. The interval ends at 23:59:59, so a genuine end lands in the last
 /// minutes of the day. A delayed one lands after midnight, when the standing shield was raised on an
 /// earlier day. Anything else is a stop. Time-based on purpose, rather than a "stopping" marker the
 /// app writes before `stopMonitoring`: a marker can outlive a crashed app and then swallow the real
@@ -424,9 +390,8 @@ class DeviceActivityManager {
         print("Stopped all device activity monitoring.")
     }
 
-    /// What the user turning Pressure Off, or saving App Limits at all, does to a standing shield:
-    /// lifts it, whatever raised it, stamping the release so the Hardcore re-assert gate doesn't
-    /// raise it again. A coach lock is lifted too: the trainee starts the day over under the new
+    /// What the user turning App Limits Off, or saving App Limits at all, does to a standing shield:
+    /// lifts it, whatever raised it. A coach lock is lifted too: the trainee starts the day over under the new
     /// limits, and their coaches are told (the App Limits notification). That lock is marked ended so
     /// `LockReconciler` doesn't put it back later the same day; a new lock from a coach works as
     /// usual. Stopping monitoring does none of this, and nothing is armed afterwards to lower the
@@ -441,7 +406,6 @@ class DeviceActivityManager {
             LocalSettingsStore.lockMessage = nil
             ended = commandId
         }
-        ShieldPolicy.recordRelease()
         ShieldPolicy.clear(store)
         return ended
     }
@@ -574,7 +538,6 @@ class DeviceActivityManager {
         releasedView.lockedByName = nil
         UserSettingsManager.syncShieldContext(from: releasedView)
 
-        ShieldPolicy.recordRelease()
         ShieldPolicy.clear(store)
 
         guard settings.isTracking else { return .notTracking }
@@ -685,7 +648,6 @@ class DeviceActivityManager {
     enum SettingsEvent: Equatable {
         case pressureOff
         case pressureOn
-        case levelChanged(to: PressureLevel)
         case appsChanged
         case limitChanged(fromMinutes: Int, toMinutes: Int)
         case appsAndLimitChanged(fromMinutes: Int, toMinutes: Int)
@@ -695,7 +657,6 @@ class DeviceActivityManager {
             switch self {
             case .pressureOff: return ["event": "pressureOff"]
             case .pressureOn: return ["event": "pressureOn"]
-            case .levelChanged(let level): return ["event": "levelChanged", "level": level.rawValue]
             case .appsChanged: return ["event": "appsChanged"]
             case .limitChanged(let from, let to):
                 return ["event": "limitChanged", "fromMinutes": String(from), "toMinutes": String(to)]

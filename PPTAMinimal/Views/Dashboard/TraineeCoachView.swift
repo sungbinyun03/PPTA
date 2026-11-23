@@ -59,7 +59,7 @@ struct TraineeCoachView: View {
         viewModel.coaches.first { viewModel.coachActions[$0.id]?.lock == .active }?.id
     }
 
-    /// A coach lock is on (the hand hint is for a limit/Hardcore lock only, which has no coach badge).
+    /// A coach lock is on (the hand hint is for a lock with no coach badge, e.g. extra time ran out).
     private var coachLockActive: Bool {
         viewModel.coachActions.values.contains { $0.lock == .active }
     }
@@ -235,7 +235,7 @@ struct TraineeCoachView: View {
                             .presentationCompactAdaptation(.popover)
                     }
                 }
-                // Cut off by the limit / Hardcore (no coach lock, so no lock badge to tap): nudge the trainee
+                // Cut off with no coach lock (extra time ran out, so no lock badge to tap): nudge the trainee
                 // to ask a coach for more time — shown even with no coaches (beside the "add a coach"
                 // warning above), where it points them to get one. A coach lock explains itself via its badge.
                 if viewModel.isCurrentUserCutOff && !coachLockActive {

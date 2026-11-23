@@ -75,7 +75,7 @@ struct CoachActionDisplay: Equatable {
         let command = LockReconciler.Command(data["lockCommand"])
         var result: [String: CoachActionDisplay] = [:]
 
-        // A coach lock: cutOff plus the coach who caused it. A Hardcore auto-lock has no `lockedByUID`.
+        // A coach lock: cutOff plus the coach who caused it. Extra time running out has no `lockedByUID`.
         if status == .cutOff, let lockedBy {
             var entry = CoachActionDisplay(lock: .active)
             if let command, command.action == .lock, command.by == lockedBy {

@@ -13,7 +13,7 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 | Locks and snoozes (coach actions, delivery, resend, midnight) | Live | [features/locks-and-snoozes.md](features/locks-and-snoozes.md) |
 | App icon badge (red count of things waiting on you) | Live | [features/app-badge.md](features/app-badge.md) |
 | Permissions (Screen Time, notifications, quiet mode, launch reminder) | Live | [features/permissions.md](features/permissions.md) |
-| App Limits and Pressure | Live | [features/app-limits.md](features/app-limits.md) |
+| App Limits (On / Off) | Live | [features/app-limits.md](features/app-limits.md) |
 | Backend deploy pipeline (Cloud Run via Cloud Build) | Live | [features/backend-deploy.md](features/backend-deploy.md) |
 
 ## Terminology
@@ -22,8 +22,10 @@ How PPTA behaves and why, feature by feature, with every change logged in the
 |---|---|
 | snooze (`unlockapp`, `requestSnooze`, `snoozeRequestedCoachIds`) | **give 10 min** (`Give 10 More Minutes`, `Alex gave you 10 minutes`, `Ask for 10 Min`) |
 | `TraineeStatus.snoozedLock` | **Extra time** (status pill, Home banner) |
+| pressure level (`PressureLevel`, `pressureLevel`, Firestore `selectedMode`, events `pressureOn` / `pressureOff`) | **App Limits On / Off** (On is stored as `Standard`) |
 
-Never put the word snooze in user-facing copy. Identifiers stay as they are: renaming them would need
+Never put the word snooze, or Pressure for the On/Off setting, in user-facing copy ("Peer Pressure",
+the brand, is fine). Identifiers stay as they are: renaming them would need
 a Firestore migration and break older app builds.
 
 ## Roadmap

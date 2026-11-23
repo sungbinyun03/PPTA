@@ -113,13 +113,12 @@ enum AppNameStore {
 struct ShieldContext: Codable {
     /// Coach who *currently* has this user locked, else nil. The app only populates this
     /// while the status is `.cutOff`, so a stale name can't outlive the lock and get
-    /// attributed to a later Hardcore auto-lock.
+    /// attributed to a later shield (extra time running out).
     var lockedByName: String?
-    var isHardcore: Bool
     var streakStart: Date?
 
     /// The locking coach's optional note. Optional so older payloads still decode. Only populated
-    /// alongside `lockedByName`, so it can't outlive the lock or ride a Hardcore auto-lock.
+    /// alongside `lockedByName`, so it can't outlive the lock or ride a later shield.
     var lockMessage: String?
 
     /// Mirrors `StreakCalculator.daysSince` rather than importing it, to keep the extension

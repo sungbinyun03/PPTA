@@ -81,6 +81,7 @@ struct HomeView: View {
                             print("HomeView.onAppear: applying pending extension updates (status)...")
                             async let avatar: Void = InitialsProfilePicView.prefetch([loadedSettings.profileImageURL])
                             await UserSettingsManager.shared.applyPendingStatusIfNeeded()
+                            UserSettingsManager.shared.migrateFromHardcoreIfNeeded()
                             print("HomeView.onAppear: done applying pending extension updates.")
                             await avatar
                             LaunchGate.shared.markSettingsLoaded()
@@ -102,7 +103,7 @@ struct HomeView: View {
             statusBanner(
                 icon: "exclamationmark.triangle.fill",
                 title: "Not Tracking",
-                message: "App Limits aren't set up. Go to Settings → App Limits to pick your apps, set a daily time limit, and turn Pressure on.",
+                message: "App Limits aren't set up. Go to Settings → App Limits to pick your apps, set a daily time limit, and turn App Limits on.",
                 color: Color(.systemGray)
             )
         } else {
@@ -141,7 +142,7 @@ struct HomeView: View {
         }
     }
 
-    /// Coach lock (`lockedByName` is set only by one, never a Hardcore auto-lock): the note itself lives
+    /// Coach lock (`lockedByName` is set only by a coach lock, never by extra time running out): the note lives
     /// behind the lock badge on the coach's avatar below, so the banner only points there. If that coach
     /// isn't in the coach list (removed, or the list hasn't loaded) there is no avatar to point at, so the
     /// note stays here as before; it comes from the App Group, which the lock path wrote before the status
@@ -158,9 +159,7 @@ struct HomeView: View {
                 return note
             }
         }
-        return settings.pressureLevel == .hardcore
-            ? "You hit your limit and your apps were auto-locked. Ask a coach for 10 more minutes if you need them."
-            : "A coach locked your apps. If you need more time, ask a coach for 10 minutes."
+        return "A coach locked your apps. If you need more time, ask a coach for 10 minutes."
     }
 
     /// Compact status strip: dot/icon + title, with the longer explanation as a small secondary line.

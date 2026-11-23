@@ -10,28 +10,39 @@ import FamilyControls
 import ManagedSettings
 import FirebaseFirestore
 
-/// Trainee pressure mode. Persisted as `selectedMode` in Firestore (`Off`, `Standard`, `Hardcore`).
+/// Whether App Limits are on. Users see **App Limits On / Off**; "Pressure" is the internal name
+/// (see docs/design/README.md, Terminology). Persisted as `selectedMode` in Firestore.
+///
+/// On keeps the raw value `"Standard"` from when there were three levels (Off / Standard /
+/// Hardcore), so Firestore, the server and older builds need no migration. Hardcore was removed on
+/// 2026-11-22: a stored `"Hardcore"` reads as On (`UserSettings.wasHardcore` triggers the one-time
+/// silent move, `UserSettingsManager.migrateFromHardcoreIfNeeded`).
 enum PressureLevel: String, Codable, CaseIterable, Equatable, Sendable {
     case off = "Off"
-    case standard = "Standard"
-    case hardcore = "Hardcore"
+    case on = "Standard"
 
-    /// `true` when the user is in Standard or Hardcore (participates in tracking).
+    /// `true` when App Limits are on (participates in tracking).
     var isTracking: Bool {
         self != PressureLevel.off
+    }
+
+    /// What users see.
+    var title: String {
+        self == .off ? "Off" : "On"
     }
 
     /// Maps stored / legacy Firestore strings to one canonical case.
     init(decodingFirestore raw: String) {
         switch raw {
         case "Off": self = PressureLevel.off
-        case "Standard": self = PressureLevel.standard
-        case "Hardcore": self = PressureLevel.hardcore
-        case "Chill", "Coach": self = PressureLevel.standard
-        case "Hard": self = PressureLevel.hardcore
+        case "Standard", "Hardcore": self = PressureLevel.on
+        case "Chill", "Coach", "Hard": self = PressureLevel.on
         default: self = PressureLevel.off
         }
     }
+
+    /// Stored values from the removed Hardcore level.
+    static func isLegacyHardcore(_ raw: String) -> Bool { raw == "Hardcore" || raw == "Hard" }
 }
 
 /// How often one monitored app blocked this user recently, mirrored to Firestore so their
@@ -61,6 +72,8 @@ final class UserSettings: Codable {
     var thresholdMinutes: Int
     /// Persisted under Firestore key `selectedMode` for backward compatibility.
     var pressureLevel: PressureLevel = PressureLevel.off
+    /// Decoded from the removed Hardcore level (not persisted). See `PressureLevel`.
+    var wasHardcore = false
     var onboardingCompleted: Bool
     var peerCoaches: [PeerCoach] = [] // The same as friends
     var coaches: [PeerCoach] = []
@@ -186,6 +199,7 @@ final class UserSettings: Codable {
         thresholdMinutes = (try? container.decode(Int.self, forKey: .thresholdMinutes)) ?? 0
         let rawLevel = (try? container.decode(String.self, forKey: .pressureLevel)) ?? "Off"
         pressureLevel = PressureLevel(decodingFirestore: rawLevel)
+        wasHardcore = PressureLevel.isLegacyHardcore(rawLevel)
         onboardingCompleted = (try? container.decode(Bool.self, forKey: .onboardingCompleted)) ?? false
 
         peerCoaches = (try? container.decode([PeerCoach].self, forKey: .peerCoaches)) ?? []

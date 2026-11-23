@@ -86,7 +86,7 @@ struct TraineeStatsRowView: View {
             traineeStatus: .attentionNeeded,
             streakDays: 6,
             timeLimitMinutes: 90,
-            pressureLevel: .standard,
+            pressureLevel: .on,
             lockedByName: nil
         )
     ])
@@ -103,7 +103,7 @@ struct TraineeStatsRowView: View {
             traineeStatus: .attentionNeeded,
             streakDays: 6,
             timeLimitMinutes: 90,
-            pressureLevel: .standard,
+            pressureLevel: .on,
             lockedByName: nil
         )
     ])

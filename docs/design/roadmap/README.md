@@ -6,7 +6,7 @@ decided (with the date), and the questions still open. When a feature ships, its
 
 | Feature | File | Status |
 |---|---|---|
-| Remove Hardcore (Pressure is just On / Off) | [remove-hardcore.md](remove-hardcore.md) | Decided |
+| Remove Hardcore (Pressure is just On / Off) | [remove-hardcore.md](remove-hardcore.md) | Shipped (2026-11-22) |
 | Peers instead of coach/trainee | [relationships.md](relationships.md) | Decided |
 | Stat tracking | [stats.md](stats.md) | Mostly decided |
 | New tabs: social Home with activity feed, Screen Time tab | [tabs-and-feed.md](tabs-and-feed.md) | Mostly decided |

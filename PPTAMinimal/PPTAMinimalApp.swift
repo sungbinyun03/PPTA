@@ -168,11 +168,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let body: String? = {
                 switch status {
                 case TraineeStatus.attentionNeeded.rawValue:
-                    // Standard-only: hitting the limit in Hardcore goes straight to cutOff.
                     return "\(hit) Go ahead and cut them off! 👀"
                 case TraineeStatus.cutOff.rawValue:
                     switch cause {
-                    case LockCause.hardcoreLimit.rawValue:
+                    case LockCause.hardcoreLimit.rawValue: // legacy: a trainee on an older build
                         return "\(hit) They're on Hardcore, so their apps locked themselves. 🔒"
                     case LockCause.coach.rawValue:
                         return "\(actor) cut off their apps. 🔒"

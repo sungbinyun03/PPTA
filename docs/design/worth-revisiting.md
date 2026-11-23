@@ -61,6 +61,12 @@ each item is a candidate, with a rough cost (S < 1h, M < 1 day, L > 1 day). Deci
   `FriendProfileViewModel.scheduleVerification` ("Delete once the new server is deployed");
   the old-server note path in `CoachActionDisplay`. Safe once every tester runs a build newer than
   beta.3. Removes two copies of every notification string.
+- **Hardcore leftovers for old builds (S).** Hardcore was removed on 2026-11-22. Kept only for
+  trainees still on an older build: `LockCause.hardcoreLimit` and its coach copy (app
+  `PPTAMinimalApp.swift`, server `LOCK_CAUSE.HARDCORE_LIMIT` in `statusupdate.js`), the server's
+  `levelChanged` copy, `PressureLevel(decodingFirestore:)` reading "Hardcore", and
+  `UserSettingsManager.migrateFromHardcoreIfNeeded`. Remove once every tester runs the build that
+  removed Hardcore and has opened it once.
 - **Status Center leftovers (S).** `Views/StatusCenter/` (5 files) and `Services/MercyRequestService.swift`
   are dead per their own headers. `StatusCenterViewModel` is *not* dead (Home uses it): rename it
   with the folder delete so the name stops pointing at a removed tab.
